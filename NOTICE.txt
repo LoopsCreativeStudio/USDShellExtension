@@ -61,7 +61,24 @@ specific language governing permissions and limitations under the License.
 Source: https://github.com/google/material-design-icons
 
 -------------------------------------------------------------------------------
-4. Windows Logo
+4. Demo Assets
+-------------------------------------------------------------------------------
+The GIF animations and screenshots in the project documentation use the
+following USD sample scenes, reproduced here for illustration purposes only.
+
+KitchenSet and UsdSkel
+  Provided by Pixar Animation Studios as part of the OpenUSD asset library.
+  Source: https://openusd.org/release/dl_downloads.html#assets
+  License: Apache License 2.0 (same terms as OpenUSD, see section 1 above).
+
+ALab (Animal Logic Lab)
+  Provided by Animal Logic as an open USD production scene.
+  Source: https://animallogic.com/technology/alab/
+  License: Creative Commons Attribution 4.0 International (CC BY 4.0).
+  Credit: Animal Logic
+
+-------------------------------------------------------------------------------
+5. Windows Logo
 -------------------------------------------------------------------------------
 The Windows logo used in this project's header image is the Microsoft Windows
 logotype (2012 version), sourced from Wikimedia Commons.

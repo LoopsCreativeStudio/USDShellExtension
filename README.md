@@ -47,6 +47,8 @@ Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 ![Windows thumbnails](docs/img/demo_02.gif)
 
+Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.html#assets) (Pixar, Apache 2.0), [ALab](https://animallogic.com/technology/alab/) (Animal Logic, CC BY 4.0).
+
 ## Documentation
 
 | Guide | Who it's for |
