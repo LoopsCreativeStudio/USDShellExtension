@@ -54,6 +54,27 @@ If a COM server crashes, Explorer is unaffected.
 
 **Toolchain**: Visual Studio 2026, v145, x64 only.
 
+### Linters
+
+| Tool | Scope | Config file |
+|------|-------|-------------|
+| Ruff | Python files in `UsdPreviewHandlerServer/` and `UsdPythonToolsServer/` | default rules |
+| PSScriptAnalyzer | `*.ps1` files (`build.ps1`, `install.ps1`, `uninstaller.ps1`) | `PSScriptAnalyzerSettings.psd1` |
+
+Both linters run in CI (`.github/workflows/ci.yaml`) and can be run locally with the same configuration:
+
+```powershell
+# Python
+pip install ruff
+ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/
+
+# PowerShell
+$files = Get-ChildItem -Filter "*.ps1" -Recurse
+$files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PSScriptAnalyzerSettings.psd1 -Severity Warning,Error }
+```
+
+`PSScriptAnalyzerSettings.psd1` excludes the `PSAvoidUsingWriteHost` rule. The three scripts are interactive (build, install, uninstall) and rely on `Write-Host -ForegroundColor` for colored terminal output. All scripts declare `#Requires -Version 5.1`, which makes `Write-Host` fully suppressable and redirectable, so the rule does not apply.
+
 ### Property sheets
 
 | File | Purpose |
