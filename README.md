@@ -31,7 +31,9 @@ Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 ## Overview
 
-### Tools
+### Open & Tools
+
+![Usd Tools](docs/img/demo_06.png)
 
 ![Usd Tools](docs/img/demo_05.png)
 
@@ -64,7 +66,6 @@ This project is a complete rewrite, heavily inspired by [Activision/USDShellExte
 
 The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, NVIDIA USD 25.08, Python 3.12), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
 
-The migration from Gitea to GitHub, including CI/CD pipelines, release automation, and codebase cleanup, was made possible through vibe coding with [Claude](https://claude.ai).
 
 ## Contributing
 
