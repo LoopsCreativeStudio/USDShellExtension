@@ -70,6 +70,29 @@ PREVIEW=Embree
 
 ---
 
+### Preview pane shows "This file may damage your computer"
+
+**Full message (Windows):** *"Le fichier pour lequel vous tentez d'afficher un aperçu peut endommager l'ordinateur."* / *"The file you are trying to preview may damage your computer."*
+
+**Cause**: the file was downloaded from the internet. Windows attaches a hidden security marker (`Zone.Identifier`) to downloaded files. When you open the preview pane on such a file, Windows blocks the preview handler and shows this warning instead.
+
+**Fix 1 - via Properties (per file):**
+
+1. Right-click the USD file in Explorer.
+2. Select **Properties**.
+3. At the bottom of the **General** tab, check the **Unblock** checkbox.
+4. Click **OK**. The preview pane will work on the next selection.
+
+![File properties dialog showing the Unblock checkbox](img/debug_01.png)
+
+**Fix 2 - via PowerShell (entire folder at once):**
+
+```powershell
+Get-ChildItem "C:\path\to\your\usd\folder" -Recurse -Include "*.usd","*.usda","*.usdc","*.usdz" | Unblock-File
+```
+
+---
+
 ### usdview opens but viewport is black (when launched via Open)
 
 This was a bug in earlier builds where usdview ran inside the COM server's embedded Python interpreter, which prevented Qt from initialising the WGL OpenGL context.
@@ -142,6 +165,7 @@ Open **Visual Studio Installer → Modify** and add:
 | Thumbnails generate at low resolution for large USDZ scenes | usdrecord timeout. No fix yet; complex scenes may not thumbnail. |
 | Windows Search indexing can be slow for large USD files | IPropertyStore reads the file synchronously; very large layers cause a delay in the indexer. |
 | `.usd` files associated with another app ignore shell verbs | User-level association overrides system registration. Reset via Default Apps settings. |
+| Preview pane shows "this file may damage your computer" for downloaded files | Windows `Zone.Identifier` security marker blocks the preview handler. Right-click the file → Properties → check **Unblock**, or use `Unblock-File` in PowerShell. |
 
 ---
 
