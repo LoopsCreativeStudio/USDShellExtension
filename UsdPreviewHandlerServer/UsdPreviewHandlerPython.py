@@ -10,9 +10,9 @@ from pxr.Usdviewq.stageView import StageView
 from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu, QLabel
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMenu, QLabel, QSlider, QPushButton, QStyle
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 # USD 25.08 stageView.py calls QGLWidget.glDraw() which is a Qt 5 API not
@@ -44,10 +44,13 @@ class Widget(QWidget):
         self._primLabel.setStyleSheet(
             "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")
 
+        self._timelineBar = self._buildTimeline()
+
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(0)
         self.layout.addWidget(self.view)
         self.layout.addWidget(self._primLabel)
+        self.layout.addWidget(self._timelineBar)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.view.signalPrimSelected.connect(self.OnPrimSelected)
@@ -58,8 +61,86 @@ class Widget(QWidget):
         if stage:
             self.setStage(stage)
 
+    def _buildTimeline(self):
+        self._isPlaying = False
+        self._startTimeCode = 0.0
+        self._endTimeCode = 0.0
+        self._fps = 24.0
+
+        self._playTimer = QTimer()
+        self._playTimer.timeout.connect(self._advanceFrame)
+
+        bar = QWidget()
+        bar.setFixedHeight(24)
+        bar.setStyleSheet("QWidget { background-color: #1e1e1e; }")
+
+        layout = QHBoxLayout(bar)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setSpacing(4)
+
+        self._btnPlay = QPushButton()
+        self._btnPlay.setFixedSize(20, 20)
+        self._btnPlay.setStyleSheet(
+            "QPushButton { background: #333333; border: none; }"
+            "QPushButton:hover { background: #444444; }")
+        self._iconPlay = bar.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay)
+        self._iconPause = bar.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause)
+        self._btnPlay.setIcon(self._iconPlay)
+        self._btnPlay.clicked.connect(self._togglePlayback)
+
+        self._slider = QSlider(Qt.Orientation.Horizontal)
+        self._slider.setStyleSheet(
+            "QSlider::groove:horizontal { background: #333333; height: 4px; }"
+            "QSlider::handle:horizontal { background: #888888; width: 10px; margin: -3px 0; border-radius: 5px; }"
+            "QSlider::sub-page:horizontal { background: #666666; }")
+        self._slider.valueChanged.connect(self._onSliderChanged)
+
+        self._frameLabel = QLabel("0 / 0")
+        self._frameLabel.setStyleSheet("QLabel { background: transparent; color: #666666; font-size: 8pt; }")
+        self._frameLabel.setFixedWidth(64)
+
+        layout.addWidget(self._btnPlay)
+        layout.addWidget(self._slider)
+        layout.addWidget(self._frameLabel)
+
+        bar.hide()
+        return bar
+
+    def _togglePlayback(self):
+        if self._isPlaying:
+            self._playTimer.stop()
+            self._btnPlay.setIcon(self._iconPlay)
+            self._isPlaying = False
+        else:
+            self._playTimer.start(int(1000.0 / self._fps))
+            self._btnPlay.setIcon(self._iconPause)
+            self._isPlaying = True
+
+    def _advanceFrame(self):
+        nextFrame = self._slider.value() + 1
+        if nextFrame > int(self._endTimeCode):
+            nextFrame = int(self._startTimeCode)
+        self._slider.setValue(nextFrame)
+
+    def _onSliderChanged(self, value):
+        self.model.currentFrame = Usd.TimeCode(value)
+        self._frameLabel.setText(f"{value} / {int(self._endTimeCode)}")
+        self.view.updateView()
+
     def setStage(self, stage):
         self.model.stage = stage
+        if stage:
+            start = stage.GetStartTimeCode()
+            end = stage.GetEndTimeCode()
+            if end > start:
+                self._startTimeCode = start
+                self._endTimeCode = end
+                self._fps = stage.GetFramesPerSecond() or 24.0
+                self._slider.setMinimum(int(start))
+                self._slider.setMaximum(int(end))
+                self._slider.setValue(int(start))
+                self._frameLabel.setText(f"{int(start)} / {int(end)}")
+                self._timelineBar.show()
 
     def OnPrimSelected(self, primPath, instanceIndex, topLevelPath, topLevelInstanceIndex, hitPoint, button, modifiers):
         if primPath != Sdf.Path.emptyPath:
@@ -259,8 +340,8 @@ class Widget(QWidget):
 
 
     def closeEvent(self, event):
-
-        # Ensure to close the renderer to avoid GlfPostPendingGLErrors
+        if self._isPlaying:
+            self._playTimer.stop()
         self.view.closeRenderer()
 
     def contextMenuEvent(self, event):
