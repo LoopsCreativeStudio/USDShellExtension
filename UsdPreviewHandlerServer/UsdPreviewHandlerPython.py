@@ -11,8 +11,15 @@ from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu, QActionGroup
+from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+
+# USD 25.08 stageView.py calls QGLWidget.glDraw() which is a Qt 5 API not
+# present on QOpenGLWidget (Qt 6). Map it to update() so the repaint is
+# scheduled correctly and _isFirstImage gets set to False.
+if not hasattr(QOpenGLWidget, 'glDraw'):
+    QOpenGLWidget.glDraw = QOpenGLWidget.update
 
 class Widget(QWidget):
     def __init__(self, stage=None, app=None, previewApp=None):
@@ -23,8 +30,7 @@ class Widget(QWidget):
         self.model = StageView.DefaultDataModel()
 
 
-        self.view = StageView(dataModel=self.model,
-                              printTiming=True)
+        self.view = StageView(dataModel=self.model)
 
         self.model.viewSettings.showHUD = False
 
