@@ -50,6 +50,38 @@ If a COM server crashes, Explorer is unaffected.
 | `shared/environment.h` | INI config loading, PATH/PYTHONPATH helpers |
 | `shared/PythonUtil.h` | Python embedding helpers |
 
+## Differences from Activision/USDShellExtension
+
+This project is a complete rewrite inspired by [Activision/USDShellExtension](https://github.com/Activision/USDShellExtension). The table below summarizes what changed and why.
+
+| Aspect | Activision | This repo |
+|--------|-----------|-----------|
+| USD SDK for Explorer DLL | Bare-bones monolithic build, compiled from source, with `--no-python --no-imaging` | NVIDIA USD 25.08 pre-built (full), isolated via Windows Activation Context |
+| USD SDK for Python tools | Full shared build, compiled from source | Same NVIDIA USD 25.08 pre-built |
+| How "no Python in Explorer" is enforced | Python excluded at the SDK level: the DLL's USD build has no Python support at all | Python excluded at the process level: all Python work goes to COM Local Server EXEs; the DLL itself never calls into Python |
+| Boost | Separate build, matched to MSVC and Python version | `usd_boost.lib` / `usd_boost.dll` bundled in the NVIDIA SDK |
+| Python version | 2.7, 3.6, 3.7 | 3.12 (bundled in the NVIDIA SDK) |
+| USD library naming | Bare names: `tf.lib`, `sdf.lib` | `usd_`-prefixed: `usd_tf.lib`, `usd_sdf.lib` (NVIDIA convention) |
+| Build USD from source | Required | Not required |
+| Build process | Manual Visual Studio setup, two USD builds | `build.ps1` one-command build |
+| Visual Studio version | 2017+ | 2026 Community (v145) |
+
+### Why the Activision approach required two USD builds
+
+The Activision repo kept Python entirely out of the Explorer process by using a USD build that had no Python support compiled in. This required maintaining two separate USD SDK builds: one stripped down for the DLL (no Python, no imaging), and one full build for the Python tools. Each build had to be compiled from source with matching Boost and Python versions, which is a significant infrastructure cost.
+
+### How this repo achieves the same safety guarantee
+
+This repo relies on COM Local Servers instead of SDK isolation. The DLL loaded into Explorer delegates every Python-dependent operation (preview, thumbnails, format conversion) to a separate EXE via out-of-process COM. If a COM server crashes, Explorer is unaffected. The DLL itself only uses the C++ USD SDK directly for fast, synchronous operations such as reading metadata via `IPropertyStore`.
+
+A single NVIDIA pre-built SDK covers both the DLL's C++ USD usage and the Python tools, which eliminates the need to compile USD from source or maintain multiple SDK configurations.
+
+### Trade-offs
+
+The Activision approach is stricter: even a bug in the USD C++ code inside the Explorer DLL cannot accidentally invoke Python because Python is absent from the SDK. This repo's approach is safe in practice (Python is never called from the DLL), but requires discipline to maintain that invariant as the codebase evolves.
+
+The NVIDIA pre-built approach trades flexibility (fixed release cadence, `usd_`-prefixed lib names) for zero build infrastructure. See [Why the NVIDIA pre-built bundle instead of a self-compiled USD](#why-the-nvidia-pre-built-bundle-instead-of-a-self-compiled-usd) for the full rationale.
+
 ## Build system
 
 **Toolchain**: Visual Studio 2026, v145, x64 only.

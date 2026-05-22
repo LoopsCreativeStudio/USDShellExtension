@@ -49,6 +49,10 @@ Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 ![Windows thumbnails](docs/img/demo_02.gif)
 
+### Windows Preview
+
+![Windows Preview](docs/img/demo_07.gif)
+
 Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.html#assets) (Pixar, Apache 2.0), [ALab](https://animallogic.com/technology/alab/) (Animal Logic, CC BY 4.0).
 
 ## Documentation
@@ -65,6 +69,8 @@ Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.h
 This project is a complete rewrite, heavily inspired by [Activision/USDShellExtension](https://github.com/Activision/USDShellExtension).
 
 The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, NVIDIA USD 25.08, Python 3.12), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
+
+The two main architectural differences from the Activision repo: the Activision version required two separate USD builds compiled from source (a bare-bones monolithic build with no Python for the Explorer DLL, and a full build for the Python tools), whereas this version uses a single NVIDIA pre-built SDK for everything. The Activision version enforced the "no Python in Explorer" rule by excluding Python from the SDK used by the DLL; this version enforces the same rule structurally, by routing all Python work through isolated COM Local Server executables. See the [Technical Guide](docs/TECHNICAL.md) for a full comparison.
 
 
 ## Contributing
