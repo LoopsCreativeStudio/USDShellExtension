@@ -208,13 +208,46 @@ Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
 Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like "$InstallDir*" } |
     Stop-Process -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 1
 Write-Item "COM servers stopped"
 
+# Kill Explorer before checking for locks: Explorer loads UsdShellExtension.dll
+# via its activation context, which can keep python312.dll mapped in memory.
 @("explorer", "SearchHost", "ShellExperienceHost", "StartMenuExperienceHost") |
     ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
-Start-Sleep -Seconds 4
 Write-Item "Shell processes stopped"
+
+# Wait for all processes to fully release file locks before copying.
+# python312.dll is the file most often held; once it is free the others follow.
+# Re-kill dllhost on every iteration in case new instances spawned.
+$lockedFile = Join-Path $InstallDir "python312.dll"
+if (Test-Path $lockedFile) {
+    $waited = 0
+    $maxWait = 15
+    while ($waited -lt $maxWait) {
+        try {
+            $fs = [System.IO.File]::Open($lockedFile, [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+            $fs.Close()
+            $fs.Dispose()
+            break
+        } catch {
+            if ($waited -eq 0) {
+                Write-Host "    python312.dll still locked, waiting for handles to release..." `
+                    -ForegroundColor DarkYellow
+            }
+            Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+            $waited++
+        }
+    }
+    if ($waited -ge $maxWait) {
+        Write-Warning "python312.dll may still be locked after ${maxWait}s. Copy-WithRetry will keep retrying."
+    } else {
+        Write-Item ("File locks released (waited {0}s)" -f $waited)
+    }
+} else {
+    Start-Sleep -Seconds 2
+}
 
 # ---------------------------------------------------------------------------
 # Copy files
