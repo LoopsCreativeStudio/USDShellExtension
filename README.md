@@ -73,3 +73,5 @@ By participating in this project, you agree to abide by the [Code of Conduct](CO
 ## License
 
 MIT - Copyright (C) 2025 Loops Creative Studio. See [LICENSE](LICENSE).
+
+Third-party component notices, including logo attributions, are in [NOTICE.txt](NOTICE.txt).

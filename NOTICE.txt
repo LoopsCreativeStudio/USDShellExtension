@@ -61,6 +61,28 @@ specific language governing permissions and limitations under the License.
 Source: https://github.com/google/material-design-icons
 
 -------------------------------------------------------------------------------
+4. Windows Logo
+-------------------------------------------------------------------------------
+The Windows logo used in this project's header image is the Microsoft Windows
+logotype (2012 version), sourced from Wikimedia Commons.
+
+Source: https://fr.wikipedia.org/wiki/Fichier:Windows_logo_-_2012.svg
+
+The Windows logo is a trademark of Microsoft Corporation. Its use here is
+solely for identification and informational purposes.
+
+-------------------------------------------------------------------------------
+5. OpenUSD Logo
+-------------------------------------------------------------------------------
+The OpenUSD logo used in this project's header image is provided by Pixar
+Animation Studios as part of the OpenUSD project.
+
+Source: https://github.com/PixarAnimationStudios/OpenUSD
+
+The OpenUSD logo is a trademark of Pixar Animation Studios. Its use here is
+solely for identification and informational purposes.
+
+-------------------------------------------------------------------------------
 Apache License, Version 2.0
 -------------------------------------------------------------------------------
                                  Apache License

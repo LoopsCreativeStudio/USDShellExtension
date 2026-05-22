@@ -14,7 +14,7 @@ This guide gets the USD Shell Extension built and installed on a fresh Windows m
 ## Step 1: Clone the repository
 
 ```powershell
-git clone https://github.com/your-org/UsdShellExtension.git
+git clone https://github.com/LoopsCreativeStudio/USDShellExtension.git
 cd UsdShellExtension
 ```
 
