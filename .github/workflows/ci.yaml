@@ -34,6 +34,7 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $settings = Join-Path $env:GITHUB_WORKSPACE "PSScriptAnalyzerSettings.psd1"
           $files = Get-ChildItem -Path . -Filter "*.ps1" -Recurse
-          $results = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning,Error }
+          $results = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings -Severity Warning,Error }
           if ($results) { $results; exit 1 }

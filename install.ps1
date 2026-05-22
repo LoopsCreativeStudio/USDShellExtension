@@ -121,7 +121,7 @@ $version = if (Test-Path (Join-Path $REPO "version.txt")) {
 # Logging
 # ---------------------------------------------------------------------------
 if ($LogFile -eq "") { $LogFile = Join-Path $REPO "install.log" }
-try { Stop-Transcript | Out-Null } catch {}
+try { Stop-Transcript | Out-Null } catch { $null = $_ }
 Start-Transcript -Path $LogFile -Force | Out-Null
 
 # ---------------------------------------------------------------------------

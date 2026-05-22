@@ -40,7 +40,7 @@ if (-not $isAdmin) {
 if ($LogFile -eq "") {
     $LogFile = Join-Path $env:TEMP "UsdShellExtension_uninstall.log"
 }
-try { Stop-Transcript | Out-Null } catch {}
+try { Stop-Transcript | Out-Null } catch { $null = $_ }
 Start-Transcript -Path $LogFile -Force | Out-Null
 
 # ---------------------------------------------------------------------------
