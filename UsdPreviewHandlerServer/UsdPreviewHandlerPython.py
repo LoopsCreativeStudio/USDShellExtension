@@ -39,11 +39,10 @@ class Widget(QWidget):
 
         self._selectedPath = ""
 
-        self._primLabel = QLabel()
+        self._primLabel = QLabel("Select object to view prim path...")
         self._primLabel.setFixedHeight(20)
         self._primLabel.setStyleSheet(
-            "QLabel { background-color: #1e1e1e; color: #aaaaaa; padding: 0px 6px; }")
-        self._primLabel.hide()
+            "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")
 
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(0)
@@ -71,7 +70,9 @@ class Widget(QWidget):
             self._primLabel.show()
         else:
             self._selectedPath = ""
-            self._primLabel.hide()
+            self._primLabel.setText("Select object to view prim path...")
+            self._primLabel.setStyleSheet(
+                "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")
 
     def OnPrimRollover(self, primPath, instanceIndex, topLevelPath, topLevelInstanceIndex, *args):
         if primPath != Sdf.Path.emptyPath:
@@ -84,7 +85,10 @@ class Widget(QWidget):
             self._primLabel.setStyleSheet(
                 "QLabel { background-color: #1e1e1e; color: #ffffff; padding: 0px 6px; }")
         else:
-            self._primLabel.hide()
+            if not self._selectedPath:
+                self._primLabel.setText("Select object to view prim path...")
+                self._primLabel.setStyleSheet(
+                    "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")
 
     def OnComplexity(self, action):
         self.model.viewSettings.complexity = RefinementComplexities.fromName(action.text())
