@@ -1,7 +1,7 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.1209
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdPreviewHandlerPython", "UsdPreviewHandlerPython\UsdPreviewHandlerPython.vcxproj", "{248F687E-4028-4243-87B8-2312F57BE8A5}"
 EndProject
@@ -12,6 +12,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdShellExtension", "UsdShe
 		{279AFA6D-6E35-4798-BA63-8A7E15D11185} = {279AFA6D-6E35-4798-BA63-8A7E15D11185}
 		{248F687E-4028-4243-87B8-2312F57BE8A5} = {248F687E-4028-4243-87B8-2312F57BE8A5}
 		{EA717BDA-3304-439B-BEC8-408D9CE9F3FB} = {EA717BDA-3304-439B-BEC8-408D9CE9F3FB}
+		{6AD79C79-3A9D-4C39-B028-C45072541C28} = {6AD79C79-3A9D-4C39-B028-C45072541C28}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdSdkToolsLocalServer", "UsdSdkToolsServer\UsdSdkToolsLocalServer.vcxproj", "{EA717BDA-3304-439B-BEC8-408D9CE9F3FB}"
@@ -20,8 +21,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdPythonToolsLocalServer",
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F2EEFD0F-82FF-4404-94E5-CD2F3837BDA9}"
 	ProjectSection(SolutionItems) = preProject
-		atviversion.h = atviversion.h
-		BUILDING.md = BUILDING.md
 		README.md = README.md
 	EndProjectSection
 EndProject
@@ -29,11 +28,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdShellExtensionInstaller"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Property Sheets", "Property Sheets", "{8889FDB0-64A4-4AB7-A539-D3328F0846E9}"
 	ProjectSection(SolutionItems) = preProject
-		atviversion.props = atviversion.props
+		version.props = version.props
 		boost.props = boost.props
 		nsis.props = nsis.props
 		python.props = python.props
-		usd-monolithic.props = usd-monolithic.props
 		usd-shared.props = usd-shared.props
 		usd.props = usd.props
 	EndProjectSection

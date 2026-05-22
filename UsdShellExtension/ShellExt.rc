@@ -92,7 +92,20 @@ END
 
 IDB_LOADSCREEN          PNG                     "USDLogoLrgWithAlpha.png"
 
-IDB_LOGO                PNG                     "logo.png"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu icons (128x128 PNG, embedded as RCDATA — scaled at runtime via WIC)
+//
+
+IDR_ICON_COMPRESS       RCDATA                  "res/icon_compress.png"
+IDR_ICON_UNCOMPRESS     RCDATA                  "res/icon_uncompress.png"
+IDR_ICON_FLATTEN        RCDATA                  "res/icon_flatten.png"
+IDR_ICON_PACKAGE        RCDATA                  "res/icon_package.png"
+IDR_ICON_REFRESH_THUMB  RCDATA                  "res/icon_refresh_thumb.png"
+IDR_ICON_STAGE_STATS    RCDATA                  "res/icon_stage_stats.png"
+IDR_ICON_VIEW_LOGS      RCDATA                  "res/icon_view_logs.png"
+IDR_ICON_TOOLS          RCDATA                  "res/icon_tools.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -124,8 +137,8 @@ END
 BEGIN
     "1 TYPELIB ""UsdShellExtension.tlb""\r\n"
     "\r\n"
-    "#define ATVI_VERSION_DESCRIPTION ""Activision USD Shell Extension""\r\n"
-    "#include ""atviversion.rc2""\r\n"
+    "#define USD_VERSION_DESCRIPTION ""USD Shell Extension""\r\n"
+    "#include ""version.rc2""\r\n"
     "\0"
 END
 
@@ -147,10 +160,10 @@ END
 
 STRINGTABLE
 BEGIN
-    IDS_FILE_USD            "Universal Scene Description"
-    IDS_FILE_USDA           "Universal Scene Description ASCII"
-    IDS_FILE_USDC           "Universal Scene Description Crate"
-    IDS_FILE_USDZ           "Universal Scene Description Package"
+    IDS_FILE_USD            "USD (Universal Scene Description)"
+    IDS_FILE_USDA           "USD ASCII File"
+    IDS_FILE_USDC           "USD Crate File"
+    IDS_FILE_USDZ           "USD Package"
     IDS_SHELL_VIEW          "&View"
     IDS_SHELL_EDIT          "&Edit"
 END
@@ -161,9 +174,11 @@ BEGIN
     IDS_SHELL_UNCRATE       "&Uncrate"
     IDS_SHELL_FLATTEN       "&Flatten"
     IDS_SHELL_REFRESHTHUMBNAIL "&Refresh Thumbnail"
-    IDS_SHELL_STATS         "&Stats"
+    IDS_SHELL_STATS         "&Stage Statistics"
     IDS_USD_CUSTOMLAYERDATA_LABEL "Custom layer data"
     IDS_USD_CUSTOMLAYERDATA_MNEMONICS "usdcustomlayerdata|usdlayerdata"
+    IDS_SHELL_USDTOOLS      "USD Tools"
+    IDS_SHELL_VIEWLOGS      "View USD Logs"
 END
 
 #endif    // Neutral (Default) resources
@@ -178,8 +193,8 @@ END
 //
 1 TYPELIB "UsdShellExtension.tlb"
 
-#define ATVI_VERSION_DESCRIPTION "Activision USD Shell Extension"
-#include "atviversion.rc2"
+#define USD_VERSION_DESCRIPTION "USD Shell Extension"
+#include "version.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

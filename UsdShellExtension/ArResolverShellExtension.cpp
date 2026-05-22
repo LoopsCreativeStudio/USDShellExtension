@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #include "stdafx.h"
 #include "ArResolverShellExtension.h"
@@ -24,12 +13,12 @@ PXR_NAMESPACE_OPEN_SCOPE
 
 AR_DEFINE_RESOLVER(ArResolverShellExtension, ArResolver)
 
-std::shared_ptr<ArAsset> ArResolverShellExtension::OpenAsset(const std::string& resolvedPath)
+std::shared_ptr<ArAsset> ArResolverShellExtension::_OpenAsset(const ArResolvedPath& resolvedPath) const
 {
 	// Deny writes.
-	// The shell extension is used by many processes and threads at the same time. 
+	// The shell extension is used by many processes and threads at the same time.
 	// fopen on Windows will allow writes with reads
-	FILE* f = _wfsopen( ATL::CA2W( resolvedPath.c_str(), CP_UTF8 ), L"rb", _SH_SECURE );
+	FILE* f = _wfsopen( ATL::CA2W( resolvedPath.GetPathString().c_str(), CP_UTF8 ), L"rb", _SH_SECURE );
 	if (!f) {
 		return nullptr;
 	}

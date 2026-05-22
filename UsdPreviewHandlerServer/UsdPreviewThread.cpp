@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #include "stdafx.h"
 #include "USDPreviewThread.h"
@@ -106,6 +95,7 @@ DWORD WINAPI CUSDPreviewThread::ThreadProc( _In_ LPVOID lpParameter )
 	::GetModuleFileNameA(nullptr, sPathToHostExe, ARRAYSIZE(sPathToHostExe));
 #endif
 
+#pragma warning(suppress: 4996)  // Py_SetProgramName deprecated in 3.11, removed in 3.13
 	Py_SetProgramName(sPathToHostExe);
 
     PyImport_AppendInittab("emb", emb::PyInit_emb);
@@ -139,6 +129,7 @@ DWORD WINAPI CUSDPreviewThread::ThreadProc( _In_ LPVOID lpParameter )
 	PySetEnvironmentVariable( L"PATH", GetUsdPath() );
 	PySetEnvironmentVariable( L"PYTHONPATH", GetUsdPythonPath() );
 
+#pragma warning(suppress: 4996)  // PySys_SetArgvEx deprecated in 3.11, removed in 3.13
 	PySys_SetArgvEx( static_cast<int>(ArgV.size()), const_cast<TPyChar**>(&ArgV[0]), 1 );
 
 	HRSRC hrscPy = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_PREVIEWHANLDER ), _T("PYTHON") );

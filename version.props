@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <PropertyGroup>
+    <USD_VERSION>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.txt').Trim())</USD_VERSION>
+    <USD_VERSION_MAJOR>$(USD_VERSION.Split('.')[0])</USD_VERSION_MAJOR>
+    <USD_VERSION_MINOR>$(USD_VERSION.Split('.')[1])</USD_VERSION_MINOR>
+    <USD_VERSION_REVISION>$(USD_VERSION.Split('.')[2])</USD_VERSION_REVISION>
+    <USD_VERSION_BUILD>0</USD_VERSION_BUILD>
+    <USD_VERSION_PRODUCTNAME>USD Shell Extension</USD_VERSION_PRODUCTNAME>
+    <USD_VERSION_COMPANYNAME>Loops Creative Studio</USD_VERSION_COMPANYNAME>
+    <USD_VERSION_COPYRIGHT>Copyright (C) 2025 Loops Creative Studio</USD_VERSION_COPYRIGHT>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>USD_VERSION_PRODUCTNAME="$(USD_VERSION_PRODUCTNAME)";USD_VERSION_COMPANYNAME="$(USD_VERSION_COMPANYNAME)";USD_VERSION_COPYRIGHT="$(USD_VERSION_COPYRIGHT)";USD_VERSION_MAJOR=$(USD_VERSION_MAJOR);USD_VERSION_MINOR=$(USD_VERSION_MINOR);USD_VERSION_REVISION=$(USD_VERSION_REVISION);USD_VERSION_BUILD=$(USD_VERSION_BUILD);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>USD_VERSION_PRODUCTNAME=\"$(USD_VERSION_PRODUCTNAME)\";USD_VERSION_COMPANYNAME=\"$(USD_VERSION_COMPANYNAME)\";USD_VERSION_COPYRIGHT=\"$(USD_VERSION_COPYRIGHT)\";USD_VERSION_MAJOR=$(USD_VERSION_MAJOR);USD_VERSION_MINOR=$(USD_VERSION_MINOR);USD_VERSION_REVISION=$(USD_VERSION_REVISION);USD_VERSION_BUILD=$(USD_VERSION_BUILD);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+
+</Project>

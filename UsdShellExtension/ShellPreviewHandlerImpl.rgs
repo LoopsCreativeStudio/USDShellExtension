@@ -1,6 +1,6 @@
 HKCR
 {
-	NoRemove ATVI.USD
+	NoRemove .usd
 	{
 		NoRemove shellex
 		{
@@ -8,7 +8,7 @@ HKCR
 		}
 	}
 
-	NoRemove ATVI.USDA
+	NoRemove .usda
 	{
 		NoRemove shellex
 		{
@@ -16,7 +16,7 @@ HKCR
 		}
 	}
 
-	NoRemove ATVI.USDC
+	NoRemove .usdc
 	{
 		NoRemove shellex
 		{
@@ -24,7 +24,39 @@ HKCR
 		}
 	}
 
-	NoRemove ATVI.USDZ
+	NoRemove .usdz
+	{
+		NoRemove shellex
+		{
+			ForceRemove {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '%CLSID_SHELLPREVIEWHANDLER%'
+		}
+	}
+
+	NoRemove OpenUSD.USD
+	{
+		NoRemove shellex
+		{
+			ForceRemove {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '%CLSID_SHELLPREVIEWHANDLER%'
+		}
+	}
+
+	NoRemove OpenUSD.USDA
+	{
+		NoRemove shellex
+		{
+			ForceRemove {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '%CLSID_SHELLPREVIEWHANDLER%'
+		}
+	}
+
+	NoRemove OpenUSD.USDC
+	{
+		NoRemove shellex
+		{
+			ForceRemove {8895b1c6-b41f-4c1c-a562-0d564250836f} = s '%CLSID_SHELLPREVIEWHANDLER%'
+		}
+	}
+
+	NoRemove OpenUSD.USDZ
 	{
 		NoRemove shellex
 		{
@@ -34,13 +66,13 @@ HKCR
 
 	NoRemove CLSID
 	{
-		ForceRemove %CLSID_SHELLPREVIEWHANDLER% = s 'Activision USD Preview Handler'
+		ForceRemove %CLSID_SHELLPREVIEWHANDLER% = s 'USD Preview Handler'
 		{
 			ForceRemove InProcServer32 = s '%MODULE%'
 			{
 				val ThreadingModel = s 'Apartment'
 			}
-			val DisplayName = s 'Activision USD Preview Handler'
+			val DisplayName = s 'USD Preview Handler'
 			val AppID = s '{6d2b5079-2f0b-48dd-ab7f-97cec514d30b}'
 			val DisableProcessIsolation = d '1'
 			val DisableLowILProcessIsolation = d '1'
@@ -61,14 +93,14 @@ HKLM
 				{
 					NoRemove PreviewHandlers
 					{
-						ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'Activision USD Preview Handler'
+						ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'USD Preview Handler'
 					}
 
 					NoRemove 'Shell Extensions'
 					{
 						NoRemove Approved
 						{
-							ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'Activision USD Preview Handler'
+							ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'USD Preview Handler'
 						}
 					}
 				}
@@ -89,14 +121,14 @@ HKCU
 				{
 					NoRemove PreviewHandlers
 					{
-						ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'Activision USD Preview Handler'
+						ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'USD Preview Handler'
 					}
 
 					NoRemove 'Shell Extensions'
 					{
 						NoRemove Approved
 						{
-							ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'Activision USD Preview Handler'
+							ForceRemove val %CLSID_SHELLPREVIEWHANDLER% = s 'USD Preview Handler'
 						}
 					}
 				}

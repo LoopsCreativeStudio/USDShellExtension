@@ -2,7 +2,7 @@ HKCR
 {
 	NoRemove CLSID
 	{
-		ForceRemove %CLSID_USDPREVIEWHANDLER% = s 'Activision USD Preview Handler Server'
+		ForceRemove %CLSID_USDPREVIEWHANDLER% = s 'USD Preview Handler Server'
 		{
 			LocalServer32 = s '%MODULE%'
 			val AppID = s '%APPID%'

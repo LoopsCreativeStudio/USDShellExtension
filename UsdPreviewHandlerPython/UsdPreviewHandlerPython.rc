@@ -39,8 +39,8 @@ END
 3 TEXTINCLUDE 
 BEGIN
     "\r\n"
-    "#define ATVI_VERSION_DESCRIPTION ""Activision USD Preview Python Module""\r\n"
-    "#include ""atviversion.rc2""\r\n"
+    "#define USD_VERSION_DESCRIPTION ""USD Preview Python Module""\r\n"
+    "#include ""version.rc2""\r\n"
     "\0"
 END
 
@@ -57,8 +57,8 @@ END
 // Generated from the TEXTINCLUDE 3 resource.
 //
 
-#define ATVI_VERSION_DESCRIPTION "Activision USD Preview Python Module"
-#include "atviversion.rc2"
+#define USD_VERSION_DESCRIPTION "USD Preview Python Module"
+#include "version.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

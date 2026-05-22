@@ -148,9 +148,6 @@
     <Image Include="USDLogoLrgWithAlpha.png">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="logo.png">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
   <ItemGroup>
     <Manifest Include="UsdShellExtension-monolithic.manifest" />

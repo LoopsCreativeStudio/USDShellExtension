@@ -15,20 +15,20 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{1390252A-71E2-4C4E-B874-301909F40CBA}</ProjectGuid>
     <RootNamespace>UsdShellExtensionInstaller</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.14393.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Utility</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Utility</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -37,7 +37,7 @@
   <Import Project="$(SolutionDir)\boost.props" />
   <Import Project="$(SolutionDir)\usd.props" />
   <Import Project="$(SolutionDir)\nsis.props" />
-  <Import Project="$(SolutionDir)\atviversion.props" />
+  <Import Project="$(SolutionDir)\version.props" />
   <PropertyGroup Label="PythonConfiguration">
     <RegistryView>RegistryView.Registry32</RegistryView>
     <RegistryView Condition="$(Platform) == 'x64'">RegistryView.Registry64</RegistryView>
@@ -67,12 +67,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(PlatformToolset)\$(PythonTag)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(PlatformToolset)\$(PythonTag)\$(Configuration)\$(ProjectName)\</IntDir>
-    <TargetName>UsdShellExtension-v$(ATVI_VERSION_MAJOR).$(ATVI_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
+    <TargetName>UsdShellExtension-v$(USD_VERSION_MAJOR).$(USD_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(PlatformToolset)\$(PythonTag)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(PlatformToolset)\$(PythonTag)\$(Configuration)\$(ProjectName)\</IntDir>
-    <TargetName>UsdShellExtension-v$(ATVI_VERSION_MAJOR).$(ATVI_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
+    <TargetName>UsdShellExtension-v$(USD_VERSION_MAJOR).$(USD_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <PostBuildEvent>
@@ -103,10 +103,10 @@ REM Do nothing</Command>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">@echo off
 cd /D "$(OutputPath)"
-"$(MAKENSIS)" /NOCD /DOUT_FILE="$(TargetName)" /DPYTHONDLL="$(PythonDLL)" /DBOOSTDLL="$(BOOSTDLL)" /DVER_PRODUCTNAME="$(ATVI_VERSION_PRODUCTNAME)" /DVER_COMPANYNAME="$(ATVI_VERSION_COMPANYNAME)" /DVER_COPYRIGHT="$(ATVI_VERSION_COPYRIGHT)" /DVER_MAJOR="$(ATVI_VERSION_MAJOR)" /DVER_MINOR="$(ATVI_VERSION_MINOR)" /DVER_REVISION="$(ATVI_VERSION_REVISION)" /DVER_BUILD="$(ATVI_VERSION_BUILD)" /DUSD_VERSION="$(USDVERSION)" /DPYTHON_VERSION="$(PythonVersion)" "%(FullPath)"</Command>
+"$(MAKENSIS)" /NOCD /DOUT_FILE="$(TargetName)" /DPYTHONDLL="$(PythonDLL)" /DBOOSTDLL="$(BOOSTDLL)" /DVER_PRODUCTNAME="$(USD_VERSION_PRODUCTNAME)" /DVER_COMPANYNAME="$(USD_VERSION_COMPANYNAME)" /DVER_COPYRIGHT="$(USD_VERSION_COPYRIGHT)" /DVER_MAJOR="$(USD_VERSION_MAJOR)" /DVER_MINOR="$(USD_VERSION_MINOR)" /DVER_REVISION="$(USD_VERSION_REVISION)" /DVER_BUILD="$(USD_VERSION_BUILD)" /DUSD_VERSION="$(USDVERSION)" /DPYTHON_VERSION="$(PythonVersion)" "%(FullPath)"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">@echo off
 cd /D "$(OutputPath)"
-"$(MAKENSIS)" /NOCD /DOUT_FILE="$(TargetName)" /DPYTHONDLL="$(PythonDLL)" /DBOOSTDLL="$(BOOSTDLL)" /DVER_PRODUCTNAME="$(ATVI_VERSION_PRODUCTNAME)" /DVER_COMPANYNAME="$(ATVI_VERSION_COMPANYNAME)" /DVER_COPYRIGHT="$(ATVI_VERSION_COPYRIGHT)" /DVER_MAJOR="$(ATVI_VERSION_MAJOR)" /DVER_MINOR="$(ATVI_VERSION_MINOR)" /DVER_REVISION="$(ATVI_VERSION_REVISION)" /DVER_BUILD="$(ATVI_VERSION_BUILD)" /DUSD_VERSION="$(USDVERSION)" /DPYTHON_VERSION="$(PythonVersion)" "%(FullPath)"</Command>
+"$(MAKENSIS)" /NOCD /DOUT_FILE="$(TargetName)" /DPYTHONDLL="$(PythonDLL)" /DBOOSTDLL="$(BOOSTDLL)" /DVER_PRODUCTNAME="$(USD_VERSION_PRODUCTNAME)" /DVER_COMPANYNAME="$(USD_VERSION_COMPANYNAME)" /DVER_COPYRIGHT="$(USD_VERSION_COPYRIGHT)" /DVER_MAJOR="$(USD_VERSION_MAJOR)" /DVER_MINOR="$(USD_VERSION_MINOR)" /DVER_REVISION="$(USD_VERSION_REVISION)" /DVER_BUILD="$(USD_VERSION_BUILD)" /DUSD_VERSION="$(USDVERSION)" /DPYTHON_VERSION="$(PythonVersion)" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutputPath)$(TargetName);AlwaysBuildMe.exe%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutputPath)$(TargetName);AlwaysBuildMe.exe%(Outputs)</Outputs>
     </CustomBuild>

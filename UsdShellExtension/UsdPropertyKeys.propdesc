@@ -1,5 +1,5 @@
-<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/windows/2006/propertydescription" schemaVersion="1.0">
-    <propertyDescriptionList publisher="Activision Publishing, Inc." product="USD">
+﻿<schema xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.microsoft.com/windows/2006/propertydescription" schemaVersion="1.0">
+    <propertyDescriptionList publisher="Loops Creative Studio" product="USD">
 
         <propertyDescription name="USD.PropGroup.USD" formatID="{3B7AB16C-C876-461C-BBA5-2F1182A834D1}" propID="2">
             <labelInfo label="@%LANGMODULE%,-%IDS_USD_PROPGROUP_USD_LABEL%" hideLabel="false"/>

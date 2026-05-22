@@ -1,4 +1,4 @@
-;--------------------------------
+﻿;--------------------------------
 ; UsdConfigPage
 
 !define /ifndef WS_BORDER           0x00800000
@@ -31,7 +31,7 @@ Function USDConfigPage
     SetShellVarContext all
     ${NSD_CreateLabel} 0 50u 100% 10u "All Users"
     Pop $hWndUsdConfigLabelAll
-    nsDialogs::CreateControl "${__NSD_Text_CLASS}" "${USDCONFIGCONFIGPATH_STYLE}" "${USDCONFIGCONFIGPATH_EXSTYLE}" 0 60u 100% 12u "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"
+    nsDialogs::CreateControl "${__NSD_Text_CLASS}" "${USDCONFIGCONFIGPATH_STYLE}" "${USDCONFIGCONFIGPATH_EXSTYLE}" 0 60u 100% 12u "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
     Pop $hWndUsdConfigConfigPathAll
     ${NSD_Edit_SetReadOnly} $hWndUsdConfigConfigPathAll 1
     ${NSD_CreateButton} -100u 75u 100u 15u "Show in Explorer"
@@ -42,7 +42,7 @@ Function USDConfigPage
     SetShellVarContext current
     ${NSD_CreateLabel} 0 95u 100% 10u "Local User"
     Pop $hWndUsdConfigLabelCurrent
-    nsDialogs::CreateControl "${__NSD_Text_CLASS}" "${USDCONFIGCONFIGPATH_STYLE}" "${USDCONFIGCONFIGPATH_EXSTYLE}" 0 105u 100% 12u "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"
+    nsDialogs::CreateControl "${__NSD_Text_CLASS}" "${USDCONFIGCONFIGPATH_STYLE}" "${USDCONFIGCONFIGPATH_EXSTYLE}" 0 105u 100% 12u "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
     Pop $hWndUsdConfigConfigPathCurrent
     ${NSD_Edit_SetReadOnly} $hWndUsdConfigConfigPathCurrent 1
     ${NSD_CreateButton} -100u 120u 100u 15u "Show in Explorer"
@@ -62,10 +62,10 @@ FunctionEnd
 
 Function USDConfigPageShowAllClick
     SetShellVarContext all
-    ExecWait 'explorer.exe /n,/select,"$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"'
+    ExecWait 'explorer.exe /n,/select,"$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"'
 FunctionEnd
 
 Function USDConfigPageShowCurrentClick
     SetShellVarContext current
-    ExecWait 'explorer.exe /n,/select,"$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"'
+    ExecWait 'explorer.exe /n,/select,"$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"'
 FunctionEnd

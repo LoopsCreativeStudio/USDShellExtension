@@ -27,8 +27,8 @@ if %ERRORLEVEL% NEQ 0 (
 	set /a success = 0
 )
 
-echo regsvr32.exe /u UsdShellExtension.dll
-regsvr32.exe /u UsdShellExtension.dll
+echo regsvr32.exe /s /u UsdShellExtension.dll
+regsvr32.exe /s /u UsdShellExtension.dll
 
 if %success% NEQ 1 (
 	pause

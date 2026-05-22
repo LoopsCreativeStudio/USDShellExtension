@@ -27,8 +27,12 @@ if %ERRORLEVEL% NEQ 0 (
 	set /a success = 0
 )
 
-echo regsvr32.exe /n /i UsdShellExtension.dll
-regsvr32.exe /n /i UsdShellExtension.dll
+echo regsvr32.exe /s /n /i:"/force" UsdShellExtension.dll
+regsvr32.exe /s /n /i:"/force" UsdShellExtension.dll
+if %ERRORLEVEL% NEQ 0 (
+	echo [91mUsdShellExtension.dll failed to register![0m
+	set /a success = 0
+)
 
 if %success% NEQ 1 (
 	pause

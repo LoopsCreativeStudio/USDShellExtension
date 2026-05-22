@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #pragma once
 
@@ -21,12 +10,17 @@
 #pragma warning(push)
 #pragma warning(disable: 4244 4459)
 
-#include <boost/python/module.hpp>
-#include <boost/python/def.hpp>
-#include <boost/python/list.hpp>
-#include <boost/python.hpp>
+#include <pxr/external/boost/python/module.hpp>
+#include <pxr/external/boost/python/def.hpp>
+#include <pxr/external/boost/python/list.hpp>
+#include <pxr/external/boost/python.hpp>
 
 #pragma warning(pop)
+
+// In USD 25.08+, pxr_boost lives inside the versioned namespace
+// (PXR_INTERNAL_NS::pxr_boost). Create a global alias so existing code
+// using `pxr_boost::python` still compiles without modification.
+namespace pxr_boost = ::PXR_INTERNAL_NS::pxr_boost;
 
 #include <WinSDKVer.h>
 #define _WIN32_WINNT 0x0A00

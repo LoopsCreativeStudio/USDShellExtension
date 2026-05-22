@@ -1,51 +1,75 @@
-Activision USD Shell Extension
-==============================
+<h1 align="center">
+  <br>
+  <a href="https://github.com/LoopsCreativeStudio/USDShellExtension"><img src="docs/header.png" alt="loops-it" width="400"></a>
+</h1>
 
-A Windows Shell Extension for the Pixar USD file format. 
+<h4 align="center">Windows Explorer integration for  <a href="https://openusd.org/">Pixar USD</a> files - thumbnails, 3D preview, context menus, and metadata search.</h4>
 
-**Windows Explorer Features**
-
-* Hydra Realtime Preview 
-* Thumbnails
-* Context Menus
-* Metadata Properties
-
-**Windows Search Features**
-
-* Metadata Search
-
-More details available [here](./docs/FEATURES.md).
-
-Goals
------
-
-There are several goals that this shell extension tries to adhere to and takes extra precautions to meet.
-
-* **Performance**  
-  It is important that the shell extension not stall Windows Explorer.  
-
-* **Stability**  
-  Instability in the shell extension will take down Window Explorer and/or the entire desktop.  
-
-The mitigation strategy is to run the majority of the shell extension asynchronously out of the 
-Windows Explorer process.
+<p align="center">
+  <a href="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/release.yaml">
+    <img src="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/release.yaml/badge.svg?branch=main" alt="Release">
+  </a>
+  <a href="https://github.com/googleapis/release-please">
+    <img src="https://img.shields.io/badge/release--please-conventional--commits-brightgreen?logo=github" alt="release-please">
+  </a>
+  <a href="">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT">
+  </a>
+</p>
 
 
-Dependencies
-------------
+## Features
 
-The following dependencies are required:
+| Feature | Description |
+|---------|-------------|
+| Thumbnails | Auto-generated 3D thumbnails in Explorer |
+| Preview pane | Live Hydra viewport in the Explorer preview pane |
+| Context menus | Open, Edit, Compress/Uncrate, Package, Flatten |
+| Windows Search | USD metadata indexed and searchable |
 
-* [Microsoft Visual Studio (2017 or newer)](https://visualstudio.microsoft.com/vs/)
-* [Universal Scene Description (USD)](https://graphics.pixar.com/usd/docs/index.html)
-* [Python (2.7, 3.6, 3.7)](https://www.python.org/)
+Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
-Required Microsoft Visual Studio Components:
+## Overview
 
-* Desktop development with C++
-* C++ ATL
-* Windows 10 SDK
-* Windows Universal C Runtime
-* Python language support
+### Tools
 
+![Usd Tools](docs/img/demo_05.png)
 
+### Open in usdview
+
+![Open in usdview](docs/img/demo_01.gif)
+
+### Crate / Uncrate
+
+![Crate, uncrate and open in editor](docs/img/demo_03.gif)
+
+### Thumbnail
+
+![Windows thumbnails](docs/img/demo_02.gif)
+
+## Documentation
+
+| Guide | Who it's for |
+|-------|-------------|
+| [Quick Start](docs/QUICKSTART.md) | First install, step by step |
+| [Technical Guide](docs/TECHNICAL.md) | Developers and contributors |
+| [Runbook](docs/RUNBOOK.md) | IT / deployment / configuration |
+| [Debug & FAQ](docs/DEBUG.md) | Troubleshooting and known issues |
+
+## Inspiration & Credit
+
+This project is a complete rewrite, heavily inspired by [Activision/USDShellExtension](https://github.com/Activision/USDShellExtension).
+
+The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, NVIDIA USD 25.08, Python 3.12), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
+
+The migration from Gitea to GitHub, including CI/CD pipelines, release automation, and codebase cleanup, was made possible through vibe coding with [Claude](https://claude.ai).
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request; it covers the workspace setup, branch and commit conventions, pull request process, and coding style.
+
+By participating in this project, you agree to abide by the [Code of Conduct](CONTRIBUTING.md#code-of-conduct).
+
+## License
+
+MIT - Copyright (C) 2025 Loops Creative Studio. See [LICENSE](LICENSE).

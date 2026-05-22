@@ -1,6 +1,38 @@
 HKCR
 {
-	NoRemove ATVI.USD
+	NoRemove .usd
+	{
+		NoRemove shellex
+		{
+			ForceRemove {e357fccd-a995-4576-b01f-234630154e96} = s '%CLSID_SHELLTHUMBNAILPROVIDER%'
+		}
+	}
+
+	NoRemove .usda
+	{
+		NoRemove shellex
+		{
+			ForceRemove {e357fccd-a995-4576-b01f-234630154e96} = s '%CLSID_SHELLTHUMBNAILPROVIDER%'
+		}
+	}
+
+	NoRemove .usdc
+	{
+		NoRemove shellex
+		{
+			ForceRemove {e357fccd-a995-4576-b01f-234630154e96} = s '%CLSID_SHELLTHUMBNAILPROVIDER%'
+		}
+	}
+
+	NoRemove .usdz
+	{
+		NoRemove shellex
+		{
+			ForceRemove {e357fccd-a995-4576-b01f-234630154e96} = s '%CLSID_SHELLTHUMBNAILPROVIDER%'
+		}
+	}
+
+	NoRemove OpenUSD.USD
 	{
 		NoRemove shellex
 		{
@@ -9,7 +41,7 @@ HKCR
 		ForceRemove DefaultIcon = s '%MODULE%,-113'
 	}
 
-	NoRemove ATVI.USDA
+	NoRemove OpenUSD.USDA
 	{
 		NoRemove shellex
 		{
@@ -18,7 +50,7 @@ HKCR
 		ForceRemove DefaultIcon = s '%MODULE%,-113'
 	}
 
-	NoRemove ATVI.USDC
+	NoRemove OpenUSD.USDC
 	{
 		NoRemove shellex
 		{
@@ -27,7 +59,7 @@ HKCR
 		ForceRemove DefaultIcon = s '%MODULE%,-113'
 	}
 
-	NoRemove ATVI.USDZ
+	NoRemove OpenUSD.USDZ
 	{
 		NoRemove shellex
 		{
@@ -38,13 +70,13 @@ HKCR
 
 	NoRemove CLSID
 	{
-		ForceRemove %CLSID_SHELLTHUMBNAILPROVIDER% = s 'Activision USD Thumbnail Provider'
+		ForceRemove %CLSID_SHELLTHUMBNAILPROVIDER% = s 'USD Thumbnail Provider'
 		{
 			ForceRemove InProcServer32 = s '%MODULE%'
 			{
 				val ThreadingModel = s 'Apartment'
 			}
-			val DisplayName = s 'Activision USD Thumbnail Provider'
+			val DisplayName = s 'USD Thumbnail Provider'
 			val DisableProcessIsolation = d '1'
 			val DisableLowILProcessIsolation = d '1'
 		}
@@ -65,7 +97,7 @@ HKLM
 					{
 						NoRemove Approved
 						{
-							ForceRemove val %CLSID_SHELLTHUMBNAILPROVIDER% = s 'Activision USD Thumbnail Provider'
+							ForceRemove val %CLSID_SHELLTHUMBNAILPROVIDER% = s 'USD Thumbnail Provider'
 						}
 					}
 				}
@@ -88,7 +120,7 @@ HKCU
 					{
 						NoRemove Approved
 						{
-							ForceRemove val %CLSID_SHELLTHUMBNAILPROVIDER% = s 'Activision USD Thumbnail Provider'
+							ForceRemove val %CLSID_SHELLTHUMBNAILPROVIDER% = s 'USD Thumbnail Provider'
 						}
 					}
 				}

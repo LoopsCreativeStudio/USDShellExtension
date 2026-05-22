@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
-   Copyright 2021 Activision Publishing, Inc. 
+   Copyright (C) 2025 Loops Creative Studio
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -15,96 +15,56 @@
    limitations under the License.
 -->
 
+<!--
+   Points to the NVIDIA pre-built USD 25.08 (Python 3.12, PySide6).
+   Download from https://developer.nvidia.com/usd#section-getting-started
+   and extract to D:\usd.py312.windows-x86_64.usdview.release-v25.08\
+
+   All USD libs use the "usd_" prefix (e.g. usd_tf.lib, usd_sdf.lib).
+   TBB ships as tbb.dll (not tbb12.dll) in this build.
+-->
+
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <USDBUILD>shared</USDBUILD>
+    <USDVERSION>25.08</USDVERSION>
+    <USD_SDK>D:\usd.py312.windows-x86_64.usdview.release-v25.08</USD_SDK>
   </PropertyGroup>
-	
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <USDBINPATH>D:\USD-21.02-debug\bin\</USDBINPATH>
-    <USDLIBPATH>D:\USD-21.02-debug\lib\</USDLIBPATH>
-    <USDINCLUDEPATH>D:\USD-21.02-debug\include\</USDINCLUDEPATH>
-	<PXR_PLUGINPATH_NAME>D:\USD-21.02-debug\lib\usd\</PXR_PLUGINPATH_NAME>
-  </PropertyGroup>	
-	
+    <USDBINPATH>$(USD_SDK)\bin\</USDBINPATH>
+    <USDLIBPATH>$(USD_SDK)\lib\</USDLIBPATH>
+    <USDINCLUDEPATH>$(USD_SDK)\include\</USDINCLUDEPATH>
+    <PXR_PLUGINPATH_NAME>$(USD_SDK)\lib\usd\</PXR_PLUGINPATH_NAME>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <USDBINPATH>D:\USD-21.02\bin\</USDBINPATH>
-    <USDLIBPATH>D:\USD-21.02\lib\</USDLIBPATH>
-    <USDINCLUDEPATH>D:\USD-21.02\include\</USDINCLUDEPATH>
-	<PXR_PLUGINPATH_NAME>D:\USD-21.02\lib\usd\</PXR_PLUGINPATH_NAME>
-  </PropertyGroup>	
+    <USDBINPATH>$(USD_SDK)\bin\</USDBINPATH>
+    <USDLIBPATH>$(USD_SDK)\lib\</USDLIBPATH>
+    <USDINCLUDEPATH>$(USD_SDK)\include\</USDINCLUDEPATH>
+    <PXR_PLUGINPATH_NAME>$(USD_SDK)\lib\usd\</PXR_PLUGINPATH_NAME>
+  </PropertyGroup>
 
-	<ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+  <ItemDefinitionGroup>
     <ClCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(USDINCLUDEPATH);$(USDINCLUDEPATH)\boost-1_70;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(USDINCLUDEPATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- USD 25.08 headers require C++17 -->
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>dbghelp.lib;Ws2_32.lib;ar.lib;arch.lib;plug.lib;sdf.lib;tf.lib;usd.lib;usdUtils.lib;vt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <!-- Core USD libs + usd_python (pxr_boost::python runtime for static initializers) -->
+      <AdditionalDependencies>dbghelp.lib;Ws2_32.lib;usd_tf.lib;usd_arch.lib;usd_plug.lib;usd_js.lib;usd_trace.lib;usd_vt.lib;usd_work.lib;usd_ar.lib;usd_sdf.lib;usd_pcp.lib;usd_usd.lib;usd_usdUtils.lib;usd_kind.lib;usd_python.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(USDLIBPATH);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>/WHOLEARCHIVE:"$(USDLIBPATH)usd" %(AdditionalOptions)</AdditionalOptions>
-	</Link>
-    <PostBuildEvent>
-      <Command>
-        xcopy "$(USDLIBPATH)ar.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)ar.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)arch.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)arch.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)plug.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)plug.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)sdf.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)sdf.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)tf.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)tf.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usd.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usd.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usdUtils.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usdUtils.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)vt.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)vt.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDBINPATH)tbb.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDBINPATH)tbb.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(PXR_PLUGINPATH_NAME)" "$(TargetDir)\usd" /I /Y /F /R /S
-
-        %(Command)
-	  </Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(USDINCLUDEPATH);$(USDINCLUDEPATH)\boost-1_70;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>dbghelp.lib;Ws2_32.lib;ar.lib;arch.lib;plug.lib;sdf.lib;tf.lib;usd.lib;usdUtils.lib;vt.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(USDLIBPATH);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>/WHOLEARCHIVE:"$(USDLIBPATH)usd" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <PostBuildEvent>
       <Command>
-        xcopy "$(USDLIBPATH)ar.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)ar.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)arch.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)arch.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)plug.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)plug.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)sdf.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)sdf.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)tf.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)tf.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usd.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usd.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usdUtils.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)usdUtils.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)vt.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDLIBPATH)vt.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDBINPATH)tbb.dll" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDBINPATH)tbb.pdb" "$(TargetDir)" /I /Y /F /R
-        xcopy "$(PXR_PLUGINPATH_NAME)" "$(TargetDir)\usd" /I /Y /F /R /S
-        
+        xcopy "$(USDLIBPATH)usd_*.dll"  "$(TargetDir)" /I /Y /F /R
+        xcopy "$(USDBINPATH)tbb.dll"    "$(TargetDir)" /I /Y /F /R
+        xcopy "$(USDBINPATH)tbbmalloc.dll" "$(TargetDir)" /I /Y /F /R
+        xcopy "$(PXR_PLUGINPATH_NAME)"  "$(TargetDir)\usd" /I /Y /F /R /S
+
         %(Command)
-	  </Command>
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
 </Project>
-

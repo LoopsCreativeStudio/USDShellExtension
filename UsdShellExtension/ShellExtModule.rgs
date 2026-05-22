@@ -1,6 +1,6 @@
 HKCR
 {
-	NoRemove ATVI.USD = s 'Activision Universal Scene Description'
+	NoRemove OpenUSD.USD = s 'USD (Universal Scene Description)'
 	{
 		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USD%'
 
@@ -9,71 +9,56 @@ HKCR
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
 
 			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
 			{
 				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
-
-			ForceRemove compress = s '@%MODULE%,-%IDS_SHELL_CRATE%'
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
 			{
-				command = s 'rundll32.exe "%MODULE%",CrateWithUsdCat "%%1"'
-			}
-
-			ForceRemove uncompress = s '@%MODULE%,-%IDS_SHELL_UNCRATE%'
-			{
-				command = s 'rundll32.exe "%MODULE%",UncrateWithUsdCat "%%1"'
-			}
-
-			ForceRemove flatten = s '@%MODULE%,-%IDS_SHELL_FLATTEN%'
-			{
-				command = s 'rundll32.exe "%MODULE%",FlattenWithUsdCat "%%1"'
-			}
-
-			ForceRemove thumbnail = s '@%MODULE%,-%IDS_SHELL_REFRESHTHUMBNAIL%'
-			{
-				command = s 'rundll32.exe "%MODULE%",RefreshThumbnail "%%1"'
-			}
-
-			ForceRemove stats = s '@%MODULE%,-%IDS_SHELL_STATS%'
-			{
-				command = s 'rundll32.exe "%MODULE%",StageStats "%%1"'
-			}
-
-			ForceRemove package
-			{
-				ForceRemove val ExtendedSubCommandsKey = s 'ATVI.USD\shell\package'
-				ForceRemove val MUIVerb = s 'Package'
-
-				ForceRemove Shell
-				{
-					ForceRemove Default
-					{
-						ForceRemove val MUIVerb = s 'Default'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageDefault "%%1"'
-					}
-					ForceRemove ARKit
-					{
-						ForceRemove val MUIVerb = s 'Apple ARKit'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageARKit "%%1"'
-					}
-				}
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 	}
 
-	NoRemove .usd
+	NoRemove .usd = s 'OpenUSD.USD'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val ATVI.USD = s 'Activision Universal Scene Description'
+			ForceRemove val OpenUSD.USD = s 'USD (Universal Scene Description)'
+		}
+		NoRemove shell
+		{
+			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
+			{
+				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
+			}
+			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
+			{
+				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
+			}
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
+			}
 		}
 	}
 
-	NoRemove ATVI.USDA = s 'Activision Universal Scene Description ASCII'
+	NoRemove OpenUSD.USDA = s 'USD ASCII File'
 	{
 		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDA%'
 
@@ -82,66 +67,56 @@ HKCR
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
 
 			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
 			{
 				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
-
-			ForceRemove compress = s '@%MODULE%,-%IDS_SHELL_CRATE%'
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
 			{
-				command = s 'rundll32.exe "%MODULE%",CrateWithUsdCat "%%1"'
-			}
-
-			ForceRemove flatten = s '@%MODULE%,-%IDS_SHELL_FLATTEN%'
-			{
-				command = s 'rundll32.exe "%MODULE%",FlattenWithUsdCat "%%1"'
-			}
-
-			ForceRemove thumbnail = s '@%MODULE%,-%IDS_SHELL_REFRESHTHUMBNAIL%'
-			{
-				command = s 'rundll32.exe "%MODULE%",RefreshThumbnail "%%1"'
-			}
-
-			ForceRemove stats = s '@%MODULE%,-%IDS_SHELL_STATS%'
-			{
-				command = s 'rundll32.exe "%MODULE%",StageStats "%%1"'
-			}
-
-			ForceRemove package
-			{
-				ForceRemove val ExtendedSubCommandsKey = s 'ATVI.USDA\shell\package'
-				ForceRemove val MUIVerb = s 'Package'
-
-				ForceRemove Shell
-				{
-					ForceRemove Default
-					{
-						ForceRemove val MUIVerb = s 'Default'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageDefault "%%1"'
-					}
-					ForceRemove ARKit
-					{
-						ForceRemove val MUIVerb = s 'Apple ARKit'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageARKit "%%1"'
-					}
-				}
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 	}
 
-	NoRemove .usda
+	NoRemove .usda = s 'OpenUSD.USDA'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val ATVI.USDA = s 'Activision Universal Scene Description ASCII'
+			ForceRemove val OpenUSD.USDA = s 'USD ASCII File'
+		}
+		NoRemove shell
+		{
+			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
+			{
+				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
+			}
+			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
+			{
+				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
+			}
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
+			}
 		}
 	}
 
-	NoRemove ATVI.USDC = s 'Activision Universal Scene Description Crate'
+	NoRemove OpenUSD.USDC = s 'USD Crate File'
 	{
 		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDC%'
 
@@ -150,66 +125,56 @@ HKCR
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
 
 			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
 			{
 				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
-
-			ForceRemove uncompress = s '@%MODULE%,-%IDS_SHELL_UNCRATE%'
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
 			{
-				command = s 'rundll32.exe "%MODULE%",UncrateWithUsdCat "%%1"'
-			}
-
-			ForceRemove flatten = s '@%MODULE%,-%IDS_SHELL_FLATTEN%'
-			{
-				command = s 'rundll32.exe "%MODULE%",FlattenWithUsdCat "%%1"'
-			}
-
-			ForceRemove thumbnail = s '@%MODULE%,-%IDS_SHELL_REFRESHTHUMBNAIL%'
-			{
-				command = s 'rundll32.exe "%MODULE%",RefreshThumbnail "%%1"'
-			}
-
-			ForceRemove stats = s '@%MODULE%,-%IDS_SHELL_STATS%'
-			{
-				command = s 'rundll32.exe "%MODULE%",StageStats "%%1"'
-			}
-
-			ForceRemove package
-			{
-				ForceRemove val ExtendedSubCommandsKey = s 'ATVI.USDC\shell\package'
-				ForceRemove val MUIVerb = s 'Package'
-
-				ForceRemove Shell
-				{
-					ForceRemove Default
-					{
-						ForceRemove val MUIVerb = s 'Default'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageDefault "%%1"'
-					}
-					ForceRemove ARKit
-					{
-						ForceRemove val MUIVerb = s 'Apple ARKit'
-						ForceRemove command = s 'rundll32.exe "%MODULE%",PackageARKit "%%1"'
-					}
-				}
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 	}
 
-	NoRemove .usdc
+	NoRemove .usdc = s 'OpenUSD.USDC'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val ATVI.USDC = s 'Activision Universal Scene Description Crate'
+			ForceRemove val OpenUSD.USDC = s 'USD Crate File'
+		}
+		NoRemove shell
+		{
+			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
+			{
+				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
+			}
+			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
+			{
+				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
+			}
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
+			}
 		}
 	}
 
-	NoRemove ATVI.USDZ = s 'Activision Universal Scene Description Package'
+	NoRemove OpenUSD.USDZ = s 'USD Package'
 	{
 		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDZ%'
 
@@ -218,30 +183,85 @@ HKCR
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
-
-			ForceRemove thumbnail = s '@%MODULE%,-%IDS_SHELL_REFRESHTHUMBNAIL%'
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
 			{
-				command = s 'rundll32.exe "%MODULE%",RefreshThumbnail "%%1"'
-			}
-
-			ForceRemove stats = s '@%MODULE%,-%IDS_SHELL_STATS%'
-			{
-				command = s 'rundll32.exe "%MODULE%",StageStats "%%1"'
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 	}
 
-	NoRemove .usdz
+	NoRemove .usdz = s 'OpenUSD.USDZ'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val ATVI.USDZ = s 'Activision Universal Scene Description Package'
+			ForceRemove val OpenUSD.USDZ = s 'USD Package'
+		}
+		NoRemove shell
+		{
+			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
+			{
+				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
+				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
+			}
+		}
+		NoRemove shellex
+		{
+			NoRemove ContextMenuHandlers
+			{
+				ForceRemove UsdShellExtension = s '{EFABFF03-5B7E-4A23-8C6D-9F1234567890}'
+			}
 		}
 	}
 
-
+	NoRemove CLSID
+	{
+		ForceRemove {EFAB0001-5B7E-4A23-8C6D-9F1234567890} = s 'USD Open Command'
+		{
+			ForceRemove InProcServer32 = s '%MODULE%'
+			{ val ThreadingModel = s 'Apartment' }
+		}
+		ForceRemove {EFAB0002-5B7E-4A23-8C6D-9F1234567890} = s 'USD Edit Command'
+		{
+			ForceRemove InProcServer32 = s '%MODULE%'
+			{ val ThreadingModel = s 'Apartment' }
+		}
+		ForceRemove {EFABFF03-5B7E-4A23-8C6D-9F1234567890} = s 'USD Context Menu'
+		{
+			ForceRemove InProcServer32 = s '%MODULE%'
+			{ val ThreadingModel = s 'Apartment' }
+		}
+	}
 }
 
+HKLM
+{
+	NoRemove Software
+	{
+		NoRemove Microsoft
+		{
+			NoRemove Windows
+			{
+				NoRemove CurrentVersion
+				{
+					NoRemove 'Shell Extensions'
+					{
+						NoRemove Approved
+						{
+							ForceRemove val {EFAB0001-5B7E-4A23-8C6D-9F1234567890} = s 'USD Open Command'
+							ForceRemove val {EFAB0002-5B7E-4A23-8C6D-9F1234567890} = s 'USD Edit Command'
+							ForceRemove val {EFABFF03-5B7E-4A23-8C6D-9F1234567890} = s 'USD Context Menu'
+						}
+					}
+				}
+			}
+		}
+	}
+}

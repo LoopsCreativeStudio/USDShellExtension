@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
-   Copyright 2021 Activision Publishing, Inc. 
+   Copyright (C) 2025 Loops Creative Studio
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -16,30 +16,38 @@
 -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <PythonVersion>3.7</PythonVersion>
-	  <!-- PY_VERSION_HEX encoding -->
-    <PythonVersionHex>0x03070000</PythonVersionHex> 
-    <PythonFileName>python37</PythonFileName>
+    <PythonVersion>3.12</PythonVersion>
+    <!-- PY_VERSION_HEX encoding -->
+    <PythonVersionHex>0x030C0000</PythonVersionHex>
+    <PythonFileName>python312</PythonFileName>
+    <!-- Python bundled with the NVIDIA USD pre-build — no separate install required.
+         Override by setting PythonHome as an environment variable or installing Python 3.12 system-wide. -->
+    <PythonHome Condition="$(PythonHome) == ''">D:\usd.py312.windows-x86_64.usdview.release-v25.08\python\</PythonHome>
   </PropertyGroup>
 
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-		<PythonDLL>$(PythonFileName).dll</PythonDLL>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-		<PythonDLL>$(PythonFileName).dll</PythonDLL>
-	</PropertyGroup>
-	
-	<ItemDefinitionGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <PythonDLL>$(PythonFileName).dll</PythonDLL>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <PythonDLL>$(PythonFileName).dll</PythonDLL>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>PYTHONVERSION=$(PythonVersion);PYTHONDLL="$(PythonDLL)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(PythonHome)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
-	  <PostBuildEvent Condition="$(PythonVersionHex) >= 0x03000000">
-		  <Command>
-			  xcopy "$(PYTHONHOME)$(PythonDLL)" "$(TargetDir)" /I /Y /F /R
+    <Link>
+      <AdditionalLibraryDirectories>$(PythonHome)libs;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+    <PostBuildEvent Condition="$(PythonVersionHex) >= 0x03000000">
+      <Command>
+        xcopy "$(PythonHome)$(PythonDLL)"  "$(TargetDir)" /I /Y /F /R
+        xcopy "$(PythonHome)python3.dll"   "$(TargetDir)" /I /Y /F /R
 
-			  %(Command)
-		  </Command>
-	  </PostBuildEvent>
+        %(Command)
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
 
 </Project>

@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #include "stdafx.h"
 #include "ShellPropertyStoreImpl.h"
@@ -217,8 +206,8 @@ HRESULT WINAPI CShellPropertyStoreImpl::UpdateRegistry(_In_ BOOL bRegister) thro
 {
 	const wchar_t pPropertyDescription[] = 
 		L"val InfoTip = s 'prop:System.ItemType;System.Size;System.DateModified'\n"
-		L"val FullDetails = s 'prop:System.PropGroup.FileSystem;System.ItemNameDisplay;System.ItemType;System.ItemFolderPathDisplay;System.Size;System.ItemDate;System.DateCreated;System.DateModified;System.DateAccessed;System.FileAttributes;USD.PropGroup.USD;System.Comment;USD.Documentation;USD.CustomLayerData;USD.PropGroup.Activision'\n"
-		L"val PreviewDetails = s 'prop:USD.PropGroup.USD;System.Comment;USD.Documentation;USD.PropGroup.Activision'\n"
+		L"val FullDetails = s 'prop:System.PropGroup.FileSystem;System.ItemNameDisplay;System.ItemType;System.ItemFolderPathDisplay;System.Size;System.ItemDate;System.DateCreated;System.DateModified;System.DateAccessed;System.FileAttributes;USD.PropGroup.USD;System.Comment;USD.Documentation;USD.CustomLayerData'\n"
+		L"val PreviewDetails = s 'prop:USD.PropGroup.USD;System.Comment;USD.Documentation'\n"
 		L"val PreviewTitle = s 'prop:System.FileName;System.ItemType'\n";
 
 	ATL::_ATL_REGMAP_ENTRY regMapEntries[] =

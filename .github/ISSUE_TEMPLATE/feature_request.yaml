@@ -1,0 +1,69 @@
+name: ✨ Feature Request
+about: Propose a new feature or improvement
+title: "[FEATURE] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing an improvement!
+        Please describe your idea as precisely as possible.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: What problem does this feature solve?
+      placeholder: I often find it frustrating when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe what you would like to see implemented
+      placeholder: I would like...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component(s)
+      description: Which module would be impacted?
+      multiple: true
+      options:
+        - UsdShellExtension — Core DLL (thumbnails, preview, property store)
+        - UsdPreviewLocalServer — 3D preview pane
+        - UsdPythonToolsLocalServer — usdview / usdrecord
+        - UsdSdkToolsLocalServer — Format conversion (crate/flatten/package)
+        - UsdShellExtensionInstaller — NSIS installer
+        - install.ps1 / build.ps1 — Build and install scripts
+        - New component
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other approaches?
+      placeholder: I also thought about...
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Extra information, links, screenshots...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked that this request does not already exist
+          required: true
+        - label: This feature fits within the scope of the project
+          required: true

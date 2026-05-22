@@ -1,34 +1,34 @@
 HKCR
 {
-	NoRemove ATVI.USD
+	NoRemove OpenUSD.USD
 	{
 		%PROPERTYDESCRIPTIONS%
 	}
 
-	NoRemove ATVI.USDA
+	NoRemove OpenUSD.USDA
 	{
 		%PROPERTYDESCRIPTIONS%
 	}
 
-	NoRemove ATVI.USDC
+	NoRemove OpenUSD.USDC
 	{
 		%PROPERTYDESCRIPTIONS%
 	}
 
-	NoRemove ATVI.USDZ
+	NoRemove OpenUSD.USDZ
 	{
 		%PROPERTYDESCRIPTIONS%
 	}
 
 	NoRemove CLSID
 	{
-		ForceRemove %CLSID_SHELLPROPERTYSTORE% = s 'Activision USD Property Store'
+		ForceRemove %CLSID_SHELLPROPERTYSTORE% = s 'USD Property Store'
 		{
 			ForceRemove InProcServer32 = s '%MODULE%'
 			{
 				val ThreadingModel = s 'Apartment'
 			}
-			val DisplayName = s 'Activision USD Property Store'
+			val DisplayName = s 'USD Property Store'
 			val DisableProcessIsolation = d '1'
 		}
 	}
@@ -59,7 +59,7 @@ HKLM
 					{
 						NoRemove Approved
 						{
-							ForceRemove val %CLSID_SHELLPROPERTYSTORE% = s 'Activision USD Property Store'
+							ForceRemove val %CLSID_SHELLPROPERTYSTORE% = s 'USD Property Store'
 						}
 					}
 				}

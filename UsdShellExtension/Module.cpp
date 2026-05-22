@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #include "stdafx.h"
 #include "Module.h"
@@ -152,14 +141,14 @@ static bool VerifyPySideInstallation()
 	return true;
 }
 
-static bool VerifyPySide2Installation()
+static bool VerifyPySide6Installation()
 {
 	TCHAR sPython_Path[2048];
 	GetPythonInstallationPath( sPython_Path, ARRAYSIZE( sPython_Path ) );
 
 	::PathCchAppend( sPython_Path, ARRAYSIZE(sPython_Path), L"Lib" );
 	::PathCchAppend( sPython_Path, ARRAYSIZE(sPython_Path), L"site-packages" );
-	::PathCchAppend( sPython_Path, ARRAYSIZE(sPython_Path), L"PySide2" );
+	::PathCchAppend( sPython_Path, ARRAYSIZE(sPython_Path), L"PySide6" );
 
 	if ( ::GetFileAttributesW( sPython_Path ) == INVALID_FILE_ATTRIBUTES )
 		return false;
@@ -308,15 +297,15 @@ STDAPI DllRegisterServer()
 		}
 
 #if PY_MAJOR_VERSION >= 3
-		if ( !VerifyPySide2Installation() )
+		if ( !VerifyPySide6Installation() )
 		{
 			if ( s_bSilent == false )
 			{
-				::MessageBox( nullptr, 
-					_T( "Python " ) _T( _CRT_STRINGIZE(PYTHONVERSION) ) _T( " pySide2 is not installed on this system. It is required to run this shell extension.\n\n" )
+				::MessageBox( nullptr,
+					_T( "Python " ) _T( _CRT_STRINGIZE(PYTHONVERSION) ) _T( " PySide6 is not installed on this system. It is required to run this shell extension.\n\n" )
 					_T( "Run the following command from a Python " ) _T( _CRT_STRINGIZE(PYTHONVERSION) ) _T( " command prompt.\n\n" )
-					_T( "pip install pySide2" ), 
-					_T( "Python " ) _T( _CRT_STRINGIZE(PYTHONVERSION) ) _T( " pySide2 Not Installed" ), 
+					_T( "pip install PySide6" ),
+					_T( "Python " ) _T( _CRT_STRINGIZE(PYTHONVERSION) ) _T( " PySide6 Not Installed" ),
 					MB_ICONERROR );
 			}
 
@@ -343,20 +332,12 @@ STDAPI DllRegisterServer()
 	hr = RegisterPropDescFile(_T("UsdPropertyKeys.propdesc"), IDR_XML_PROPDESC_USD);
 	if ( FAILED( hr ) )
 	{
-		if ( s_bSilent == false )
-		{
-			CString sError;
-			sError.Format( 
-				_T( "Failed to install UsdPropertyKeys.propdesc.\n\n" )
-				_T( "Error: 0x%.8X" ), 
-				hr );
-
-			::MessageBox( nullptr, 
-				sError,
-				_T( "PSRegisterPropertySchema Failed" ), 
-				MB_ICONERROR );
-		}
-		return hr;
+		// Non-fatal: PSRegisterPropertySchema can fail when a schema with the same URI
+		// is already registered (e.g., by a previous installation or another USD extension).
+		// Log the warning but continue so that all other registry entries are always written.
+		CString sWarn;
+		sWarn.Format( _T( "PSRegisterPropertySchema failed (0x%08X) - Windows Search property columns may be unavailable, but all shell features will continue." ), hr );
+		LogEventMessage( SHELLEXTENSION_CATEGORY, sWarn, LogEventType::Warning );
 	}
 
 	hr = InstallEventSource();
@@ -464,6 +445,7 @@ HRESULT WINAPI CShellExtModule::UpdateRegistry( _In_ BOOL bRegister ) throw()
 		{ L"IDS_SHELL_FLATTEN", _CRT_WIDE(_CRT_STRINGIZE(IDS_SHELL_FLATTEN)) },
 		{ L"IDS_SHELL_REFRESHTHUMBNAIL", _CRT_WIDE(_CRT_STRINGIZE(IDS_SHELL_REFRESHTHUMBNAIL)) },
 		{ L"IDS_SHELL_STATS", _CRT_WIDE(_CRT_STRINGIZE(IDS_SHELL_STATS)) },
+		{ L"IDS_SHELL_USDTOOLS", _CRT_WIDE(_CRT_STRINGIZE(IDS_SHELL_USDTOOLS)) },
 		{ nullptr, nullptr }
 	};
 

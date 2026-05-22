@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <!--
-   Copyright 2021 Activision Publishing, Inc. 
+   Copyright (C) 2025 Loops Creative Studio
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -14,42 +14,41 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 -->
+<!--
+   Uses usd_boost from the NVIDIA pre-built USD 25.08 SDK.
+   usd_boost is a shared DLL wrapping pxr_boost::python.
+   Headers live at $(BOOSTINCLUDEPATH)\pxr\external\boost\
+-->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <BOOSTLIBPATH>D:\USD-shared-full-p37-debug\lib\</BOOSTLIBPATH>
-    <BOOSTINCLUDEPATH>D:\USD-shared-full-p37-debug\include\boost-1_70\</BOOSTINCLUDEPATH>
-    <BOOSTDLL>boost_$(PythonFileName)-vc$(PlatformToolsetVersion)-mt-gd-x64-1_70.dll</BOOSTDLL>
+    <BOOSTLIBPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\lib\</BOOSTLIBPATH>
+    <BOOSTINCLUDEPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\include\</BOOSTINCLUDEPATH>
+    <BOOSTDLL>usd_boost.dll</BOOSTDLL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <BOOSTLIBPATH>D:\USD-shared-full-p37\lib\</BOOSTLIBPATH>
-    <BOOSTINCLUDEPATH>D:\USD-shared-full-p37\include\boost-1_70\</BOOSTINCLUDEPATH>
-    <BOOSTDLL>boost_$(PythonFileName)-vc$(PlatformToolsetVersion)-mt-x64-1_70.dll</BOOSTDLL>
+    <BOOSTLIBPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\lib\</BOOSTLIBPATH>
+    <BOOSTINCLUDEPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\include\</BOOSTINCLUDEPATH>
+    <BOOSTDLL>usd_boost.dll</BOOSTDLL>
   </PropertyGroup>
-		
+
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(BOOSTINCLUDEPATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- pxr_boost headers require C++17 (nested namespace definitions) -->
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(BOOSTLIBPATH);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <!-- usd_python.lib provides the pxr_boost::python runtime (init_module, converters, etc.) -->
+      <AdditionalDependencies>usd_python.lib;usd_boost.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <PostBuildEvent>
       <Command>
-		  xcopy "$(BOOSTLIBPATH)$(BOOSTDLL)" "$(TargetDir)" /I /Y /F /R
+        xcopy "$(BOOSTLIBPATH)$(BOOSTDLL)"    "$(TargetDir)" /I /Y /F /R
+        xcopy "$(BOOSTLIBPATH)usd_python.dll" "$(TargetDir)" /I /Y /F /R
 
-		  %(Command)
-	  </Command>
-    </PostBuildEvent>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <PostBuildEvent>
-      <Command>
-		  xcopy "$(BOOSTLIBPATH)$(BOOSTDLL)" "$(TargetDir)" /I /Y /F /R
-
-		  %(Command)
-	  </Command>
+        %(Command)
+      </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
 </Project>

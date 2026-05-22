@@ -1,16 +1,5 @@
-// Copyright 2021 Activision Publishing, Inc. 
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+// Licensed under the MIT License. See LICENSE.txt for details.
 
 #include "stdafx.h"
 #include "environment.h"
@@ -196,13 +185,15 @@ void GetPrivateProfileStringAndExpandEnvironmentStrings( LPCWSTR lpAppName, LPCW
 		wcscpy_s( sBuffer, lpDefault );
 	}
 
-	DWORD nLengthInChars = ::ExpandEnvironmentStringsW( sBuffer, lpReturnedString.GetBuffer(), lpReturnedString.GetAllocLength() );
-	if ( static_cast<int>(nLengthInChars) > lpReturnedString.GetAllocLength() )
+	// First call: get required buffer size (includes null terminator).
+	DWORD nLengthInChars = ::ExpandEnvironmentStringsW( sBuffer, nullptr, 0 );
+	if ( nLengthInChars > 0 )
 	{
-		::ExpandEnvironmentStringsW( sBuffer, lpReturnedString.GetBuffer(nLengthInChars), nLengthInChars );
+		::ExpandEnvironmentStringsW( sBuffer, lpReturnedString.GetBuffer( nLengthInChars ), nLengthInChars );
 	}
-
-	lpReturnedString.ReleaseBuffer( nLengthInChars );
+	// ReleaseBuffer() uses wcslen so the embedded null written by
+	// ExpandEnvironmentStringsW is NOT included in the logical string length.
+	lpReturnedString.ReleaseBuffer();
 }
 
 std::vector<CStringW> BuildConfigFileList( HMODULE hCurrentModule )
@@ -218,7 +209,6 @@ std::vector<CStringW> BuildConfigFileList( HMODULE hCurrentModule )
 			wcscpy_s( sConfigPath, pFolderPath );
 			CoTaskMemFree( pFolderPath );
 			pFolderPath = nullptr;
-			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"Activision" );
 			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"UsdShellExtension" );
 			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"UsdShellExtension.ini" );
 			ConfigFileList.push_back( sConfigPath );
@@ -234,7 +224,6 @@ std::vector<CStringW> BuildConfigFileList( HMODULE hCurrentModule )
 			wcscpy_s( sConfigPath, pFolderPath );
 			CoTaskMemFree( pFolderPath );
 			pFolderPath = nullptr;
-			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"Activision" );
 			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"UsdShellExtension" );
 			::PathCchAppend( sConfigPath, ARRAYSIZE( sConfigPath ), L"UsdShellExtension.ini" );
 			ConfigFileList.push_back( sConfigPath );
@@ -269,8 +258,34 @@ void SetupPythonEnvironment( HMODULE hCurrentModule )
 	CStringW sUSD_PluginPath;
 	GetPrivateProfileStringAndExpandEnvironmentStrings( L"USD", L"PXR_PLUGINPATH_NAME", L"", sUSD_PluginPath, ConfigFileList );
 
+	if ( sUSD_PluginPath.IsEmpty() )
+	{
+		wchar_t sModuleDir[1024];
+		::GetModuleFileNameW( hCurrentModule, sModuleDir, ARRAYSIZE( sModuleDir ) );
+		::PathCchRemoveFileSpec( sModuleDir, ARRAYSIZE( sModuleDir ) );
+
+		wchar_t sUsdDir[1024];
+		wcscpy_s( sUsdDir, sModuleDir );
+		::PathCchAppend( sUsdDir, ARRAYSIZE( sUsdDir ), L"usd" );
+
+		wchar_t sPluginUsdDir[1024];
+		wcscpy_s( sPluginUsdDir, sModuleDir );
+		::PathCchAppend( sPluginUsdDir, ARRAYSIZE( sPluginUsdDir ), L"plugin\\usd" );
+
+		sUSD_PluginPath.Format( L"%s;%s", sUsdDir, sPluginUsdDir );
+	}
+
 	CStringW sPython_Path;
 	GetPrivateProfileStringAndExpandEnvironmentStrings( L"PYTHON", L"PATH", L"", sPython_Path, ConfigFileList );
+
+	// Set PYTHONHOME so Python can find its standard library.
+	// The python312.dll is copied to the EXE/DLL directory for loading, but the
+	// actual Python installation (Lib/, DLLs/) lives in the python\ subfolder.
+	// Without PYTHONHOME, Python would look for Lib/ next to python312.dll and fail.
+	if ( !sPython_Path.IsEmpty() )
+	{
+		_wputenv_s( L"PYTHONHOME", sPython_Path );
+	}
 
 	CStringW sPython_PythonPath;
 	GetPrivateProfileStringAndExpandEnvironmentStrings( L"PYTHON", L"PYTHONPATH", L"", sPython_PythonPath, ConfigFileList );

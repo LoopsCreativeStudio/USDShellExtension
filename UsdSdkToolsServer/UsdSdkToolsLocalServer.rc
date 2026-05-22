@@ -40,8 +40,8 @@ END
 BEGIN
     "1 TYPELIB ""UsdSdkToolsLocalServer.tlb""\r\n"
     "\r\n"
-    "#define ATVI_VERSION_DESCRIPTION ""Activision USD SDK Tools Server""\r\n"
-    "#include ""atviversion.rc2""\r\n"
+    "#define USD_VERSION_DESCRIPTION ""USD SDK Tools Server""\r\n"
+    "#include ""version.rc2""\r\n"
     "\r\n"
     "\0"
 END
@@ -80,8 +80,8 @@ IDI_ICON_USD            ICON                    "shared\\usd.ico"
 //
 1 TYPELIB "UsdSdkToolsLocalServer.tlb"
 
-#define ATVI_VERSION_DESCRIPTION "Activision USD SDK Tools Server"
-#include "atviversion.rc2"
+#define USD_VERSION_DESCRIPTION "USD SDK Tools Server"
+#include "version.rc2"
 
 
 /////////////////////////////////////////////////////////////////////////////

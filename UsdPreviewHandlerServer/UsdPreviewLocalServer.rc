@@ -40,8 +40,8 @@ END
 BEGIN
     "1 TYPELIB ""USDPreviewLocalServer.tlb""\r\n"
     "\r\n"
-    "#define ATVI_VERSION_DESCRIPTION ""Activision USD Preview Server""\r\n"
-    "#include ""atviversion.rc2""\r\n"
+    "#define USD_VERSION_DESCRIPTION ""USD Preview Server""\r\n"
+    "#include ""version.rc2""\r\n"
     "\0"
 END
 
@@ -87,8 +87,8 @@ IDR_PYTHON_PREVIEWHANLDER PYTHON                  "UsdPreviewHandlerPython.py"
 //
 1 TYPELIB "USDPreviewLocalServer.tlb"
 
-#define ATVI_VERSION_DESCRIPTION "Activision USD Preview Server"
-#include "atviversion.rc2"
+#define USD_VERSION_DESCRIPTION "USD Preview Server"
+#include "version.rc2"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED

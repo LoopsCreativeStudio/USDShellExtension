@@ -1,33 +1,18 @@
-#  Copyright 2021 Activision Publishing, Inc. 
-#
-#  Licensed under the Apache License, Version 2.0 (the "License");
-#  you may not use this file except in compliance with the License.
-#  You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#  Unless required by applicable law or agreed to in writing, software
-#  distributed under the License is distributed on an "AS IS" BASIS,
-#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#  See the License for the specific language governing permissions and
-#  limitations under the License.
+# USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
+# Licensed under the MIT License. See LICENSE.txt for details.
 
 from __future__ import print_function
 import sys
 import os
 import argparse
-from pxr import Usd, UsdUtils, Sdf, UsdAppUtils
+from pxr import Usd, UsdUtils, UsdAppUtils
 from pxr.Usdviewq.stageView import StageView
 from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
 
-try:
-    from PySide2.QtCore import *
-    from PySide2.QtGui import *
-    from PySide2.QtWidgets import *
-except ImportError:
-    from PySide.QtCore import *
-    from PySide.QtGui import *
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu, QActionGroup
 
 class Widget(QWidget):
     def __init__(self, stage=None, app=None, previewApp=None):
@@ -37,7 +22,7 @@ class Widget(QWidget):
 
         self.model = StageView.DefaultDataModel()
 
-        
+
         self.view = StageView(dataModel=self.model,
                               printTiming=True)
 
@@ -113,7 +98,7 @@ class Widget(QWidget):
         # have been set by now).
         currentRendererId = self.view.GetCurrentRendererId()
         foundPlugin = False
-        
+
         for action in self.rendererPluginActionGroup.actions():
             if action.pluginType == currentRendererId:
                 action.setChecked(True)
@@ -192,12 +177,12 @@ class Widget(QWidget):
         complexityMenu.addAction(self.actionWireframe)
         complexityMenu.addAction(self.actionWireframeOnSurface)
         complexityMenu.addAction(self.actionSmooth_Shaded)
-        complexityMenu.addAction(self.actionFlat_Shaded)        
-        complexityMenu.addAction(self.actionPoints)        
-        complexityMenu.addAction(self.actionGeom_Only)        
-        complexityMenu.addAction(self.actionGeom_Smooth)        
-        complexityMenu.addAction(self.actionGeom_Flat)        
-        complexityMenu.addAction(self.actionHidden_Surface_Wireframe)        
+        complexityMenu.addAction(self.actionFlat_Shaded)
+        complexityMenu.addAction(self.actionPoints)
+        complexityMenu.addAction(self.actionGeom_Only)
+        complexityMenu.addAction(self.actionGeom_Smooth)
+        complexityMenu.addAction(self.actionGeom_Flat)
+        complexityMenu.addAction(self.actionHidden_Surface_Wireframe)
 
     def buildContextMenu_DisplayPurposes(self, contextMenu):
         self.actionDisplay_Guide = QAction("Guide", self)
@@ -225,21 +210,21 @@ class Widget(QWidget):
         self.buildContextMenu_ShadingMode(self.contextMenu)
         self.buildContextMenu_DisplayPurposes(self.contextMenu)
 
-                              
+
     def closeEvent(self, event):
-        
+
         # Ensure to close the renderer to avoid GlfPostPendingGLErrors
         self.view.closeRenderer()
 
     def contextMenuEvent(self, event):
         modifiers = self.app.keyboardModifiers()
 
-        altModifer = ((modifiers & Qt.AltModifier) == Qt.AltModifier)
-        shiftModifer = ((modifiers & Qt.ShiftModifier) == Qt.ShiftModifier)
-        controlModifer = ((modifiers & Qt.ControlModifier) == Qt.ControlModifier)
+        altModifer = ((modifiers & Qt.KeyboardModifier.AltModifier) == Qt.KeyboardModifier.AltModifier)
+        shiftModifer = ((modifiers & Qt.KeyboardModifier.ShiftModifier) == Qt.KeyboardModifier.ShiftModifier)
+        controlModifer = ((modifiers & Qt.KeyboardModifier.ControlModifier) == Qt.KeyboardModifier.ControlModifier)
 
         if not altModifer and not shiftModifer and not controlModifer:
-            self.contextMenu.exec_(self.mapToGlobal(event.pos()))
+            self.contextMenu.exec(self.mapToGlobal(event.pos()))
 
     def timerEvent(self, event):
 
@@ -249,10 +234,10 @@ class Widget(QWidget):
 
         eventData = self.previewApp.PeekEvent()
         while eventData.event != UsdPreviewHandler.UsdPreviewEvent.NoMoreEvents:
-            
+
             if eventData.event == UsdPreviewHandler.UsdPreviewEvent.Quit:
                 self.app.quit()
-                
+
             eventData = self.previewApp.PeekEvent()
 
 def setStyleSheetUsingState(app, resourceDir):
@@ -264,11 +249,11 @@ def setStyleSheetUsingState(app, resourceDir):
 
     fontSize = 10
     baseFontSizeStr = "%spt" % str(fontSize)
-    
+
     # The choice of 8 for smallest smallSize is for performance reasons,
     # based on the "Gotham Rounded" font used by usdviewstyle.qss . If we
     # allow it to float, we get a 2-3 hundred millisecond hit in startup
-    # time as Qt (apparently) manufactures a suitably sized font.  
+    # time as Qt (apparently) manufactures a suitably sized font.
     # Mysteriously, we don't see this cost for larger font sizes.
     smallSize = 8 if fontSize < 12 else int(round(fontSize * 0.8))
     smallFontSizeStr = "%spt" % str(smallSize)
@@ -282,7 +267,7 @@ def setStyleSheetUsingState(app, resourceDir):
 
     app.setStyleSheet(sheetString)
 
-        
+
 def main():
     programName = os.path.basename(sys.argv[0])
     parser = argparse.ArgumentParser(prog=programName,
@@ -312,8 +297,8 @@ def main():
     setStyleSheetUsingState(app, args.usdviewqDir)
 
     window = Widget(stage, app, previewApp)
-    window.setWindowFlags( Qt.Popup | Qt.Tool )
-    window.setAttribute( Qt.WA_DontShowOnScreen )
+    window.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.Tool)
+    window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
     window.show()
 
     # poll for events every so often
@@ -324,10 +309,10 @@ def main():
         ctypes.pythonapi.PyCObject_AsVoidPtr.restype = ctypes.c_void_p
         ctypes.pythonapi.PyCObject_AsVoidPtr.argtypes = [ctypes.py_object]
         previewApp.SetParent( args.hwnd, ctypes.pythonapi.PyCObject_AsVoidPtr(window.effectiveWinId()), ctypes.pythonapi.PyCObject_AsVoidPtr(window.view.effectiveWinId()) )
-    except:
+    except Exception:
         previewApp.SetParent( args.hwnd, window.effectiveWinId(), window.view.effectiveWinId() )
 
-    window.setAttribute( Qt.WA_DontShowOnScreen, False )
+    window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, False)
 
     # Make camera fit the loaded geometry
     window.view.updateView(resetCam=True, forceComputeBBox=True)
@@ -337,7 +322,7 @@ def main():
 
     window.buildContextMenu()
 
-    app.exec_()
+    app.exec()
 
 if __name__ == "__main__":
     sys.exit(main())

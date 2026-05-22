@@ -13,7 +13,7 @@
 #define IDR_XML_PROPDESC_USD            124
 #define IDS_USD_DOCUMENTATION_INVITATIONTEXT 124
 #define IDS_USD_DOCUMENTATION_MNEMONICS 125
-#define IDB_LOGO                        125
+#define IDB_LOGO                        125  // no PNG resource — logo silently omitted
 #define IDS_USD_PROPGROUP_USD_LABEL     126
 #define IDS_FILE_USD                    138
 #define IDS_FILE_USDA                   139
@@ -28,6 +28,17 @@
 #define IDS_SHELL_STATS                 148
 #define IDS_USD_CUSTOMLAYERDATA_LABEL   149
 #define IDS_USD_CUSTOMLAYERDATA_MNEMONICS 150
+#define IDS_SHELL_USDTOOLS              151
+#define IDS_SHELL_VIEWLOGS              152
+
+#define IDR_ICON_COMPRESS               201
+#define IDR_ICON_UNCOMPRESS             202
+#define IDR_ICON_FLATTEN                203
+#define IDR_ICON_PACKAGE                204
+#define IDR_ICON_REFRESH_THUMB          205
+#define IDR_ICON_STAGE_STATS            206
+#define IDR_ICON_VIEW_LOGS              207
+#define IDR_ICON_TOOLS                  208
 
 // Next default values for new objects
 // 

@@ -1,4 +1,4 @@
-; Copyright 2021 Activision Publishing, Inc. 
+﻿; Copyright (C) 2025 Loops Creative Studio 
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -52,11 +52,11 @@ Unicode True
 SetCompressor LZMA
 
 ; The default installation directory
-InstallDir $PROGRAMFILES64\Activision\UsdShellExtension
+InstallDir $PROGRAMFILES64\UsdShellExtension
 
 ; Registry key to check for directory (so if you install again, it will 
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\Activision\UsdShellExtension" "Install_Dir"
+InstallDirRegKey HKLM "SOFTWARE\UsdShellExtension" "Install_Dir"
 
 !define MUI_BGCOLOR "FFFFFF"
 !define MUI_ICON "..\..\..\..\shared\usd.ico"
@@ -180,13 +180,13 @@ DetailPrint "Installing files..."
 SetDetailsPrint listonly
 
 SetShellVarContext all
-${Unless} ${FileExists} "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"
-    SetOutPath "$LOCALAPPDATA\Activision\UsdShellExtension"
+${Unless} ${FileExists} "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
+    SetOutPath "$LOCALAPPDATA\UsdShellExtension"
     File UsdShellExtension.ini
 ${EndUnless}
 SetShellVarContext current
-${Unless} ${FileExists} "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"
-    SetOutPath "$LOCALAPPDATA\Activision\UsdShellExtension"
+${Unless} ${FileExists} "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
+    SetOutPath "$LOCALAPPDATA\UsdShellExtension"
     File UsdShellExtension.ini
 ${EndUnless}
 
@@ -215,7 +215,7 @@ SetOutPath "$INSTDIR"
 !insertmacro InstallLib REGDLL NOTSHARED REBOOT_NOTPROTECTED UsdShellExtension.dll "$INSTDIR\UsdShellExtension.dll" $INSTDIR
 
 ; Write the installation path into the registry
-WriteRegStr HKLM SOFTWARE\Activision\UsdShellExtension "Install_Dir" "$INSTDIR"
+WriteRegStr HKLM SOFTWARE\UsdShellExtension "Install_Dir" "$INSTDIR"
 
 ; Write the uninstall keys for Windows
 WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayName" "${VER_PRODUCTNAME}"
@@ -228,19 +228,19 @@ WriteUninstaller "$INSTDIR\uninstall.exe"
 ; Install start menu items
 SetShellVarContext current
 CreateDirectory '$SMPROGRAMS\USD Shell Extension'
-CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (Current User).lnk' '"$SYSDIR\NOTEPAD.EXE"' '"$LOCALAPPDATA\Activision\UsdShellExtension\USDShellExtension.ini"' '$SYSDIR\imageres.dll' 64
+CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (Current User).lnk' '"$SYSDIR\NOTEPAD.EXE"' '"$LOCALAPPDATA\UsdShellExtension\USDShellExtension.ini"' '$SYSDIR\imageres.dll' 64
 
 SetShellVarContext all
 CreateDirectory '$SMPROGRAMS\USD Shell Extension'
-CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk' '"$SYSDIR\NOTEPAD.EXE"' '"$LOCALAPPDATA\Activision\UsdShellExtension\USDShellExtension.ini"' '$SYSDIR\imageres.dll' 64
+CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk' '"$SYSDIR\NOTEPAD.EXE"' '"$LOCALAPPDATA\UsdShellExtension\USDShellExtension.ini"' '$SYSDIR\imageres.dll' 64
 CreateShortCut '$SMPROGRAMS\USD Shell Extension\Uninstall USD Shell Extension.lnk' '$INSTDIR\uninstall.exe' ""
 !insertmacro ShellLinkSetRunAs "$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk"
 
 ; Write version info to registry
-WriteRegStr HKLM "Software\Activision\UsdShellExtension" "Version" "${VER_MAJOR}.${VER_MINOR}.${VER_REVISION}.${VER_BUILD}"
-WriteRegStr HKLM "Software\Activision\UsdShellExtension" "USD Version" "${USD_VERSION}"
-WriteRegStr HKLM "Software\Activision\UsdShellExtension" "Python Version" "${PYTHON_VERSION}"
-WriteRegStr HKLM "Software\Activision\UsdShellExtension" "Installer" "${OUT_FILE}"
+WriteRegStr HKLM "SOFTWARE\UsdShellExtension" "Version" "${VER_MAJOR}.${VER_MINOR}.${VER_REVISION}.${VER_BUILD}"
+WriteRegStr HKLM "SOFTWARE\UsdShellExtension" "USD Version" "${USD_VERSION}"
+WriteRegStr HKLM "SOFTWARE\UsdShellExtension" "Python Version" "${PYTHON_VERSION}"
+WriteRegStr HKLM "SOFTWARE\UsdShellExtension" "Installer" "${OUT_FILE}"
 
 SectionEnd
 
@@ -259,17 +259,17 @@ SectionEnd
 ;--------------------------------
 Function PatchConfigFileAll
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "EDITOR" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "EDITOR" ""
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" "GL"
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" "GL"
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" "GL"
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" "GL"
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" "GL"
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" "GL"
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" ""
+!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" ""
 
 FunctionEnd
 
@@ -279,37 +279,37 @@ Function ForceConfigFileAll
 SetShellVarContext all
 
 ${If} $CmdLineUsdPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" $CmdLineUsdPath
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" $CmdLineUsdPath
 ${EndIf}
 
 ${If} $CmdLineUsdPythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" $CmdLineUsdPythonPath
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" $CmdLineUsdPythonPath
 ${EndIf}
 
 ${If} $CmdLineUsdPxrPluginPathName != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" $CmdLineUsdPxrPluginPathName
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" $CmdLineUsdPxrPluginPathName
 ${EndIf}
 
 
 ${If} $CmdLinePythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" $CmdLinePythonPath
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" $CmdLinePythonPath
 ${EndIf}
 
 ${If} $CmdLinePythonPythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" $CmdLinePythonPythonPath
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" $CmdLinePythonPythonPath
 ${EndIf}
 
 
 ${If} $CmdLineRendererPreview != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" $CmdLineRendererPreview
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" $CmdLineRendererPreview
 ${EndIf}
 
 ${If} $CmdLineRendererThumbnail != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" $CmdLineRendererThumbnail
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" $CmdLineRendererThumbnail
 ${EndIf}
 
 ${If} $CmdLineRendererView != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" $CmdLineRendererView
+    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" $CmdLineRendererView
 ${EndIf}
 
 FunctionEnd
@@ -383,10 +383,10 @@ SetDetailsPrint listonly
   
 ; Remove registry keys
 DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension"
-DeleteRegKey HKLM SOFTWARE\Activision\UsdShellExtension
+DeleteRegKey HKLM SOFTWARE\UsdShellExtension
 
 ; Remove files and uninstaller
-;Delete /REBOOTOK "$LOCALAPPDATA\Activision\UsdShellExtension\UsdShellExtension.ini"
+;Delete /REBOOTOK "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Delete /REBOOTOK "$INSTDIR\plugInfo.json"
 Delete /REBOOTOK "$INSTDIR\LICENSE.txt"
 Delete /REBOOTOK "$INSTDIR\NOTICE.txt"
