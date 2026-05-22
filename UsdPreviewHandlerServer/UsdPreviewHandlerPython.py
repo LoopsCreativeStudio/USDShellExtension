@@ -5,14 +5,14 @@ from __future__ import print_function
 import sys
 import os
 import argparse
-from pxr import Usd, UsdUtils, UsdAppUtils
+from pxr import Usd, UsdUtils, UsdAppUtils, Sdf
 from pxr.Usdviewq.stageView import StageView
 from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QActionGroup
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QApplication, QMenu, QLabel
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 # USD 25.08 stageView.py calls QGLWidget.glDraw() which is a Qt 5 API not
@@ -37,9 +37,22 @@ class Widget(QWidget):
         self.app = app
         self.previewApp = previewApp
 
+        self._selectedPath = ""
+
+        self._primLabel = QLabel()
+        self._primLabel.setFixedHeight(20)
+        self._primLabel.setStyleSheet(
+            "QLabel { background-color: #1e1e1e; color: #aaaaaa; padding: 0px 6px; }")
+        self._primLabel.hide()
+
         self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(0)
         self.layout.addWidget(self.view)
+        self.layout.addWidget(self._primLabel)
         self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.view.signalPrimSelected.connect(self.OnPrimSelected)
+        self.view.signalPrimRollover.connect(self.OnPrimRollover)
 
         self.isLoadComplete = False
 
@@ -48,6 +61,30 @@ class Widget(QWidget):
 
     def setStage(self, stage):
         self.model.stage = stage
+
+    def OnPrimSelected(self, primPath, instanceIndex, topLevelPath, topLevelInstanceIndex, hitPoint, button, modifiers):
+        if primPath != Sdf.Path.emptyPath:
+            self._selectedPath = str(primPath)
+            self._primLabel.setText(self._selectedPath)
+            self._primLabel.setStyleSheet(
+                "QLabel { background-color: #1e1e1e; color: #ffffff; padding: 0px 6px; }")
+            self._primLabel.show()
+        else:
+            self._selectedPath = ""
+            self._primLabel.hide()
+
+    def OnPrimRollover(self, primPath, instanceIndex, topLevelPath, topLevelInstanceIndex, *args):
+        if primPath != Sdf.Path.emptyPath:
+            self._primLabel.setText(str(primPath))
+            self._primLabel.setStyleSheet(
+                "QLabel { background-color: #1e1e1e; color: #aaaaaa; padding: 0px 6px; }")
+            self._primLabel.show()
+        elif self._selectedPath:
+            self._primLabel.setText(self._selectedPath)
+            self._primLabel.setStyleSheet(
+                "QLabel { background-color: #1e1e1e; color: #ffffff; padding: 0px 6px; }")
+        else:
+            self._primLabel.hide()
 
     def OnComplexity(self, action):
         self.model.viewSettings.complexity = RefinementComplexities.fromName(action.text())
