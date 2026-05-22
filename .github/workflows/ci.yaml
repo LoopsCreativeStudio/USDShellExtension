@@ -34,5 +34,6 @@ jobs:
         run: |
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
-          $results = Invoke-ScriptAnalyzer -Path . -Include "*.ps1" -Severity Warning,Error -ReportSummary
+          $files = Get-ChildItem -Path . -Filter "*.ps1" -Recurse
+          $results = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Severity Warning,Error }
           if ($results) { $results; exit 1 }
