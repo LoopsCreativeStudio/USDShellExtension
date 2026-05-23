@@ -135,7 +135,7 @@ public static class NativeFileHelper {
     }
 }
 "@
-} catch { <# type already loaded #> }
+} catch { $null = $_ }
 
 function Copy-WithRetry {
     param([string]$Source, [string]$Dest, [int]$Retries = 5, [int]$DelaySec = 2)
@@ -144,7 +144,7 @@ function Copy-WithRetry {
     try {
         Copy-Item $Source $Dest -Force -ErrorAction Stop
         return
-    } catch [System.IO.IOException] { }
+    } catch [System.IO.IOException] { $null = $_ }
 
     # The destination is locked (in-use DLL / EXE).  On NTFS, renaming a
     # file succeeds even with open handles because it only updates the
@@ -160,7 +160,7 @@ function Copy-WithRetry {
             return
         } catch {
             if (-not (Test-Path $Dest) -and (Test-Path $oldPath)) {
-                try { Rename-Item $oldPath $Dest -ErrorAction SilentlyContinue } catch { }
+                try { Rename-Item $oldPath $Dest -ErrorAction SilentlyContinue } catch { $null = $_ }
             }
         }
     }
@@ -175,7 +175,7 @@ function Copy-WithRetry {
         if (Test-Path $tempDest) { Remove-Item $tempDest -Force -ErrorAction SilentlyContinue }
         Copy-Item $Source $tempDest -Force -ErrorAction Stop
         $posixOk = [NativeFileHelper]::PosixReplace($tempDest, $Dest)
-    } catch { }
+    } catch { $null = $_ }
     if (-not $posixOk -and (Test-Path $tempDest)) {
         Remove-Item $tempDest -Force -ErrorAction SilentlyContinue
     }

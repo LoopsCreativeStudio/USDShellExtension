@@ -93,12 +93,12 @@ def main():
         print("  [%d] %s%s" % (i, real, label))
 
     used = stage.GetUsedLayers()
-    non_session = [l for l in used if l != session]
+    non_session = [lyr for lyr in used if lyr != session]
     if len(non_session) > count:
         print()
         print("All used layers (includes references and payloads; %d total):" % len(non_session))
         for i, layer in enumerate(sorted(non_session,
-                                          key=lambda l: l.realPath or l.identifier)):
+                                          key=lambda lyr: lyr.realPath or lyr.identifier)):
             real = layer.realPath or layer.identifier
             print("  [%d] %s" % (i, real))
 
