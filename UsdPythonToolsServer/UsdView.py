@@ -81,6 +81,21 @@ try:
                     ("pt_x",    _ct.c_long),
                     ("pt_y",    _ct.c_long)]
 
+    _gdi32 = _ct.windll.gdi32
+
+    _u32.BeginPaint.argtypes    = [_ct.c_void_p, _ct.POINTER(_PAINTSTRUCT)]
+    _u32.EndPaint.argtypes      = [_ct.c_void_p, _ct.POINTER(_PAINTSTRUCT)]
+    _u32.EndPaint.restype       = _ct.c_int
+    _u32.GetClientRect.argtypes = [_ct.c_void_p, _ct.POINTER(_RECT)]
+    _u32.GetClientRect.restype  = _ct.c_int
+    _gdi32.SetTextColor.argtypes = [_ct.c_void_p, _ct.c_uint]
+    _gdi32.SetTextColor.restype  = _ct.c_uint
+    _gdi32.SetBkMode.argtypes    = [_ct.c_void_p, _ct.c_int]
+    _gdi32.SetBkMode.restype     = _ct.c_int
+    _u32.DrawTextW.argtypes     = [_ct.c_void_p, _ct.c_wchar_p, _ct.c_int,
+                                   _ct.POINTER(_RECT), _ct.c_uint]
+    _u32.DrawTextW.restype      = _ct.c_int
+
     def _splash_proc(hwnd, msg, wp, lp):
         if msg == _WM_DESTROY:
             _u32.PostQuitMessage(0)
@@ -88,6 +103,8 @@ try:
         if msg == _WM_PAINT:
             ps  = _PAINTSTRUCT()
             hdc = _u32.BeginPaint(hwnd, _ct.byref(ps))
+            _gdi32.SetTextColor(hdc, 0x000000)
+            _gdi32.SetBkMode(hdc, 1)
             rc  = _RECT()
             _u32.GetClientRect(hwnd, _ct.byref(rc))
             rc.left += 16

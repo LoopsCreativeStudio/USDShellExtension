@@ -7,6 +7,7 @@
 #include "shared\environment.h"
 #include "shared\EventViewerLog.h"
 
+#include <string>
 #include <vector>
 
 HRESULT CUsdSdkToolsImpl::FinalConstruct()
@@ -189,8 +190,16 @@ STDMETHODIMP CUsdSdkToolsImpl::Edit( IN BSTR usdStagePath, IN VARIANT_BOOL force
 static void pause()
 {
 	std::cout << std::endl;
-	std::cout << "Press any key to continue..." << std::endl;
-	_getch();
+	std::cout << "Press Enter to close..." << std::endl;
+	HANDLE hIn = ::CreateFileW( L"CONIN$", GENERIC_READ, FILE_SHARE_READ,
+	                            nullptr, OPEN_EXISTING, 0, nullptr );
+	if ( hIn != INVALID_HANDLE_VALUE )
+	{
+		WCHAR buf[2] = {};
+		DWORD nRead  = 0;
+		::ReadConsoleW( hIn, buf, 1, &nRead, nullptr );
+		::CloseHandle( hIn );
+	}
 }
 
 STDMETHODIMP CUsdSdkToolsImpl::Package( IN BSTR usdStagePathInput, IN BSTR usdStagePathOuput, IN eUsdPackageType packageType, IN VARIANT_BOOL verbose )
@@ -208,9 +217,6 @@ STDMETHODIMP CUsdSdkToolsImpl::Package( IN BSTR usdStagePathInput, IN BSTR usdSt
 
 	SetConsoleTitleW( L"USD Package" );
 
-	// ask the user to press a key to exit
-	atexit( pause );
-
 	RegisterUsdPlugins();
 
 	if ( verbose != VARIANT_FALSE )
@@ -226,18 +232,26 @@ STDMETHODIMP CUsdSdkToolsImpl::Package( IN BSTR usdStagePathInput, IN BSTR usdSt
 	if ( packageType == USD_PACKAGE_DEFAULT )
 	{
 		if ( !pxr::UsdUtilsCreateNewUsdzPackage( pxr::SdfAssetPath( usdStagePathInputA ), usdStagePathOuputA ) )
+		{
+			pause();
 			return E_FAIL;
+		}
 	}
 	else if( packageType == USD_FORMAT_APPLE_ARKIT )
 	{
 		if ( !pxr::UsdUtilsCreateNewARKitUsdzPackage( pxr::SdfAssetPath( usdStagePathInputA ), usdStagePathOuputA ) )
+		{
+			pause();
 			return E_FAIL;
+		}
 	}
 	else
 	{
+		pause();
 		return E_INVALIDARG;
 	}
 
+	pause();
 	return S_OK;
 }
 
@@ -281,9 +295,6 @@ STDMETHODIMP CUsdSdkToolsImpl::DisplayStageStats( IN BSTR usdStagePath )
 
 	SetConsoleTitleW( L"USD Stage Stats" );
 
-	// ask the user to press a key to exit
-	atexit( pause );
-
 	RegisterUsdPlugins();
 
 	std::string sError;
@@ -291,16 +302,22 @@ STDMETHODIMP CUsdSdkToolsImpl::DisplayStageStats( IN BSTR usdStagePath )
 
 	std::string usdStagePathA = static_cast<LPCSTR>(ATL::CW2A( usdStagePath, CP_UTF8 ));
 
-	std::cout << usdStagePathA << std::endl;
+	std::cout << "USD Stage Stats" << std::endl;
+	std::cout << std::string( 72, '=' ) << std::endl;
+	std::cout << "File: " << usdStagePathA << std::endl;
 	std::cout << std::endl;
 
 	pxr::VtDictionary dictStats;
 	pxr::UsdStageRefPtr stage = pxr::UsdUtilsComputeUsdStageStats( usdStagePathA, &dictStats );
 	if ( stage == nullptr )
+	{
+		pause();
 		return E_FAIL;
+	}
 
 	PrintDictionary( dictStats, 0 );
 
+	pause();
 	return S_OK;
 }
 
