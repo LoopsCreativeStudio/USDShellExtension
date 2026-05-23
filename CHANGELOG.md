@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.2.0...v1.3.0) (2026-05-23)
+
+
+### Features
+
+* add animation timeline to preview pane ([3669840](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/36698402fc99871082f8dfa5d844a68d2c002181))
+* add usd-shell.ps1 utility to configure USD environment ([6549a2c](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6549a2ccbf04a3039364101dab5061e12bd411b9))
+* add Validate, Fix and Layer Stack context menu commands ([5628800](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/562880070c356e6c7959e1c35e0107b578e26967))
+
+
+### Bug Fixes
+
+* handle locked DLLs and Windows Search in install.ps1 ([d00c248](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/d00c248d2ef0645c91d36c7edd09f784badfbe68))
+* improve console pause and stage stats output in UsdSdkTools ([66ae2db](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/66ae2dbda38e4d53758d0a75a1ca58237ac3ebeb))
+* kill Explorer before polling python312.dll lock in install.ps1 ([895e5d9](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/895e5d95f61774f982b60d248e6c36e7968e472a))
+* open USD files with FILE_SHARE_DELETE in ArResolver ([8ec75d0](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/8ec75d0a5c5ced9fb06065be820920fdcb213c16))
+
 ## [1.2.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.1.1...v1.2.0) (2026-05-22)
 
 
