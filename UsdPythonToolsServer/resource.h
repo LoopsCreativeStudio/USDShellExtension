@@ -13,12 +13,15 @@
 #define IDR_PYTHON1                     111
 #define IDR_PYTHON_THUMBNAIL            111
 #define IDR_PYTHON_VIEW                 112
+#define IDR_PYTHON_LAYERSTACK           113
+#define IDR_PYTHON_FIX                  114
+#define IDR_PYTHON_VALIDATE             115
 
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        113
+#define _APS_NEXT_RESOURCE_VALUE        116
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101
