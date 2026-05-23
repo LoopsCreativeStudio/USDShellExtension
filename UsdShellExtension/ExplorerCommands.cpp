@@ -587,6 +587,69 @@ public:
     }
 };
 
+// --- Validate (usdchecker) --------------------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdValidate ))
+ATL_NO_VTABLE CUsdCmdValidate
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdValidate, &__uuidof( CUsdCmdValidate )>
+    , public CUsdExplorerCommandImpl<CUsdCmdValidate>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdValidate )
+    static UINT TitleId() { return IDS_SHELL_VALIDATE; }
+
+    HRESULT DoInvoke( LPCWSTR pszPath )
+    {
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->Validate( CComBSTR( pszPath ) );
+    }
+};
+
+// --- Fix (usdfixbrokenpixarschemas) -----------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdFix ))
+ATL_NO_VTABLE CUsdCmdFix
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdFix, &__uuidof( CUsdCmdFix )>
+    , public CUsdExplorerCommandImpl<CUsdCmdFix>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdFix )
+    static UINT TitleId() { return IDS_SHELL_FIX; }
+
+    HRESULT DoInvoke( LPCWSTR pszPath )
+    {
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->Fix( CComBSTR( pszPath ) );
+    }
+};
+
+// --- Layer Stack ------------------------------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdLayerStack ))
+ATL_NO_VTABLE CUsdCmdLayerStack
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdLayerStack, &__uuidof( CUsdCmdLayerStack )>
+    , public CUsdExplorerCommandImpl<CUsdCmdLayerStack>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdLayerStack )
+    static UINT TitleId() { return IDS_SHELL_LAYERSTACK; }
+
+    HRESULT DoInvoke( LPCWSTR pszPath )
+    {
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->ShowLayerStack( CComBSTR( pszPath ) );
+    }
+};
+
 // --- View USD Logs ----------------------------------------------------------
 // Opens Windows Event Viewer; does not use the file path argument.
 
@@ -699,12 +762,18 @@ public:
         AddCmdToEnum<CUsdCmdPackage>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 3 — utilities
+        // Group 3 — validation and diagnostics
+        AddCmdToEnum<CUsdCmdValidate>( pEnum );
+        AddCmdToEnum<CUsdCmdFix>( pEnum );
+        AddCmdToEnum<CUsdCmdLayerStack>( pEnum );
+        AddSepToEnum( pEnum );
+
+        // Group 4 — utilities
         AddCmdToEnum<CUsdCmdRefreshThumbnail>( pEnum );
         AddCmdToEnum<CUsdCmdStageStats>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 4 — diagnostics
+        // Group 5 — logs
         AddCmdToEnum<CUsdCmdViewLogs>( pEnum );
 
         pEnum->AddRef();
@@ -734,6 +803,7 @@ ATL_NO_VTABLE CUsdContextMenu
     {
         ACT_COMPRESS, ACT_UNCOMPRESS, ACT_FLATTEN,
         ACT_PACKAGE_DEFAULT, ACT_PACKAGE_ARKIT,
+        ACT_VALIDATE, ACT_FIX, ACT_LAYER_STACK,
         ACT_REFRESH_THUMB, ACT_STAGE_STATS, ACT_VIEW_LOGS
     };
 
@@ -836,6 +906,11 @@ public:
         }
 
         AddSep();
+        AddCmd( ACT_VALIDATE,    IDS_SHELL_VALIDATE,    IDR_ICON_CHECK );
+        AddCmd( ACT_FIX,         IDS_SHELL_FIX,         IDR_ICON_FIX   );
+        AddCmd( ACT_LAYER_STACK, IDS_SHELL_LAYERSTACK,  IDR_ICON_STACK );
+
+        AddSep();
         AddCmd( ACT_REFRESH_THUMB, IDS_SHELL_REFRESHTHUMBNAIL, IDR_ICON_REFRESH_THUMB );
         AddCmd( ACT_STAGE_STATS,   IDS_SHELL_STATS,             IDR_ICON_STAGE_STATS   );
         AddSep();
@@ -909,6 +984,16 @@ private:
             sei.lpFile = L"eventvwr.msc";
             sei.nShow  = SW_SHOWNORMAL;
             return ::ShellExecuteExW( &sei ) ? S_OK : HRESULT_FROM_WIN32( ::GetLastError() );
+        }
+
+        if ( act == ACT_VALIDATE || act == ACT_FIX || act == ACT_LAYER_STACK )
+        {
+            CComPtr<UsdPythonToolsLib::IUsdPythonTools> pPyTools;
+            HRESULT hr = pPyTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+            if ( FAILED( hr ) ) return hr;
+            if ( act == ACT_VALIDATE )    return pPyTools->Validate( CComBSTR( pszPath ) );
+            if ( act == ACT_FIX )         return pPyTools->Fix( CComBSTR( pszPath ) );
+            if ( act == ACT_LAYER_STACK ) return pPyTools->ShowLayerStack( CComBSTR( pszPath ) );
         }
 
         CComPtr<UsdSdkToolsLib::IUsdSdkTools> pTools;

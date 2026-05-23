@@ -106,6 +106,9 @@ IDR_ICON_REFRESH_THUMB  RCDATA                  "res/icon_refresh_thumb.png"
 IDR_ICON_STAGE_STATS    RCDATA                  "res/icon_stage_stats.png"
 IDR_ICON_VIEW_LOGS      RCDATA                  "res/icon_view_logs.png"
 IDR_ICON_TOOLS          RCDATA                  "res/icon_tools.png"
+IDR_ICON_CHECK          RCDATA                  "res/icon_check.png"
+IDR_ICON_FIX            RCDATA                  "res/icon_fix.png"
+IDR_ICON_STACK          RCDATA                  "res/icon_stack.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -179,6 +182,9 @@ BEGIN
     IDS_USD_CUSTOMLAYERDATA_MNEMONICS "usdcustomlayerdata|usdlayerdata"
     IDS_SHELL_USDTOOLS      "USD Tools"
     IDS_SHELL_VIEWLOGS      "View USD Logs"
+    IDS_SHELL_VALIDATE      "Validate"
+    IDS_SHELL_FIX           "Fix Schemas"
+    IDS_SHELL_LAYERSTACK    "Layer Stack"
 END
 
 #endif    // Neutral (Default) resources

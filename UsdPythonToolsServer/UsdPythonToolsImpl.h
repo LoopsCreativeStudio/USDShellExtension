@@ -26,6 +26,9 @@ public:
 
 	STDMETHODIMP Record( IN BSTR usdStagePath, IN int imageWidth, IN BSTR renderer, OUT BSTR *outputImagePath ) override;
 	STDMETHODIMP View( IN BSTR usdStagePath, IN BSTR renderer ) override;
+	STDMETHODIMP Validate( IN BSTR usdStagePath ) override;
+	STDMETHODIMP Fix( IN BSTR usdStagePath ) override;
+	STDMETHODIMP ShowLayerStack( IN BSTR usdStagePath ) override;
 
 	static HRESULT WINAPI UpdateRegistry(_In_ BOOL bRegister) throw();
 

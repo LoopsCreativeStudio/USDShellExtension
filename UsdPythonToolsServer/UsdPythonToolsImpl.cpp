@@ -439,6 +439,183 @@ STDMETHODIMP CUsdPythonToolsImpl::View( IN BSTR usdStagePath, IN BSTR renderer )
 	return S_OK;
 }
 
+// ---------------------------------------------------------------------------
+// Shared helpers for console-based tool launching
+// ---------------------------------------------------------------------------
+
+static std::wstring GetPythonExePath()
+{
+	std::vector<CStringW> configFiles = BuildConfigFileList( g_hInstance );
+	CStringW sPythonDir;
+	GetPrivateProfileStringAndExpandEnvironmentStrings( L"PYTHON", L"PATH", L"", sPythonDir, configFiles );
+
+	wchar_t sPythonExe[MAX_PATH];
+	if ( !sPythonDir.IsEmpty() )
+	{
+		wcscpy_s( sPythonExe, sPythonDir.GetString() );
+		::PathCchAppend( sPythonExe, ARRAYSIZE( sPythonExe ), L"python.exe" );
+	}
+	else
+	{
+		wcscpy_s( sPythonExe, L"python.exe" );
+	}
+	return sPythonExe;
+}
+
+// Runs a command inside cmd.exe /K so the console stays open after the tool exits.
+// commandLine must be the full inner command (e.g. L"\"python\" \"tool\" \"file\"").
+static HRESULT RunInConsole( LPCWSTR innerCommand )
+{
+	// cmd /K ""inner"" — outer quotes required by cmd when inner has quoted tokens.
+	CStringW sCmd;
+	sCmd.Format( L"cmd.exe /K \"%ls\"", innerCommand );
+
+	STARTUPINFOW si = {};
+	si.cb = sizeof( si );
+	PROCESS_INFORMATION pi = {};
+
+	if ( !::CreateProcessW( nullptr, sCmd.GetBuffer(), nullptr, nullptr,
+	                        FALSE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi ) )
+	{
+		DWORD err = ::GetLastError();
+		CString sMsg;
+		sMsg.Format( _T("RunInConsole: CreateProcess failed (0x%08X): %ls"), err, (LPCWSTR)sCmd );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+		return HRESULT_FROM_WIN32( err );
+	}
+
+	::AllowSetForegroundWindow( pi.dwProcessId );
+	::CloseHandle( pi.hThread );
+	::CloseHandle( pi.hProcess );
+	return S_OK;
+}
+
+// ---------------------------------------------------------------------------
+// Validate — runs UsdValidate.py (pxr.UsdUtils.ComplianceChecker) in a console
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::Validate( IN BSTR usdStagePath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sScriptPath[MAX_PATH] = {};
+	wcscpy_s( sScriptPath, sTempDir );
+	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdValidate.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_VALIDATE ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
+		void*   pData  = ::LockResource( hData );
+		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
+		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
+	return RunInConsole( sInner );
+}
+
+// ---------------------------------------------------------------------------
+// Fix — runs usdfixbrokenpixarschemas in a visible console
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::Fix( IN BSTR usdStagePath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	std::wstring sToolPath = FindRelativeFile( L"usdfixbrokenpixarschemas" );
+	if ( sToolPath.empty() )
+	{
+		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Fix: usdfixbrokenpixarschemas not found in USD PATH", LogEventType::Error );
+		return E_FAIL;
+	}
+
+	// Write UsdFix.py wrapper to temp so we can patch Tf.ErrorException.__str__
+	// before the tool starts (same pattern as View/UsdViewWrapper.py).
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sWrapperPath[MAX_PATH] = {};
+	wcscpy_s( sWrapperPath, sTempDir );
+	::PathCchAppend( sWrapperPath, ARRAYSIZE( sWrapperPath ), L"UsdFixWrapper.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_FIX ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
+		void*   pData  = ::LockResource( hData );
+		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile  = ::CreateFileW( sWrapperPath, GENERIC_WRITE, 0, nullptr,
+		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sWrapperPath, sToolPath.c_str(), (LPCWSTR)usdStagePath );
+	return RunInConsole( sInner );
+}
+
+// ---------------------------------------------------------------------------
+// ShowLayerStack — extracts UsdLayerStack.py to %TEMP% and runs it
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::ShowLayerStack( IN BSTR usdStagePath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sScriptPath[MAX_PATH] = {};
+	wcscpy_s( sScriptPath, sTempDir );
+	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdLayerStack.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_LAYERSTACK ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
+		void*   pData  = ::LockResource( hData );
+		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
+		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
+	return RunInConsole( sInner );
+}
+
 HRESULT WINAPI CUsdPythonToolsImpl::UpdateRegistry(_In_ BOOL bRegister) throw()
 {
 	ATL::_ATL_REGMAP_ENTRY regMapEntries[] =

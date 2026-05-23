@@ -35,6 +35,15 @@ library UsdPythonToolsLib
 
 		[helpstring("Launches usdview for a given USD stage.")]
 		HRESULT View( [in] BSTR usdStagePath, [in, optional] BSTR renderer );
+
+		[helpstring("Runs usdchecker on a USD stage and shows results in a console window.")]
+		HRESULT Validate( [in] BSTR usdStagePath );
+
+		[helpstring("Runs usdfixbrokenpixarschemas on a USD stage.")]
+		HRESULT Fix( [in] BSTR usdStagePath );
+
+		[helpstring("Shows the layer stack composition for a USD stage in a console window.")]
+		HRESULT ShowLayerStack( [in] BSTR usdStagePath );
 	}
 
 	[

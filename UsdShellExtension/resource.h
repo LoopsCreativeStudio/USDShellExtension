@@ -30,6 +30,9 @@
 #define IDS_USD_CUSTOMLAYERDATA_MNEMONICS 150
 #define IDS_SHELL_USDTOOLS              151
 #define IDS_SHELL_VIEWLOGS              152
+#define IDS_SHELL_VALIDATE              153
+#define IDS_SHELL_FIX                   154
+#define IDS_SHELL_LAYERSTACK            155
 
 #define IDR_ICON_COMPRESS               201
 #define IDR_ICON_UNCOMPRESS             202
@@ -39,6 +42,9 @@
 #define IDR_ICON_STAGE_STATS            206
 #define IDR_ICON_VIEW_LOGS              207
 #define IDR_ICON_TOOLS                  208
+#define IDR_ICON_CHECK                  209
+#define IDR_ICON_FIX                    210
+#define IDR_ICON_STACK                  211
 
 // Next default values for new objects
 // 
