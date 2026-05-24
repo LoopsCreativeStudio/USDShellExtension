@@ -5,8 +5,6 @@
 
 // CLSID strings for each IExplorerCommand — referenced in ShellExtModule.rgs
 // and via __declspec(uuid) on the concrete C++ classes.
-// Top-level verbs — CoCreated by the shell via ExplorerCommandHandler
-#define CLSID_STR_UsdCmdOpen      "EFAB0001-5B7E-4A23-8C6D-9F1234567890"
 #define CLSID_STR_UsdCmdEdit      "EFAB0002-5B7E-4A23-8C6D-9F1234567890"
 #define CLSID_STR_UsdCmdUsdTools  "EFABFF01-5B7E-4A23-8C6D-9F1234567890"
 
@@ -24,3 +22,5 @@
 #define CLSID_STR_UsdCmdValidate        "EFAB000B-5B7E-4A23-8C6D-9F1234567890"
 #define CLSID_STR_UsdCmdFix             "EFAB000C-5B7E-4A23-8C6D-9F1234567890"
 #define CLSID_STR_UsdCmdLayerStack      "EFAB000D-5B7E-4A23-8C6D-9F1234567890"
+#define CLSID_STR_UsdCmdUnpackage       "EFAB000E-5B7E-4A23-8C6D-9F1234567890"
+#define CLSID_STR_UsdCmdStitch          "EFAB000F-5B7E-4A23-8C6D-9F1234567890"

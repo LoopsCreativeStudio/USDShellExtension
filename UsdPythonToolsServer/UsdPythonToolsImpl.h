@@ -29,6 +29,8 @@ public:
 	STDMETHODIMP Validate( IN BSTR usdStagePath ) override;
 	STDMETHODIMP Fix( IN BSTR usdStagePath ) override;
 	STDMETHODIMP ShowLayerStack( IN BSTR usdStagePath ) override;
+	STDMETHODIMP ShowStageStats( IN BSTR usdStagePath ) override;
+	STDMETHODIMP Stitch( IN BSTR inputPaths, IN BSTR outputPath ) override;
 
 	static HRESULT WINAPI UpdateRegistry(_In_ BOOL bRegister) throw();
 

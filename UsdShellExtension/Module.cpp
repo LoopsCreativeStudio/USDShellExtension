@@ -189,6 +189,11 @@ static HRESULT RegisterPropDescFile( LPCTSTR sFileName, UINT nResourceId )
 	sPropDesc.Replace( "%IDS_USD_CUSTOMLAYERDATA_LABEL%", _CRT_STRINGIZE( IDS_USD_CUSTOMLAYERDATA_LABEL ) );
 	sPropDesc.Replace( "%IDS_USD_CUSTOMLAYERDATA_MNEMONICS%", _CRT_STRINGIZE( IDS_USD_CUSTOMLAYERDATA_MNEMONICS ) );
 
+	sPropDesc.Replace( "%IDS_USD_STARTFRAME_LABEL%", _CRT_STRINGIZE( IDS_USD_STARTFRAME_LABEL ) );
+	sPropDesc.Replace( "%IDS_USD_ENDFRAME_LABEL%", _CRT_STRINGIZE( IDS_USD_ENDFRAME_LABEL ) );
+	sPropDesc.Replace( "%IDS_USD_FRAMERATE_LABEL%", _CRT_STRINGIZE( IDS_USD_FRAMERATE_LABEL ) );
+	sPropDesc.Replace( "%IDS_USD_FORMAT_LABEL%", _CRT_STRINGIZE( IDS_USD_FORMAT_LABEL ) );
+
 	::PathCchRemoveFileSpec( sPath, ARRAYSIZE( sPath ) );
 	::PathCchAppend( sPath, ARRAYSIZE( sPath ), sFileName );
 
@@ -217,6 +222,56 @@ static HRESULT UnregisterPropDescFile( LPCTSTR sFileName )
 	hr = PSUnregisterPropertySchema( sPath );
 
 	return hr;
+}
+
+static void CleanupStalePropertySchemas()
+{
+	// Remove stale PropertySchema entries with our schema's URI pointing to
+	// missing files. Prevents CompactURI collisions from old installations
+	// at a different path (e.g. a previous install directory).
+	static const TCHAR kSchemaURI[] = _T( "usdpropertykeys.propdesc" );
+
+	CRegKey regSchema;
+	if ( regSchema.Open( HKEY_LOCAL_MACHINE,
+		_T( "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\PropertySystem\\PropertySchema" ),
+		KEY_READ | KEY_WRITE ) != ERROR_SUCCESS )
+		return;
+
+	TCHAR subKeyName[64];
+	DWORD nSubKeyIndex = 0;
+	std::vector<CString> keysToDelete;
+
+	while ( true )
+	{
+		DWORD nLen = ARRAYSIZE( subKeyName );
+		if ( regSchema.EnumKey( nSubKeyIndex++, subKeyName, &nLen ) != ERROR_SUCCESS )
+			break;
+
+		CRegKey regEntry;
+		if ( regEntry.Open( regSchema.m_hKey, subKeyName, KEY_READ ) != ERROR_SUCCESS )
+			continue;
+
+		TCHAR szURI[128];
+		ULONG nURILen = ARRAYSIZE( szURI );
+		if ( regEntry.QueryStringValue( _T( "URI" ), szURI, &nURILen ) != ERROR_SUCCESS )
+			continue;
+
+		if ( _tcsicmp( szURI, kSchemaURI ) != 0 )
+			continue;
+
+		TCHAR szPath[MAX_PATH];
+		ULONG nPathLen = ARRAYSIZE( szPath );
+		if ( regEntry.QueryStringValue( nullptr, szPath, &nPathLen ) != ERROR_SUCCESS )
+			continue;
+
+		if ( ::GetFileAttributesW( szPath ) != INVALID_FILE_ATTRIBUTES )
+			continue;
+
+		keysToDelete.push_back( subKeyName );
+	}
+
+	for ( const CString& key : keysToDelete )
+		regSchema.RecurseDeleteKey( key );
 }
 
 static HRESULT InstallEventSource()
@@ -328,6 +383,8 @@ STDAPI DllRegisterServer()
 		}
 #endif
 	}
+
+	CleanupStalePropertySchemas();
 
 	hr = RegisterPropDescFile(_T("UsdPropertyKeys.propdesc"), IDR_XML_PROPDESC_USD);
 	if ( FAILED( hr ) )

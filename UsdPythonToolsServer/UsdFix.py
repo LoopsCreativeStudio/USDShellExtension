@@ -65,4 +65,3 @@ except Exception as e:
     else:
         print("\nError: %s" % str(e))
 
-input("\nPress Enter to close...")

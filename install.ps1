@@ -69,6 +69,11 @@ function Write-Item {
     Write-Host ("    + {0}" -f $msg) -ForegroundColor DarkGreen
 }
 
+function Write-Removed {
+    param([string]$msg)
+    Write-Host ("    - {0}" -f $msg) -ForegroundColor Yellow
+}
+
 function Invoke-Unregister {
     param([string]$dir)
     $unreg = Join-Path $dir "unregister.bat"
@@ -109,6 +114,9 @@ public static class NativeFileHelper {
     [return: MarshalAs(UnmanagedType.Bool)]
     static extern bool SetFileInformationByHandle(
         SafeFileHandle h, int cls, byte[] buf, uint len);
+
+    [DllImport("shell32.dll")]
+    public static extern void SHChangeNotify(int wEventId, uint uFlags, IntPtr dwItem1, IntPtr dwItem2);
 
     // Atomically replace targetPath with newFilePath using POSIX rename semantics.
     // Works even when targetPath is loaded as a Windows image section (mapped DLL/EXE).
@@ -257,7 +265,7 @@ if ($Uninstall) {
     Write-Step "Removing install directory"
     if (Test-Path $InstallDir) {
         Remove-Item $InstallDir -Recurse -Force
-        Write-Item $InstallDir
+        Write-Removed $InstallDir
     } else {
         Write-Host "    Nothing to remove at $InstallDir" -ForegroundColor Gray
     }
@@ -286,7 +294,7 @@ foreach ($oldDir in $oldLocations) {
     if (-not (Test-Path $oldDir)) { continue }
     Invoke-Unregister $oldDir
     if ($oldDir -ne $InstallDir) {
-        Write-Host ("    Removing {0}" -f $oldDir) -ForegroundColor Gray
+        Write-Removed ("Removing {0}" -f $oldDir)
         Remove-Item $oldDir -Recurse -Force -ErrorAction SilentlyContinue
         $parent = Split-Path $oldDir -Parent
         if ((Test-Path $parent) -and (-not (Get-ChildItem $parent))) {
@@ -294,6 +302,22 @@ foreach ($oldDir in $oldLocations) {
         }
     }
 }
+
+# ---------------------------------------------------------------------------
+# Confirmation prompt
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host $SEP -ForegroundColor DarkYellow
+Write-Host "    NOTE : the screen may go black for a few seconds." -ForegroundColor Yellow
+Write-Host "    This is normal. Windows Explorer must reset to update" -ForegroundColor Yellow
+Write-Host "    the shell extension. Do not touch the keyboard or mouse" -ForegroundColor Yellow
+Write-Host "    until Explorer restarts automatically." -ForegroundColor Yellow
+Write-Host $SEP -ForegroundColor DarkYellow
+Write-Host ""
+
+do {
+    $confirm = (Read-Host "  Press Enter, Y or Yes to continue (Ctrl+C to abort)").Trim().ToLower()
+} while ($confirm -notin @('', 'y', 'yes'))
 
 # ---------------------------------------------------------------------------
 # Stop processes that may lock DLL/EXE files
@@ -376,8 +400,10 @@ Write-Step "Copying files to $InstallDir"
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 
 # Remove leftover .old files from any previous rename-on-lock replacements.
-Get-ChildItem $InstallDir -Filter "*.old" -ErrorAction SilentlyContinue |
-    Remove-Item -Force -ErrorAction SilentlyContinue
+Get-ChildItem $InstallDir -Filter "*.old" -ErrorAction SilentlyContinue | ForEach-Object {
+    Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+    Write-Removed $_.Name
+}
 
 Get-ChildItem $OUT_DIR -File | Where-Object {
     $_.Extension -notin @('.exp', '.lib')
@@ -395,7 +421,10 @@ if (Test-Path $uninstallerSrc) {
 $usdPluginSrc = Join-Path $OUT_DIR "usd"
 if (Test-Path $usdPluginSrc) {
     $usdPluginDst = Join-Path $InstallDir "usd"
-    if (Test-Path $usdPluginDst) { Remove-Item $usdPluginDst -Recurse -Force }
+    if (Test-Path $usdPluginDst) {
+        Remove-Item $usdPluginDst -Recurse -Force
+        Write-Removed "usd\ (old plugin folder)"
+    }
     Copy-Item $usdPluginSrc $usdPluginDst -Recurse -Force
     Write-Item "usd\ (plugin folder)"
 }
@@ -437,7 +466,10 @@ $pipSrc = Join-Path $USD_SDK "pip-packages"
 $pipDst = Join-Path $InstallDir "pip-packages"
 if (Test-Path $pipSrc) {
     Write-Step "Copying pip-packages"
-    if (Test-Path $pipDst) { Remove-Item $pipDst -Recurse -Force }
+    if (Test-Path $pipDst) {
+        Remove-Item $pipDst -Recurse -Force
+        Write-Removed "pip-packages\ (old folder)"
+    }
     $rcArgs = @(
         $pipSrc, $pipDst,
         "/E",
@@ -477,6 +509,9 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Item "COM servers registered"
 
+# Notify Explorer that file-type associations changed so it flushes its type-name cache.
+try { [NativeFileHelper]::SHChangeNotify(0x08000000, 0x0000, [IntPtr]::Zero, [IntPtr]::Zero) } catch { $null = $_ }
+
 # Restart Windows Search service now that locked files have been replaced.
 Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
 
@@ -491,7 +526,7 @@ if (Test-Path $muiCache) {
         Where-Object { $_ -like "*UsdShellExtension*" -or $_ -like "*Activision*" } |
         ForEach-Object {
             Remove-ItemProperty -Path $muiCache -Name $_ -ErrorAction SilentlyContinue
-            Write-Item ("Cleared: {0}" -f $_)
+            Write-Removed ("Cleared MuiCache: {0}" -f $_)
         }
 }
 
@@ -505,7 +540,7 @@ $iconFiles  = Get-ChildItem $explorerCache -Filter "iconcache_*"  -ErrorAction S
 $thumbFiles = Get-ChildItem $explorerCache -Filter "thumbcache_*" -ErrorAction SilentlyContinue
 $iconFiles  | Remove-Item -Force -ErrorAction SilentlyContinue
 $thumbFiles | Remove-Item -Force -ErrorAction SilentlyContinue
-Write-Item ("{0} cache file(s) removed" -f ($iconFiles.Count + $thumbFiles.Count))
+Write-Removed ("{0} icon/thumbnail cache file(s) removed" -f ($iconFiles.Count + $thumbFiles.Count))
 
 Write-Step "Restarting Explorer"
 Start-Process "explorer.exe"

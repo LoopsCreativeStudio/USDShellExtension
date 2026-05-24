@@ -1,7 +1,7 @@
 # USD Shell Extension - Copyright (C) 2025 Loops Creative Studio
 # Licensed under the MIT License. See LICENSE.txt for details.
 #
-# Runs USD compliance checking via pxr.UsdUtils.ComplianceChecker.
+# Computes and displays stage statistics via pxr.UsdUtils.ComputeUsdStageStats.
 # argv layout: [script.py, file.usd]
 
 from __future__ import print_function
@@ -11,9 +11,19 @@ import os
 os.environ.pop('PXR_PLUGINPATH_NAME', None)
 
 
+def _print_dict(data, indent=0):
+    prefix = "  " * indent
+    for key, value in sorted(data.items()):
+        if hasattr(value, 'items'):
+            print("%s%s" % (prefix, key))
+            _print_dict(value, indent + 1)
+        else:
+            print("%s%s = %s" % (prefix, key, value))
+
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: UsdValidate.py <usd_file>")
+        print("Usage: UsdStageStats.py <usd_file>")
         return 1
 
     usd_path = sys.argv[1]
@@ -43,54 +53,44 @@ def main():
     except Exception:
         pass
 
-    print("USD Validate")
+    print("USD Stage Stats")
     print("=" * 72)
     print("File: %s" % usd_path)
     print()
 
     try:
-        import inspect
-        _sig = inspect.signature(UsdUtils.ComplianceChecker.__init__)
-        _valid = set(_sig.parameters.keys())
-        _kwargs = {}
-        for _k in ('arkit', 'skipARKinds', 'rootPackageOnly', 'skipVariants', 'verbose'):
-            if _k in _valid:
-                _kwargs[_k] = False
-        checker = UsdUtils.ComplianceChecker(**_kwargs)
+        try:
+            raw = UsdUtils.ComputeUsdStageStats(usd_path)
+            if isinstance(raw, dict):
+                # NVIDIA USD 25.08: returns stats dict directly (no stage).
+                stats = raw
+                stage = True
+            elif isinstance(raw, tuple):
+                stage = raw[0]
+                stats = next(
+                    (x for x in raw[1:] if hasattr(x, 'items')),
+                    {}
+                )
+            else:
+                stage = raw
+                stats = {}
+        except TypeError:
+            stats = {}
+            stage = UsdUtils.ComputeUsdStageStats(usd_path, stats)
     except Exception as e:
-        print("Error: Failed to initialize ComplianceChecker.")
-        print("  %s" % str(e))
+        print("Error: %s" % str(e))
         print()
         return 1
 
-    try:
-        checker.CheckCompliance(usd_path)
-    except Exception as e:
-        print("Error during validation: %s" % str(e))
+    if stage is None:
+        print("Error: could not open USD stage.")
         print()
         return 1
 
-    errors = checker.GetErrors()
-    warnings = checker.GetWarnings()
-
-    if warnings:
-        for w in warnings:
-            print(str(w))
-        print()
-
-    if errors:
-        for err in errors:
-            print(str(err))
-        print()
-        print("Failed!")
-    else:
-        if warnings:
-            print("Success (with warnings).")
-        else:
-            print("Success!")
+    _print_dict(stats)
 
     print()
-    return 1 if errors else 0
+    return 0
 
 
 if __name__ == "__main__":

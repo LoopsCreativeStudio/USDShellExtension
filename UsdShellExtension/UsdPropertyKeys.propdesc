@@ -27,5 +27,35 @@
 			</displayInfo>
 		</propertyDescription>
 
+		<propertyDescription name="USD.StartFrame" formatID="{F1A2B3C4-D5E6-47F8-A9B0-C1D2E3F4A5B6}" propID="2">
+			<labelInfo label="@%LANGMODULE%,-%IDS_USD_STARTFRAME_LABEL%" hideLabel="false"/>
+			<searchInfo inInvertedIndex="false" isColumn="true" columnIndexType="OnDisk"/>
+			<typeInfo type="Double" isViewable="true" isInnate="true"/>
+			<displayInfo displayType="Number"/>
+		</propertyDescription>
+
+		<propertyDescription name="USD.EndFrame" formatID="{A5B6C7D8-E9F0-41A2-B3C4-D5E6F7A8B9C0}" propID="2">
+			<labelInfo label="@%LANGMODULE%,-%IDS_USD_ENDFRAME_LABEL%" hideLabel="false"/>
+			<searchInfo inInvertedIndex="false" isColumn="true" columnIndexType="OnDisk"/>
+			<typeInfo type="Double" isViewable="true" isInnate="true"/>
+			<displayInfo displayType="Number"/>
+		</propertyDescription>
+
+		<propertyDescription name="USD.FrameRate" formatID="{B9C0D1E2-F3A4-45B6-C7D8-E9F0A1B2C3D4}" propID="2">
+			<labelInfo label="@%LANGMODULE%,-%IDS_USD_FRAMERATE_LABEL%" hideLabel="false"/>
+			<searchInfo inInvertedIndex="false" isColumn="true" columnIndexType="OnDisk"/>
+			<typeInfo type="Double" isViewable="true" isInnate="true"/>
+			<displayInfo displayType="Number"/>
+		</propertyDescription>
+
+		<propertyDescription name="USD.Format" formatID="{C3D4E5F6-A7B8-49C0-D1E2-F3A4B5C6D7E8}" propID="2">
+			<labelInfo label="@%LANGMODULE%,-%IDS_USD_FORMAT_LABEL%" hideLabel="false"/>
+			<searchInfo inInvertedIndex="true" isColumn="true" columnIndexType="OnDisk" maxSize="8" mnemonics="usdformat|usdtype"/>
+			<typeInfo type="String" multipleValues="false" isViewable="true" isInnate="true"/>
+			<displayInfo displayType="String">
+				<drawControl control="Default"/>
+			</displayInfo>
+		</propertyDescription>
+
 	</propertyDescriptionList>
 </schema>

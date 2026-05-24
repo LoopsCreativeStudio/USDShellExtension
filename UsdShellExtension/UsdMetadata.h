@@ -3,7 +3,7 @@
 
 #pragma once
 
-HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDictionary &customLayerData, IPropertyStoreCache *pPropertyStoreCache );
+HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDictionary &customLayerData, IPropertyStoreCache *pPropertyStoreCache, LPCWSTR pszFilePath );
 HRESULT WriteUsdMetadata( pxr::SdfLayerRefPtr &rootLayer, pxr::VtDictionary &customLayerData, IPropertyStoreCache *pPropertyStoreCache, bool &bIsDirty );
 HRESULT IsMetadataPropertyWritable( REFPROPERTYKEY key );
 
@@ -30,6 +30,16 @@ inline HRESULT StoreStringValue( IPropertyStoreCache *pPropertyStoreCache, REFPR
 inline HRESULT StoreStringValue( IPropertyStoreCache *pPropertyStoreCache, REFPROPERTYKEY key, LPCSTR sValue )
 {
 	return StoreStringValue( pPropertyStoreCache, key, ATL::CA2W( sValue, CP_UTF8 ) );
+}
+
+inline HRESULT StoreDoubleValue( IPropertyStoreCache *pPropertyStoreCache, REFPROPERTYKEY key, double dValue )
+{
+	PROPVARIANT propvar = {};
+	propvar.vt     = VT_R8;
+	propvar.dblVal = dValue;
+	HRESULT hr = pPropertyStoreCache->SetValueAndState( key, &propvar, PSC_NORMAL );
+	PropVariantClear( &propvar );
+	return hr;
 }
 
 inline HRESULT StoreUInt64Value( IPropertyStoreCache *pPropertyStoreCache, REFPROPERTYKEY key, uint64_t nValue )

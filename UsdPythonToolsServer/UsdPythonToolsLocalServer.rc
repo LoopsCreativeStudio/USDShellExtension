@@ -79,6 +79,8 @@ IDR_PYTHON_VIEW         PYTHON                  "UsdView.py"
 IDR_PYTHON_LAYERSTACK   PYTHON                  "UsdLayerStack.py"
 IDR_PYTHON_FIX          PYTHON                  "UsdFix.py"
 IDR_PYTHON_VALIDATE     PYTHON                  "UsdValidate.py"
+IDR_PYTHON_STAGESTATS   PYTHON                  "UsdStageStats.py"
+IDR_PYTHON_STITCH       PYTHON                  "UsdStitch.py"
 
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////

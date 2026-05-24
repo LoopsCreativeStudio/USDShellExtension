@@ -109,6 +109,10 @@ IDR_ICON_TOOLS          RCDATA                  "res/icon_tools.png"
 IDR_ICON_CHECK          RCDATA                  "res/icon_check.png"
 IDR_ICON_FIX            RCDATA                  "res/icon_fix.png"
 IDR_ICON_STACK          RCDATA                  "res/icon_stack.png"
+IDR_ICON_EDIT           RCDATA                  "res/icon_edit.png"
+IDR_ICON_USD            RCDATA                  "res/icon_usd.png"
+IDR_ICON_UNPACK         RCDATA                  "res/icon_unpack.png"
+IDR_ICON_STITCH         RCDATA                  "res/icon_stitch.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -164,9 +168,9 @@ END
 STRINGTABLE
 BEGIN
     IDS_FILE_USD            "USD (Universal Scene Description)"
-    IDS_FILE_USDA           "USD ASCII File"
-    IDS_FILE_USDC           "USD Crate File"
-    IDS_FILE_USDZ           "USD Package"
+    IDS_FILE_USDA           "USD (Universal Scene Description ASCII)"
+    IDS_FILE_USDC           "USD (Universal Scene Description Binary)"
+    IDS_FILE_USDZ           "USD (Universal Scene Description Package)"
     IDS_SHELL_VIEW          "&View"
     IDS_SHELL_EDIT          "&Edit"
 END
@@ -181,10 +185,16 @@ BEGIN
     IDS_USD_CUSTOMLAYERDATA_LABEL "Custom layer data"
     IDS_USD_CUSTOMLAYERDATA_MNEMONICS "usdcustomlayerdata|usdlayerdata"
     IDS_SHELL_USDTOOLS      "USD Tools"
-    IDS_SHELL_VIEWLOGS      "View USD Logs"
+    IDS_SHELL_VIEWLOGS      "USD Shell Logs"
     IDS_SHELL_VALIDATE      "Validate"
     IDS_SHELL_FIX           "Fix Schemas"
     IDS_SHELL_LAYERSTACK    "Layer Stack"
+    IDS_SHELL_UNPACKAGE     "Unpackage"
+    IDS_SHELL_STITCH        "Stitch Layers"
+    IDS_USD_STARTFRAME_LABEL "Start frame"
+    IDS_USD_ENDFRAME_LABEL   "End frame"
+    IDS_USD_FRAMERATE_LABEL  "Frame rate"
+    IDS_USD_FORMAT_LABEL     "USD format"
 END
 
 #endif    // Neutral (Default) resources
