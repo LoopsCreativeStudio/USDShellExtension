@@ -8,6 +8,7 @@
 #include "UsdMetadata.h"
 #include "UsdPropertyKeys.h"
 #include "ArResolverShellExtension.h"
+#include "shared/EventViewerLog.h"
 
 static void RegisterUsdPlugins()
 {
@@ -78,22 +79,46 @@ STDMETHODIMP CShellPropertyStoreImpl::Initialize(__RPC__in_string LPCWSTR pszFil
 
 	std::string pszFilePathA = static_cast<LPCSTR>(ATL::CW2A( m_usdStagePath, CP_UTF8 ));
 
-	// open the file for just metadata
-	// this is a fast read-only load
-	pxr::SdfLayerRefPtr rootLayer = pxr::SdfLayer::OpenAsAnonymous( pszFilePathA, true );
-	if ( rootLayer == nullptr )
+	try
 	{
+		// open the file for just metadata
+		// this is a fast read-only load
+		pxr::SdfLayerRefPtr rootLayer = pxr::SdfLayer::OpenAsAnonymous( pszFilePathA, true );
+		if ( rootLayer == nullptr )
+		{
+			CString sMsg;
+			sMsg.Format( _T( "PropertyStore::Initialize: OpenAsAnonymous returned nullptr for: %ls" ), pszFilePath );
+			LogEventMessage( SHELLEXTENSION_CATEGORY, sMsg, LogEventType::Error );
+			return E_FAIL;
+		}
+
+		m_bIsPackage = rootLayer->GetFileFormat()->IsPackage();
+
+		pxr::VtDictionary customLayerData = rootLayer->GetCustomLayerData();
+
+		hr = ReadUsdMetadata( rootLayer, customLayerData, m_pPropertyStoreCache, m_usdStagePath );
+		if ( FAILED( hr ) )
+		{
+			CString sMsg;
+			sMsg.Format( _T( "PropertyStore::Initialize: ReadUsdMetadata failed (0x%08X) for: %ls" ), hr, pszFilePath );
+			LogEventMessage( SHELLEXTENSION_CATEGORY, sMsg, LogEventType::Error );
+			return hr;
+		}
+
+	}
+	catch ( const std::exception &e )
+	{
+		CString sMsg;
+		sMsg.Format( _T( "PropertyStore::Initialize: exception: %hs for: %ls" ), e.what(), pszFilePath );
+		LogEventMessage( SHELLEXTENSION_CATEGORY, sMsg, LogEventType::Error );
 		return E_FAIL;
 	}
-
-	m_bIsPackage = rootLayer->GetFileFormat()->IsPackage();
-
-	pxr::VtDictionary customLayerData = rootLayer->GetCustomLayerData();
-
-	hr = ReadUsdMetadata( rootLayer, customLayerData, m_pPropertyStoreCache );
-	if ( FAILED( hr ) )
+	catch ( ... )
 	{
-		return hr;
+		CString sMsg;
+		sMsg.Format( _T( "PropertyStore::Initialize: unknown exception for: %ls" ), pszFilePath );
+		LogEventMessage( SHELLEXTENSION_CATEGORY, sMsg, LogEventType::Error );
+		return E_FAIL;
 	}
 
 	return hr;
@@ -204,10 +229,10 @@ STDMETHODIMP CShellPropertyStoreImpl::IsPropertyWritable( __RPC__in REFPROPERTYK
 
 HRESULT WINAPI CShellPropertyStoreImpl::UpdateRegistry(_In_ BOOL bRegister) throw()
 {
-	const wchar_t pPropertyDescription[] = 
+	const wchar_t pPropertyDescription[] =
 		L"val InfoTip = s 'prop:System.ItemType;System.Size;System.DateModified'\n"
-		L"val FullDetails = s 'prop:System.PropGroup.FileSystem;System.ItemNameDisplay;System.ItemType;System.ItemFolderPathDisplay;System.Size;System.ItemDate;System.DateCreated;System.DateModified;System.DateAccessed;System.FileAttributes;USD.PropGroup.USD;System.Comment;USD.Documentation;USD.CustomLayerData'\n"
-		L"val PreviewDetails = s 'prop:USD.PropGroup.USD;System.Comment;USD.Documentation'\n"
+		L"val FullDetails = s 'prop:System.PropGroup.FileSystem;System.ItemNameDisplay;System.ItemType;System.ItemFolderPathDisplay;System.Size;System.ItemDate;System.DateCreated;System.DateModified;System.DateAccessed;System.FileAttributes;System.PropGroup.Description;System.Comment;USD.Documentation;USD.CustomLayerData;USD.Format;USD.StartFrame;USD.EndFrame;USD.FrameRate'\n"
+		L"val PreviewDetails = s 'prop:System.PropGroup.Description;System.Comment;USD.Documentation;USD.Format;USD.StartFrame;USD.EndFrame;USD.FrameRate'\n"
 		L"val PreviewTitle = s 'prop:System.FileName;System.ItemType'\n";
 
 	ATL::_ATL_REGMAP_ENTRY regMapEntries[] =
