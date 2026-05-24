@@ -466,9 +466,11 @@ static std::wstring GetPythonExePath()
 // commandLine must be the full inner command (e.g. L"\"python\" \"tool\" \"file\"").
 static HRESULT RunInConsole( LPCWSTR innerCommand )
 {
-	// cmd /K ""inner"" — outer quotes required by cmd when inner has quoted tokens.
+	// cmd /C ""inner" & pause" — /C exits after the command; & pause waits for a
+	// keypress then closes the window. Outer quotes required by cmd when the inner
+	// command contains quoted tokens.
 	CStringW sCmd;
-	sCmd.Format( L"cmd.exe /K \"%ls\"", innerCommand );
+	sCmd.Format( L"cmd.exe /C \"%ls & pause\"", innerCommand );
 
 	STARTUPINFOW si = {};
 	si.cb = sizeof( si );
@@ -613,6 +615,100 @@ STDMETHODIMP CUsdPythonToolsImpl::ShowLayerStack( IN BSTR usdStagePath )
 	CStringW sInner;
 	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
 	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
+	return RunInConsole( sInner );
+}
+
+// ---------------------------------------------------------------------------
+// ShowStageStats — extracts UsdStageStats.py to %TEMP% and runs it
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::ShowStageStats( IN BSTR usdStagePath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sScriptPath[MAX_PATH] = {};
+	wcscpy_s( sScriptPath, sTempDir );
+	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdStageStats.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_STAGESTATS ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
+		void*   pData  = ::LockResource( hData );
+		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
+		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
+	return RunInConsole( sInner );
+}
+
+// ---------------------------------------------------------------------------
+// Stitch — runs UsdStitch.py (pxr.UsdUtils.StitchLayers) in a console
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::Stitch( IN BSTR inputPaths, IN BSTR outputPath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sScriptPath[MAX_PATH] = {};
+	wcscpy_s( sScriptPath, sTempDir );
+	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdStitch.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_STITCH ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData = ::LoadResource( g_hInstance, hRes );
+		void*   pData = ::LockResource( hData );
+		DWORD   nSize = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
+		                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)outputPath );
+
+	// Append each pipe-delimited input path as a quoted argument.
+	CStringW sInputsCopy = inputPaths;
+	int iStart = 0;
+	while ( iStart <= sInputsCopy.GetLength() )
+	{
+		int iSep = sInputsCopy.Find( L'|', iStart );
+		CStringW sPath = ( iSep >= 0 )
+		    ? sInputsCopy.Mid( iStart, iSep - iStart )
+		    : sInputsCopy.Mid( iStart );
+		if ( !sPath.IsEmpty() )
+			sInner.AppendFormat( L" \"%ls\"", (LPCWSTR)sPath );
+		if ( iSep < 0 ) break;
+		iStart = iSep + 1;
+	}
+
 	return RunInConsole( sInner );
 }
 

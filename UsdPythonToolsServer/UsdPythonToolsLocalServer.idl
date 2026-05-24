@@ -44,6 +44,12 @@ library UsdPythonToolsLib
 
 		[helpstring("Shows the layer stack composition for a USD stage in a console window.")]
 		HRESULT ShowLayerStack( [in] BSTR usdStagePath );
+
+		[helpstring("Computes and displays USD stage statistics in a console window.")]
+		HRESULT ShowStageStats( [in] BSTR usdStagePath );
+
+		[helpstring("Stitches multiple USD layers into one output file.")]
+		HRESULT Stitch( [in] BSTR inputPaths, [in] BSTR outputPath );
 	}
 
 	[

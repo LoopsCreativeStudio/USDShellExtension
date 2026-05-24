@@ -79,7 +79,6 @@ def main():
         else:
             print("Error: could not open file as a USD stage or SDF layer.")
         print()
-        input("Press Enter to close...")
         return 1
 
     session = stage.GetSessionLayer()
@@ -103,7 +102,6 @@ def main():
             print("  [%d] %s" % (i, real))
 
     print()
-    input("Press Enter to close...")
     return 0
 
 

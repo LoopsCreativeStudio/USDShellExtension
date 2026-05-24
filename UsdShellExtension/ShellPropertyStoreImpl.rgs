@@ -20,6 +20,29 @@ HKCR
 		%PROPERTYDESCRIPTIONS%
 	}
 
+	NoRemove SystemFileAssociations
+	{
+		NoRemove .usd
+		{
+			%PROPERTYDESCRIPTIONS%
+		}
+
+		NoRemove .usda
+		{
+			%PROPERTYDESCRIPTIONS%
+		}
+
+		NoRemove .usdc
+		{
+			%PROPERTYDESCRIPTIONS%
+		}
+
+		NoRemove .usdz
+		{
+			%PROPERTYDESCRIPTIONS%
+		}
+	}
+
 	NoRemove CLSID
 	{
 		ForceRemove %CLSID_SHELLPROPERTYSTORE% = s 'USD Property Store'

@@ -47,7 +47,7 @@ static std::string DictionaryToString(const pxr::VtDictionary &dict, std::string
 	return result;
 }
 
-HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDictionary &customLayerData, IPropertyStoreCache* pPropertyStoreCache )
+HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDictionary &customLayerData, IPropertyStoreCache* pPropertyStoreCache, LPCWSTR pszFilePath )
 {
 	HRESULT hr;
 
@@ -59,6 +59,29 @@ HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDict
 
 	std::string sCustomLayerData = DictionaryToString( customLayerData );
 	hr = StoreStringValue( pPropertyStoreCache, PKEY_USD_CUSTOMLAYERDATA, sCustomLayerData.c_str() );
+
+	if ( rootLayer->HasStartTimeCode() )
+		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_STARTFRAME, rootLayer->GetStartTimeCode() );
+
+	if ( rootLayer->HasEndTimeCode() )
+		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_ENDFRAME, rootLayer->GetEndTimeCode() );
+
+	if ( rootLayer->HasFramesPerSecond() )
+		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetFramesPerSecond() );
+	else if ( rootLayer->HasTimeCodesPerSecond() )
+		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetTimeCodesPerSecond() );
+
+	{
+		// Derive the format from the original file path.
+		// GetRealPath() returns empty for anonymous layers opened via OpenAsAnonymous.
+		const wchar_t *pszExt = ::wcsrchr( pszFilePath, L'.' );
+		if ( pszExt && pszExt[1] != L'\0' )
+		{
+			CStringW sExtW( pszExt + 1 );
+			sExtW.MakeUpper();
+			StoreStringValue( pPropertyStoreCache, PKEY_USD_FORMAT, static_cast<LPCWSTR>( sExtW ) );
+		}
+	}
 
 	return S_OK;
 }

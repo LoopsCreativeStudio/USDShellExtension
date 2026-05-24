@@ -33,6 +33,12 @@
 #define IDS_SHELL_VALIDATE              153
 #define IDS_SHELL_FIX                   154
 #define IDS_SHELL_LAYERSTACK            155
+#define IDS_USD_STARTFRAME_LABEL        156
+#define IDS_USD_ENDFRAME_LABEL          157
+#define IDS_USD_FRAMERATE_LABEL         158
+#define IDS_USD_FORMAT_LABEL            159
+#define IDS_SHELL_UNPACKAGE             160
+#define IDS_SHELL_STITCH                161
 
 #define IDR_ICON_COMPRESS               201
 #define IDR_ICON_UNCOMPRESS             202
@@ -45,6 +51,10 @@
 #define IDR_ICON_CHECK                  209
 #define IDR_ICON_FIX                    210
 #define IDR_ICON_STACK                  211
+#define IDR_ICON_EDIT                   212
+#define IDR_ICON_USD                    213
+#define IDR_ICON_UNPACK                 214
+#define IDR_ICON_STITCH                 215
 
 // Next default values for new objects
 // 

@@ -580,10 +580,10 @@ public:
 
     HRESULT DoInvoke( LPCWSTR pszPath )
     {
-        CComPtr<UsdSdkToolsLib::IUsdSdkTools> pTools;
-        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdSdkToolsLib::UsdSdkTools ) );
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
         if ( FAILED( hr ) ) return hr;
-        return pTools->DisplayStageStats( CComBSTR( pszPath ) );
+        return pTools->ShowStageStats( CComBSTR( pszPath ) );
     }
 };
 
@@ -650,6 +650,87 @@ public:
     }
 };
 
+// --- Unpackage USDZ ---------------------------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdUnpackage ))
+ATL_NO_VTABLE CUsdCmdUnpackage
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdUnpackage, &__uuidof( CUsdCmdUnpackage )>
+    , public CUsdExplorerCommandImpl<CUsdCmdUnpackage>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdUnpackage )
+    static UINT TitleId() { return IDS_SHELL_UNPACKAGE; }
+
+    HRESULT DoInvoke( LPCWSTR pszPath )
+    {
+        CComPtr<UsdSdkToolsLib::IUsdSdkTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdSdkToolsLib::UsdSdkTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->Unpackage( CComBSTR( pszPath ) );
+    }
+};
+
+// --- Stitch (multi-selection) -----------------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdStitch ))
+ATL_NO_VTABLE CUsdCmdStitch
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdStitch, &__uuidof( CUsdCmdStitch )>
+    , public CUsdExplorerCommandImpl<CUsdCmdStitch>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdStitch )
+    static UINT TitleId() { return IDS_SHELL_STITCH; }
+
+    // Visible only when 2+ items are selected.
+    STDMETHODIMP GetState( IShellItemArray *psia, BOOL, EXPCMDSTATE *pState )
+    {
+        DWORD count = 0;
+        if ( psia ) psia->GetCount( &count );
+        *pState = ( count >= 2 ) ? ECS_ENABLED : ECS_HIDDEN;
+        return S_OK;
+    }
+
+    // Override Invoke to enumerate all selected items.
+    STDMETHODIMP Invoke( IShellItemArray *psia, IBindCtx * )
+    {
+        if ( !psia ) return E_INVALIDARG;
+        DWORD count = 0;
+        psia->GetCount( &count );
+        if ( count < 2 ) return E_INVALIDARG;
+
+        CStringW sInputs;
+        CStringW sFirstPath;
+
+        for ( DWORD i = 0; i < count; ++i )
+        {
+            CComPtr<IShellItem> psi;
+            if ( FAILED( psia->GetItemAt( i, &psi ) ) ) continue;
+            LPWSTR pszPath = nullptr;
+            if ( FAILED( psi->GetDisplayName( SIGDN_FILESYSPATH, &pszPath ) ) ) continue;
+            if ( i == 0 ) sFirstPath = pszPath;
+            if ( !sInputs.IsEmpty() ) sInputs += L"|";
+            sInputs += pszPath;
+            CoTaskMemFree( pszPath );
+        }
+
+        if ( sInputs.IsEmpty() ) return E_FAIL;
+
+        CStringW sOut = sFirstPath;
+        int dotPos = sOut.ReverseFind( L'.' );
+        if ( dotPos >= 0 ) sOut = sOut.Left( dotPos );
+        sOut += L"_stitched.usd";
+
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->Stitch( CComBSTR( sInputs ), CComBSTR( sOut ) );
+    }
+
+    HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
+};
+
 // --- View USD Logs ----------------------------------------------------------
 // Opens Windows Event Viewer; does not use the file path argument.
 
@@ -682,32 +763,6 @@ public:
 // Top-level commands — CoCreated by the shell via ExplorerCommandHandler
 // ---------------------------------------------------------------------------
 
-// --- Open in usdview --------------------------------------------------------
-
-class __declspec(uuid( CLSID_STR_UsdCmdOpen ))
-ATL_NO_VTABLE CUsdCmdOpen
-    : public CComObjectRootEx<CComSingleThreadModel>
-    , public CComCoClass<CUsdCmdOpen, &__uuidof( CUsdCmdOpen )>
-    , public CUsdExplorerCommandImpl<CUsdCmdOpen>
-{
-public:
-    USD_CMD_BOILERPLATE( CUsdCmdOpen )
-    static UINT TitleId() { return IDS_SHELL_VIEW; }
-
-    HRESULT DoInvoke( LPCWSTR pszPath )
-    {
-        CComBSTR bstrRenderer;
-        bool bHasRenderer = GetRendererConfig( L"VIEW", bstrRenderer );
-
-        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
-        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
-        if ( FAILED( hr ) ) return hr;
-
-        return pTools->View( CComBSTR( pszPath ), bHasRenderer ? bstrRenderer : nullptr );
-    }
-};
-OBJECT_ENTRY_AUTO( __uuidof( CUsdCmdOpen ), CUsdCmdOpen )
-
 // --- Edit -------------------------------------------------------------------
 
 class __declspec(uuid( CLSID_STR_UsdCmdEdit ))
@@ -728,7 +783,6 @@ public:
         return pTools->Edit( CComBSTR( pszPath ), VARIANT_FALSE );
     }
 };
-OBJECT_ENTRY_AUTO( __uuidof( CUsdCmdEdit ), CUsdCmdEdit )
 
 // --- USD Tools (parent submenu containing all tool sub-commands) ------------
 
@@ -752,28 +806,34 @@ public:
         CUsdCommandEnum *pEnum = new ( std::nothrow ) CUsdCommandEnum();
         if ( !pEnum ) return E_OUTOFMEMORY;
 
-        // Group 1 — format conversions
+        // Group 1 — edit
+        AddCmdToEnum<CUsdCmdEdit>( pEnum );
+        AddSepToEnum( pEnum );
+
+        // Group 2 — format conversions
         AddCmdToEnum<CUsdCmdCompress>( pEnum );
         AddCmdToEnum<CUsdCmdUncompress>( pEnum );
         AddCmdToEnum<CUsdCmdFlatten>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 2 — packaging
+        // Group 3 — packaging / stitching
         AddCmdToEnum<CUsdCmdPackage>( pEnum );
+        AddCmdToEnum<CUsdCmdUnpackage>( pEnum );
+        AddCmdToEnum<CUsdCmdStitch>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 3 — validation and diagnostics
+        // Group 4 — validation and diagnostics
         AddCmdToEnum<CUsdCmdValidate>( pEnum );
         AddCmdToEnum<CUsdCmdFix>( pEnum );
         AddCmdToEnum<CUsdCmdLayerStack>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 4 — utilities
+        // Group 5 — utilities
         AddCmdToEnum<CUsdCmdRefreshThumbnail>( pEnum );
         AddCmdToEnum<CUsdCmdStageStats>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 5 — logs
+        // Group 6 — logs
         AddCmdToEnum<CUsdCmdViewLogs>( pEnum );
 
         pEnum->AddRef();
@@ -798,11 +858,14 @@ ATL_NO_VTABLE CUsdContextMenu
     , public IContextMenu
 {
     CStringW m_filePath;
+    std::vector<CStringW> m_filePaths;
 
     enum Action
     {
+        ACT_EDIT,
         ACT_COMPRESS, ACT_UNCOMPRESS, ACT_FLATTEN,
         ACT_PACKAGE_DEFAULT, ACT_PACKAGE_ARKIT,
+        ACT_UNPACKAGE, ACT_STITCH,
         ACT_VALIDATE, ACT_FIX, ACT_LAYER_STACK,
         ACT_REFRESH_THUMB, ACT_STAGE_STATS, ACT_VIEW_LOGS
     };
@@ -818,7 +881,7 @@ public:
         COM_INTERFACE_ENTRY( IContextMenu )
     END_COM_MAP()
 
-    // IShellExtInit — extract the first selected file path from the data object.
+    // IShellExtInit — extract all selected file paths from the data object.
     STDMETHODIMP Initialize( PCIDLIST_ABSOLUTE, IDataObject *pdo, HKEY )
     {
         if ( !pdo ) return E_INVALIDARG;
@@ -826,9 +889,22 @@ public:
         STGMEDIUM stg = {};
         HRESULT hr = pdo->GetData( &fe, &stg );
         if ( FAILED( hr ) ) return hr;
+
+        HDROP hDrop = reinterpret_cast<HDROP>( stg.hGlobal );
+        UINT count = ::DragQueryFileW( hDrop, 0xFFFFFFFF, nullptr, 0 );
+
+        m_filePaths.clear();
         wchar_t szPath[MAX_PATH] = {};
-        ::DragQueryFileW( reinterpret_cast<HDROP>( stg.hGlobal ), 0, szPath, ARRAYSIZE( szPath ) );
-        m_filePath = szPath;
+        for ( UINT i = 0; i < count; ++i )
+        {
+            szPath[0] = L'\0';
+            ::DragQueryFileW( hDrop, i, szPath, ARRAYSIZE( szPath ) );
+            if ( szPath[0] != L'\0' )
+                m_filePaths.push_back( szPath );
+        }
+        if ( !m_filePaths.empty() )
+            m_filePath = m_filePaths[0];
+
         ::ReleaseStgMedium( &stg );
         return S_OK;
     }
@@ -894,6 +970,9 @@ public:
             ++nextOff;
         };
 
+        if ( !isUsdz )            AddCmd( ACT_EDIT,       IDS_SHELL_EDIT,    IDR_ICON_EDIT         );
+        AddSep();
+
         if ( !isUsdc && !isUsdz ) AddCmd( ACT_COMPRESS,   IDS_SHELL_CRATE,   IDR_ICON_COMPRESS     );
         if ( !isUsda && !isUsdz ) AddCmd( ACT_UNCOMPRESS, IDS_SHELL_UNCRATE, IDR_ICON_UNCOMPRESS   );
         if ( !isUsdz )            AddCmd( ACT_FLATTEN,    IDS_SHELL_FLATTEN, IDR_ICON_FLATTEN      );
@@ -903,6 +982,16 @@ public:
             AddSep();
             AddStr( ACT_PACKAGE_DEFAULT, L"Package as USDZ",       IDR_ICON_PACKAGE );
             AddStr( ACT_PACKAGE_ARKIT,  L"Package as ARKit USDZ", IDR_ICON_PACKAGE );
+        }
+
+        if ( isUsdz )
+        {
+            AddCmd( ACT_UNPACKAGE, IDS_SHELL_UNPACKAGE, IDR_ICON_UNPACK );
+        }
+
+        if ( m_filePaths.size() >= 2 )
+        {
+            AddCmd( ACT_STITCH, IDS_SHELL_STITCH, IDR_ICON_STITCH );
         }
 
         AddSep();
@@ -925,7 +1014,7 @@ public:
         mii.fState     = MFS_ENABLED;
         mii.hSubMenu   = hSub;
         mii.dwTypeData = const_cast<LPWSTR>( static_cast<LPCWSTR>( sTitle ) );
-        mii.hbmpItem   = GetMenuIcon( IDR_ICON_TOOLS );
+        mii.hbmpItem   = GetMenuIcon( IDR_ICON_USD );
         if ( !::InsertMenuItemW( hMenu, indexMenu, TRUE, &mii ) )
         {
             ::DestroyMenu( hSub );
@@ -961,6 +1050,14 @@ private:
     {
         LPCWSTR pszPath = m_filePath;
 
+        if ( act == ACT_EDIT )
+        {
+            CComPtr<UsdSdkToolsLib::IUsdSdkTools> pTools;
+            HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdSdkToolsLib::UsdSdkTools ) );
+            if ( FAILED( hr ) ) return hr;
+            return pTools->Edit( CComBSTR( pszPath ), VARIANT_FALSE );
+        }
+
         if ( act == ACT_REFRESH_THUMB )
         {
             CComPtr<IShellItem> psi;
@@ -986,7 +1083,29 @@ private:
             return ::ShellExecuteExW( &sei ) ? S_OK : HRESULT_FROM_WIN32( ::GetLastError() );
         }
 
-        if ( act == ACT_VALIDATE || act == ACT_FIX || act == ACT_LAYER_STACK )
+        if ( act == ACT_STITCH )
+        {
+            CComPtr<UsdPythonToolsLib::IUsdPythonTools> pPyTools;
+            HRESULT hr = pPyTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+            if ( FAILED( hr ) ) return hr;
+
+            CStringW sInputs;
+            for ( const auto& path : m_filePaths )
+            {
+                if ( !sInputs.IsEmpty() ) sInputs += L"|";
+                sInputs += path;
+            }
+
+            CStringW sOut = m_filePaths[0];
+            int dotPos = sOut.ReverseFind( L'.' );
+            if ( dotPos >= 0 ) sOut = sOut.Left( dotPos );
+            sOut += L"_stitched.usd";
+
+            return pPyTools->Stitch( CComBSTR( sInputs ), CComBSTR( sOut ) );
+        }
+
+        if ( act == ACT_VALIDATE || act == ACT_FIX ||
+             act == ACT_LAYER_STACK || act == ACT_STAGE_STATS )
         {
             CComPtr<UsdPythonToolsLib::IUsdPythonTools> pPyTools;
             HRESULT hr = pPyTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
@@ -994,6 +1113,7 @@ private:
             if ( act == ACT_VALIDATE )    return pPyTools->Validate( CComBSTR( pszPath ) );
             if ( act == ACT_FIX )         return pPyTools->Fix( CComBSTR( pszPath ) );
             if ( act == ACT_LAYER_STACK ) return pPyTools->ShowLayerStack( CComBSTR( pszPath ) );
+            if ( act == ACT_STAGE_STATS ) return pPyTools->ShowStageStats( CComBSTR( pszPath ) );
         }
 
         CComPtr<UsdSdkToolsLib::IUsdSdkTools> pTools;
@@ -1024,8 +1144,8 @@ private:
             PathCchRenameExtension( sOut, ARRAYSIZE( sOut ), L"usdz" );
             return pTools->Package( CComBSTR( pszPath ), CComBSTR( sOut ),
                                     UsdSdkToolsLib::USD_FORMAT_APPLE_ARKIT, VARIANT_TRUE );
-        case ACT_STAGE_STATS:
-            return pTools->DisplayStageStats( CComBSTR( pszPath ) );
+        case ACT_UNPACKAGE:
+            return pTools->Unpackage( CComBSTR( pszPath ) );
         default:
             return E_NOTIMPL;
         }
