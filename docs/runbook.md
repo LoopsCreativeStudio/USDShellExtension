@@ -167,4 +167,4 @@ Errors from all components are written to:
 **Windows Event Viewer → Windows Logs → Application**  
 Source: `USD Shell Extension`
 
-See [DEBUG.md](DEBUG.md) for common error patterns.
+See [debug.md](debug.md) for common error patterns.

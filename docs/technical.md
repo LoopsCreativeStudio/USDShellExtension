@@ -17,10 +17,14 @@ UsdPreviewLocalServer.exe   [COM Local Server, separate process]
 └── Hosts Python, runs UsdPreviewHandlerPython.py (usdStageView)
 
 UsdPythonToolsLocalServer.exe  [COM Local Server, separate process]
-└── Hosts Python, runs usdrecord (thumbnails) and launches usdview (subprocess)
+└── Hosts Python: usdrecord (thumbnails), usdview (subprocess), usdchecker
+    (Validate), usdfixbrokenpixarschemas (Fix Schemas), layer stack report,
+    UsdUtils.ComputeUsdStageStats (Stage Statistics), UsdUtils.StitchLayers
+    (Stitch Layers)
 
 UsdSdkToolsLocalServer.exe  [COM Local Server, separate process]
-└── Hosts C++ USD tools for format conversion (USD ↔ USDA ↔ USDC ↔ USDZ)
+└── Hosts C++ USD tools: format conversion (USD/USDA/USDC/USDZ), Unpackage
+    (USDZ archive extraction via SdfZipFile)
 ```
 
 If a COM server crashes, Explorer is unaffected.
@@ -43,10 +47,11 @@ If a COM server crashes, Explorer is unaffected.
 | `UsdShellExtension/ShellPreviewHandlerImpl.cpp` | IPreviewHandler, spawns UsdPreviewLocalServer |
 | `UsdShellExtension/ShellThumbnailProviderImpl.cpp` | IThumbnailProvider, calls UsdPythonToolsLocalServer |
 | `UsdShellExtension/ShellPropertyStoreImpl.cpp` | IPropertyStore, reads USD metadata in-process |
-| `UsdShellExtension/ShellExecute.cpp` | rundll32 entry points for context menu commands |
+| `UsdShellExtension/ExplorerCommands.cpp` | IExplorerCommand classes for the Windows 11 context menu |
+| `UsdShellExtension/ShellExecute.cpp` | rundll32 entry points (legacy context menu, pre-Windows 11) |
 | `UsdShellExtension/ShellExtModule.rgs` | ATL registry script, file associations and shell verbs |
 | `UsdShellExtension/Module.cpp` | DllRegisterServer / DllUnregisterServer / DllInstall |
-| `UsdPythonToolsServer/UsdPythonToolsImpl.cpp` | Record() (thumbnail) and View() (usdview subprocess) |
+| `UsdPythonToolsServer/UsdPythonToolsImpl.cpp` | Python tool dispatch: thumbnails, usdview, Validate, Fix, Layer Stack, Stage Stats, Stitch |
 | `shared/environment.h` | INI config loading, PATH/PYTHONPATH helpers |
 | `shared/PythonUtil.h` | Python embedding helpers |
 
@@ -196,8 +201,24 @@ The main trade-off is coupling to NVIDIA's release schedule and their `usd_`-pre
 
 ## Adding a new context menu verb
 
+The extension exposes two parallel context menu paths. Use the one that matches your target:
+
+### Modern (Windows 11) IExplorerCommand verb
+
+Recommended for all new commands. These appear in the Windows 11 context menu under the **USD Tools** submenu.
+
+1. Add a string resource `IDS_SHELL_MYVERB` and an icon resource `IDR_ICON_MYVERB` in `ShellExt.rc` and `resource.h`.
+2. Implement a `CUsdCmdMyVerb` class derived from `CUsdCmdBase` in `ExplorerCommands.h` / `ExplorerCommands.cpp`. Override `GetTitle`, `GetIcon`, and `Invoke`. Override `GetState` to return `ECS_HIDDEN` if the command should be conditionally hidden (e.g. only on `.usdz` files, or only on multi-selection).
+3. Register the class in `Module.cpp` (`ATL_REGMAP_ENTRY`) and in `ExplorerCommands.h` (`CLSID_STR_UsdCmdMyVerb`).
+4. Add the command to `CUsdCmdUsdTools::DoEnumSubCommands` in the appropriate group.
+5. If the command calls a COM server, add the method to the relevant `.idl` and implement it in the corresponding `*Impl.cpp`.
+6. Rebuild and reinstall.
+
+### Legacy (pre-Windows 11) shell verb
+
+Used for the classic context menu on older Windows versions. These are registered via `ShellExtModule.rgs` and invoked through `rundll32`.
+
 1. Add a string resource `IDS_SHELL_MYVERB` in `ShellExt.rc`.
-2. Add the verb block in `ShellExtModule.rgs` under the relevant ProgID(s).
+2. Add the verb block in `ShellExtModule.rgs` under the relevant ProgID(s), pointing to the rundll32 entry point.
 3. Add a `rundll32` entry point function in `ShellExecute.cpp`.
-4. Update `Module.cpp::UpdateRegistry` if the string ID needs a regmap entry.
-5. Rebuild and reinstall.
+4. Rebuild and reinstall.
