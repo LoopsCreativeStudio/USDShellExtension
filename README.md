@@ -20,38 +20,17 @@
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| Thumbnails | Auto-generated 3D thumbnails in Explorer |
-| Preview pane | Live Hydra viewport in the Explorer preview pane |
-| Context menus | Open, Edit, Compress/Uncrate, Package, Flatten |
-| Windows Search | USD metadata indexed and searchable |
-
 Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
-## Overview
+| Feature | Description |
+|---------|-------------|
+| Thumbnails | Auto-generated 3D thumbnails via `usdrecord`, cached by Windows |
+| Preview pane | Live Hydra viewport with prim path bar and animation timeline |
+| Context menu | View, Edit, Crate/Uncrate, Flatten, Package, Unpackage, Stitch, Validate, Fix, Layer Stack |
+| Windows Search | USD metadata indexed and searchable (frame range, frame rate, format, custom layer data) |
+| File type icons | Custom icons and friendly type names for each USD format |
 
-### Open & Tools
-
-![Usd Tools](docs/img/demo_06.png)
-
-![Usd Tools](docs/img/demo_05.png)
-
-### Open in usdview
-
-![Open in usdview](docs/img/demo_01.gif)
-
-### Crate / Uncrate
-
-![Crate, uncrate and open in editor](docs/img/demo_03.gif)
-
-### Thumbnail
-
-![Windows thumbnails](docs/img/demo_02.gif)
-
-### Windows Preview
-
-![Windows Preview](docs/img/demo_07.gif)
+See [Features](docs/features.md) for the full description of each command.
 
 Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.html#assets) (Pixar, Apache 2.0), [ALab](https://animallogic.com/technology/alab/) (Animal Logic, CC BY 4.0).
 
@@ -59,10 +38,11 @@ Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.h
 
 | Guide | Who it's for |
 |-------|-------------|
-| [Quick Start](docs/QUICKSTART.md) | First install, step by step |
-| [Technical Guide](docs/TECHNICAL.md) | Developers and contributors |
-| [Runbook](docs/RUNBOOK.md) | IT / deployment / configuration |
-| [Debug & FAQ](docs/DEBUG.md) | Troubleshooting and known issues |
+| [Features](docs/features.md) | Full description of every feature and context menu command |
+| [Quick Start](docs/quickstart.md) | First install, step by step |
+| [Technical Guide](docs/technical.md) | Developers and contributors |
+| [Runbook](docs/runbook.md) | IT / deployment / configuration |
+| [Debug & FAQ](docs/debug.md) | Troubleshooting and known issues |
 
 ## Inspiration & Credit
 
