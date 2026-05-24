@@ -2,20 +2,13 @@ HKCR
 {
 	NoRemove OpenUSD.USD = s 'USD (Universal Scene Description)'
 	{
-		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USD%'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description)'
 
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -31,6 +24,7 @@ HKCR
 	NoRemove .usd = s 'OpenUSD.USD'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description)'
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
@@ -41,12 +35,6 @@ HKCR
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -58,22 +46,15 @@ HKCR
 		}
 	}
 
-	NoRemove OpenUSD.USDA = s 'USD ASCII File'
+	NoRemove OpenUSD.USDA = s 'USD (Universal Scene Description ASCII)'
 	{
-		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDA%'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description ASCII)'
 
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -89,22 +70,17 @@ HKCR
 	NoRemove .usda = s 'OpenUSD.USDA'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description ASCII)'
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val OpenUSD.USDA = s 'USD ASCII File'
+			ForceRemove val OpenUSD.USDA = s 'USD (Universal Scene Description ASCII)'
 		}
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -116,22 +92,15 @@ HKCR
 		}
 	}
 
-	NoRemove OpenUSD.USDC = s 'USD Crate File'
+	NoRemove OpenUSD.USDC = s 'USD (Universal Scene Description Binary)'
 	{
-		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDC%'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description Binary)'
 
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -147,22 +116,17 @@ HKCR
 	NoRemove .usdc = s 'OpenUSD.USDC'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description Binary)'
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val OpenUSD.USDC = s 'USD Crate File'
+			ForceRemove val OpenUSD.USDC = s 'USD (Universal Scene Description Binary)'
 		}
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
-			}
-			ForceRemove edit = s '@%MODULE%,-%IDS_SHELL_EDIT%'
-			{
-				command = s 'rundll32.exe "%MODULE%",EditInUsdEdit "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0002-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -174,16 +138,15 @@ HKCR
 		}
 	}
 
-	NoRemove OpenUSD.USDZ = s 'USD Package'
+	NoRemove OpenUSD.USDZ = s 'USD (Universal Scene Description Package)'
 	{
-		ForceRemove val FriendlyTypeName = s '@%MODULE%,-%IDS_FILE_USDZ%'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description Package)'
 
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -199,17 +162,17 @@ HKCR
 	NoRemove .usdz = s 'OpenUSD.USDZ'
 	{
 		val PerceivedType = s 'document'
+		ForceRemove val FriendlyTypeName = s 'USD (Universal Scene Description Package)'
 		ForceRemove DefaultIcon = s '%MODULE%,-%IDI_ICON_USD%'
 		NoRemove OpenWithProgids
 		{
-			ForceRemove val OpenUSD.USDZ = s 'USD Package'
+			ForceRemove val OpenUSD.USDZ = s 'USD (Universal Scene Description Package)'
 		}
 		NoRemove shell
 		{
 			ForceRemove open = s '@%MODULE%,-%IDS_SHELL_VIEW%'
 			{
 				command = s 'rundll32.exe "%MODULE%",OpenInUsdView "%%1"'
-				val ExplorerCommandHandler = s '{EFAB0001-5B7E-4A23-8C6D-9F1234567890}'
 			}
 		}
 		NoRemove shellex
@@ -223,16 +186,6 @@ HKCR
 
 	NoRemove CLSID
 	{
-		ForceRemove {EFAB0001-5B7E-4A23-8C6D-9F1234567890} = s 'USD Open Command'
-		{
-			ForceRemove InProcServer32 = s '%MODULE%'
-			{ val ThreadingModel = s 'Apartment' }
-		}
-		ForceRemove {EFAB0002-5B7E-4A23-8C6D-9F1234567890} = s 'USD Edit Command'
-		{
-			ForceRemove InProcServer32 = s '%MODULE%'
-			{ val ThreadingModel = s 'Apartment' }
-		}
 		ForceRemove {EFABFF03-5B7E-4A23-8C6D-9F1234567890} = s 'USD Context Menu'
 		{
 			ForceRemove InProcServer32 = s '%MODULE%'
@@ -255,8 +208,6 @@ HKLM
 					{
 						NoRemove Approved
 						{
-							ForceRemove val {EFAB0001-5B7E-4A23-8C6D-9F1234567890} = s 'USD Open Command'
-							ForceRemove val {EFAB0002-5B7E-4A23-8C6D-9F1234567890} = s 'USD Edit Command'
 							ForceRemove val {EFABFF03-5B7E-4A23-8C6D-9F1234567890} = s 'USD Context Menu'
 						}
 					}
