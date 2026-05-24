@@ -3,3 +3,6 @@ contact_links:
   - name: 📖 Documentation
     url: https://github.com/LoopsCreativeStudio/USDShellExtension/tree/main/docs
     about: Read the docs before opening an issue
+  - name: 💬 Discussions
+    url: https://github.com/LoopsCreativeStudio/USDShellExtension/discussions
+    about: Propose a new feature or ask a question in Discussions rather than Issues
