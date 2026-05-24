@@ -66,11 +66,12 @@ This copies the build output to `C:\Program Files\UsdShellExtension\` and regist
 
 ## Step 6: Done
 
-Right-click any `.usd`, `.usda`, `.usdc`, or `.usdz` file in Explorer. You should see:
+Right-click any `.usd`, `.usda`, `.usdc`, or `.usdz` file in Explorer. You should see a **USD Tools** submenu with:
 
-- **Open**: opens usdview
-- **Edit**: opens in your configured text editor
-- **Compress / Uncompress / Flatten / Package**: format conversions
+- **View / Edit**: open in usdview or your configured text editor
+- **Crate / Uncrate / Flatten / Package / Unpackage**: format conversions
+- **Validate / Fix Schemas / Layer Stack / Stage Statistics**: inspection tools
+- **Stitch Layers**: available when 2 or more USD files are selected
 - Thumbnails and 3D preview pane are active automatically
 
 ## Uninstall
@@ -82,4 +83,4 @@ Right-click any `.usd`, `.usda`, `.usdc`, or `.usdz` file in Explorer. You shoul
 
 ---
 
-See [RUNBOOK.md](RUNBOOK.md) for configuration options, and [DEBUG.md](DEBUG.md) if something isn't working.
+See [runbook.md](runbook.md) for configuration options, and [debug.md](debug.md) if something isn't working.

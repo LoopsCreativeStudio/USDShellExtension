@@ -32,7 +32,19 @@ Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 See [Features](docs/features.md) for the full description of each command.
 
-Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.html#assets) (Pixar, Apache 2.0), [ALab](https://animallogic.com/technology/alab/) (Animal Logic, CC BY 4.0).
+## Overview
+
+### Windows preview pane
+![Windows preview static](docs/img/feat_preview.gif)
+
+### Standard properties of the USD file
+![Windows Details](docs/img/feat_details.jpg)
+
+### Timeline
+![Windows preview animation](docs/img/feat_animation.gif)
+
+
+Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.html#assets) (Pixar, Apache 2.0).
 
 ## Documentation
 
@@ -50,12 +62,15 @@ This project is a complete rewrite, heavily inspired by [Activision/USDShellExte
 
 The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, NVIDIA USD 25.08, Python 3.12), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
 
-The two main architectural differences from the Activision repo: the Activision version required two separate USD builds compiled from source (a bare-bones monolithic build with no Python for the Explorer DLL, and a full build for the Python tools), whereas this version uses a single NVIDIA pre-built SDK for everything. The Activision version enforced the "no Python in Explorer" rule by excluding Python from the SDK used by the DLL; this version enforces the same rule structurally, by routing all Python work through isolated COM Local Server executables. See the [Technical Guide](docs/TECHNICAL.md) for a full comparison.
+The two main architectural differences from the Activision repo: the Activision version required two separate USD builds compiled from source (a bare-bones monolithic build with no Python for the Explorer DLL, and a full build for the Python tools), whereas this version uses a single NVIDIA pre-built SDK for everything. The Activision version enforced the "no Python in Explorer" rule by excluding Python from the SDK used by the DLL; this version enforces the same rule structurally, by routing all Python work through isolated COM Local Server executables. See the [Technical Guide](docs/technical.md) for a full comparison.
 
 
 ## Contributing
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request; it covers the workspace setup, branch and commit conventions, pull request process, and coding style.
+
+- **Bug reports**: open an issue at [github.com/LoopsCreativeStudio/USDShellExtension/issues](https://github.com/LoopsCreativeStudio/USDShellExtension/issues).
+- **Feature requests and ideas**: use [Discussions](https://github.com/LoopsCreativeStudio/USDShellExtension/discussions) to propose and discuss new functionality before opening a pull request.
 
 By participating in this project, you agree to abide by the [Code of Conduct](CONTRIBUTING.md#code-of-conduct).
 
