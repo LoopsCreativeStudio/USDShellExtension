@@ -9,7 +9,7 @@ Source: `USD Shell Extension`
 
 Look for Error-level entries. The message will include a Python traceback or a Win32 error code.
 
-![Windows Event Viewer, USD Shell Extension entries](img/demo_04.png)
+![Windows Event Viewer, USD Shell Extension entries](img/debug_windows_event.jpg)
 
 ---
 
@@ -83,7 +83,7 @@ PREVIEW=Embree
 3. At the bottom of the **General** tab, check the **Unblock** checkbox.
 4. Click **OK**. The preview pane will work on the next selection.
 
-![File properties dialog showing the Unblock checkbox](img/debug_01.png)
+![File properties dialog showing the Unblock checkbox](img/debug_external_files.jpg)
 
 **Fix 2 - via PowerShell (entire folder at once):**
 

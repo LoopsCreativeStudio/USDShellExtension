@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-about: Report a problem or unexpected behaviour
+description: Report a problem or unexpected behaviour
 title: "[BUG] "
 labels:
   - bug
@@ -48,8 +48,8 @@ body:
       options:
         - UsdShellExtension — Core DLL (thumbnails, preview, property store)
         - UsdPreviewLocalServer — 3D preview pane
-        - UsdPythonToolsLocalServer — usdview / usdrecord
-        - UsdSdkToolsLocalServer — Format conversion (crate/flatten/package)
+        - UsdPythonToolsLocalServer — usdview, usdrecord, Validate, Fix, Layer Stack, Stage Stats, Stitch
+        - UsdSdkToolsLocalServer — Format conversion (crate/flatten/package/unpackage)
         - UsdShellExtensionInstaller — NSIS installer
         - install.ps1 / build.ps1 — Build and install scripts
         - Other
@@ -76,5 +76,5 @@ body:
       options:
         - label: I have checked that this issue does not already exist
           required: true
-        - label: I have read the documentation (docs/DEBUG.md)
+        - label: I have read the documentation (docs/debug.md)
           required: false
