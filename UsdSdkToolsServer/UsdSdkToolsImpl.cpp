@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <shlobj.h>
 
 HRESULT CUsdSdkToolsImpl::FinalConstruct()
 {
@@ -316,6 +317,111 @@ STDMETHODIMP CUsdSdkToolsImpl::DisplayStageStats( IN BSTR usdStagePath )
 	}
 
 	PrintDictionary( dictStats, 0 );
+
+	pause();
+	return S_OK;
+}
+
+STDMETHODIMP CUsdSdkToolsImpl::Unpackage( IN BSTR usdStagePathInput )
+{
+	DEBUG_RECORD_ENTRY();
+
+	if ( AllocConsole() )
+	{
+		FILE *fout = nullptr;
+		freopen_s( &fout, "CONOUT$", "w", stdout );
+		FILE *ferr = nullptr;
+		freopen_s( &ferr, "CONOUT$", "w", stderr );
+	}
+	SetConsoleTitleW( L"USD Unpackage" );
+
+	RegisterUsdPlugins();
+
+	std::string pathA = static_cast<LPCSTR>( ATL::CW2A( usdStagePathInput, CP_UTF8 ) );
+
+	std::cout << "USD Unpackage" << std::endl;
+	std::cout << std::string( 72, '=' ) << std::endl;
+	std::cout << "File: " << pathA << std::endl;
+	std::cout << std::endl;
+
+	pxr::SdfZipFile zipFile = pxr::SdfZipFile::Open( pathA );
+	if ( !zipFile )
+	{
+		std::cerr << "Error: failed to open USDZ package" << std::endl;
+		pause();
+		return E_FAIL;
+	}
+
+	// Output directory: same path without the .usdz extension.
+	CStringW outDirW = usdStagePathInput;
+	int dotPos = outDirW.ReverseFind( L'.' );
+	if ( dotPos >= 0 )
+		outDirW = outDirW.Left( dotPos );
+
+	if ( !::CreateDirectoryW( outDirW, nullptr ) )
+	{
+		DWORD err = ::GetLastError();
+		if ( err != ERROR_ALREADY_EXISTS )
+		{
+			std::cerr << "Error: could not create output directory" << std::endl;
+			pause();
+			return HRESULT_FROM_WIN32( err );
+		}
+	}
+
+	std::string outDirA = static_cast<LPCSTR>( ATL::CW2A( outDirW, CP_UTF8 ) );
+	int fileCount = 0;
+
+	for ( auto it = zipFile.begin(); it != zipFile.end(); ++it )
+	{
+		const std::string fileName = *it;
+
+		pxr::SdfZipFile::FileInfo info = it.GetFileInfo();
+		if ( info.compressionMethod != 0 )
+		{
+			std::cerr << "  Warning: skipping compressed entry: " << fileName << std::endl;
+			continue;
+		}
+
+		const char* data = it.GetFile();
+		if ( !data )
+			continue;
+
+		// Build the output path, normalising forward slashes to backslashes.
+		std::string outPath = outDirA + "\\" + fileName;
+		for ( char& c : outPath )
+		{
+			if ( c == '/' ) c = '\\';
+		}
+
+		// Ensure all parent directories exist.
+		size_t lastSlash = outPath.rfind( '\\' );
+		if ( lastSlash != std::string::npos )
+		{
+			std::string parentA = outPath.substr( 0, lastSlash );
+			CStringW parentW = ATL::CA2W( parentA.c_str(), CP_UTF8 );
+			::SHCreateDirectoryExW( nullptr, parentW, nullptr );
+		}
+
+		CStringW outPathW = ATL::CA2W( outPath.c_str(), CP_UTF8 );
+		HANDLE hFile = ::CreateFileW( outPathW, GENERIC_WRITE, 0, nullptr,
+		                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile == INVALID_HANDLE_VALUE )
+		{
+			std::cerr << "  Warning: failed to create: " << outPath << std::endl;
+			continue;
+		}
+
+		DWORD written = 0;
+		::WriteFile( hFile, data, static_cast<DWORD>( info.size ), &written, nullptr );
+		::CloseHandle( hFile );
+
+		std::cout << "  " << fileName << std::endl;
+		++fileCount;
+	}
+
+	std::cout << std::endl;
+	std::cout << fileCount << " file(s) extracted to: " << outDirA << std::endl;
 
 	pause();
 	return S_OK;

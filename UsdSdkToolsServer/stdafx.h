@@ -41,6 +41,7 @@
 #include <pxr/usd/ar/defineResolver.h>
 #include <pxr/usd/ar/filesystemAsset.h>
 #include <pxr/usd/usdUtils/dependencies.h>
+#include <pxr/usd/sdf/zipFile.h>
 #include <pxr/base/arch/fileSystem.h>
 
 

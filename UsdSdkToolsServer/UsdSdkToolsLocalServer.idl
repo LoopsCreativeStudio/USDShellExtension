@@ -45,6 +45,9 @@ interface IUsdSdkTools : IDispatch
 
 	[helpstring("Displays stats about the USD stage.")]
 	HRESULT DisplayStageStats( [in] BSTR usdStagePath );
+
+	[helpstring("Extracts the contents of a USDZ package to a directory.")]
+	HRESULT Unpackage( [in] BSTR usdStagePathInput );
 }
 
 [

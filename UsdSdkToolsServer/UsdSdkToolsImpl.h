@@ -28,6 +28,7 @@ public:
 	STDMETHODIMP Edit( IN BSTR usdStagePath, IN VARIANT_BOOL force = 0 ) override;
 	STDMETHODIMP Package( IN BSTR usdStagePathInput, IN BSTR usdStagePathOuput, IN eUsdPackageType packageType = USD_PACKAGE_DEFAULT, IN VARIANT_BOOL verbose = 0 ) override;
 	STDMETHODIMP DisplayStageStats( IN BSTR usdStagePath ) override;
+	STDMETHODIMP Unpackage( IN BSTR usdStagePathInput ) override;
 
 	static HRESULT WINAPI UpdateRegistry(_In_ BOOL bRegister) throw();
 
