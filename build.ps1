@@ -11,13 +11,30 @@
 .PARAMETER Config
     MSBuild configuration: Release or Debug.
     Overrides CONFIG in .env. Default: Release.
+
+.PARAMETER Installer
+    After building, stage LICENSE.txt and run NSIS to produce the setup .exe.
+    Requires NSIS installed at C:\Program Files\NSIS\makensis.exe.
+
+.PARAMETER Release
+    After building the installer, publish a GitHub release via the gh CLI.
+    Implies -Installer. Requires gh installed and authenticated (gh auth login).
+    The release tag is read from version.txt (e.g. "1.2.0" becomes tag "v1.2.0").
+
+.PARAMETER LogFile
+    Path to write a transcript log. Default: build.log in the repo directory.
 #>
 param(
-    [string]$Config = ""
+    [string]$Config     = "",
+    [switch]$Installer,
+    [switch]$Release,
+    [string]$LogFile    = ""
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+if ($Release) { $Installer = $true }
 
 $REPO = $PSScriptRoot
 $SEP  = "  " + ("=" * 52)
@@ -79,6 +96,13 @@ $version = if (Test-Path (Join-Path $REPO "version.txt")) {
 } else { "" }
 
 # ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
+if ($LogFile -eq "") { $LogFile = Join-Path $REPO "build.log" }
+try { Stop-Transcript | Out-Null } catch { $null = $_ }
+Start-Transcript -Path $LogFile -Force | Out-Null
+
+# ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
 Write-Host ""
@@ -86,6 +110,8 @@ Write-Host $SEP -ForegroundColor DarkGray
 Write-Host ("    USD Shell Extension  {0}" -f $(if ($version) { "v$version" } else { "" })) -ForegroundColor White
 Write-Host ("    Build  |  {0} | x64" -f $Config) -ForegroundColor DarkGray
 Write-Host $SEP -ForegroundColor DarkGray
+Write-Host ""
+Write-Detail "Log" $LogFile
 
 # ---------------------------------------------------------------------------
 # 1. Verify prerequisites
@@ -274,3 +300,103 @@ Write-Host ""
 Write-Host "  Next step (run as Administrator):" -ForegroundColor White
 Write-Host "    .\install.ps1" -ForegroundColor Yellow
 Write-Host ""
+
+# ---------------------------------------------------------------------------
+# 6. (Optional) Build NSIS installer
+# ---------------------------------------------------------------------------
+$installerExe = $null
+if ($Installer) {
+    Write-Step "Building installer"
+
+    $nsisExe = "C:\Program Files\NSIS\makensis.exe"
+    if (-not (Test-Path $nsisExe)) {
+        Write-Error "NSIS not found at '$nsisExe'. Install NSIS from https://nsis.sourceforge.io"
+    }
+
+    # Stage LICENSE.txt
+    $licenseSrc = Join-Path $REPO "LICENSE.txt"
+    if (Test-Path $licenseSrc) {
+        Copy-Item $licenseSrc $OUT_DIR -Force
+        Write-Item "LICENSE.txt"
+    } else {
+        Write-Warning "LICENSE.txt not found in repo root, installer may fail."
+    }
+
+    $msbuildInstallerArgs = @(
+        $SLN,
+        "/p:Configuration=Release",
+        "/p:Platform=x64",
+        "/p:VCToolsVersion=$vcToolsVersion",
+        "/p:PythonHome=$PythonHome",
+        "/t:UsdShellExtensionInstaller",
+        "/nologo",
+        "/verbosity:minimal",
+        "/clp:Summary"
+    )
+
+    $prevOutputEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $env:VSLANG = "1033"
+    & $msbuild @msbuildInstallerArgs
+    [Console]::OutputEncoding = $prevOutputEncoding
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Installer build failed with exit code $LASTEXITCODE"
+    }
+
+    $installerExe = Get-ChildItem $OUT_DIR -Filter "UsdShellExtension-*-setup.exe" |
+                    Sort-Object LastWriteTime -Descending |
+                    Select-Object -First 1
+
+    Write-Host ""
+    Write-Host $SEP -ForegroundColor DarkGray
+    Write-Host "    Installer ready" -ForegroundColor Green
+    Write-Host $SEP -ForegroundColor DarkGray
+    if ($installerExe) {
+        Write-Detail "Installer" $installerExe.FullName
+    }
+    Write-Host ""
+}
+
+# ---------------------------------------------------------------------------
+# 7. (Optional) Publish GitHub release
+# ---------------------------------------------------------------------------
+if ($Release) {
+    Write-Step "Publishing GitHub release"
+
+    if (-not $version) {
+        Write-Error "version.txt not found or empty. Cannot create a release without a version number."
+    }
+
+    $tag = "v$version"
+
+    if (-not $installerExe -or -not (Test-Path $installerExe.FullName)) {
+        Write-Error "Installer .exe not found in '$OUT_DIR'. The -Installer step must succeed before publishing."
+    }
+
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        Write-Error "gh CLI not found. Install from https://cli.github.com/ then run 'gh auth login'."
+    }
+
+    & gh auth status 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "gh is not authenticated. Run 'gh auth login' first."
+    }
+
+    Write-Detail "Tag"   $tag
+    Write-Detail "Asset" $installerExe.Name
+
+    & gh release create $tag $installerExe.FullName --title $tag --generate-notes
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "gh release create failed with exit code $LASTEXITCODE"
+    }
+
+    Write-Host ""
+    Write-Host $SEP -ForegroundColor DarkGray
+    Write-Host "    Release published" -ForegroundColor Green
+    Write-Host $SEP -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+Stop-Transcript | Out-Null
