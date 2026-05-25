@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.3.0...v1.4.0) (2026-05-25)
+
+
+### Features
+
+* add Stitch Layers command for multi-selection USD files ([f11d802](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/f11d802a04c4680fa5f41881617828ca3dafc26b))
+* add Unpackage command for .usdz files ([e794fa0](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e794fa06e5342e903d22b4df126ab5e7afef861b))
+* add Validate, Fix, Layer Stack, Stage Stats context menu commands ([2237c5e](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/2237c5edf9dc8ae3449fefe8ab16595b81f76196))
+
+
+### Bug Fixes
+
+* correct FriendlyTypeName for usda/usdc/usdz and remove PropertyStore noise ([6063d47](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6063d477619b31078d6847c4e85556c7941c2ef1))
+
 ## [1.3.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.2.0...v1.3.0) (2026-05-23)
 
 
