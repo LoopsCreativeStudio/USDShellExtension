@@ -308,9 +308,12 @@ $installerExe = $null
 if ($Installer) {
     Write-Step "Building installer"
 
-    $nsisExe = "C:\Program Files\NSIS\makensis.exe"
-    if (-not (Test-Path $nsisExe)) {
-        Write-Error "NSIS not found at '$nsisExe'. Install NSIS from https://nsis.sourceforge.io"
+    $nsisExe = @(
+        "C:\Program Files\NSIS\makensis.exe",
+        "C:\Program Files (x86)\NSIS\makensis.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $nsisExe) {
+        Write-Error "NSIS not found. Install NSIS from https://nsis.sourceforge.io"
     }
 
     # Stage LICENSE.txt
@@ -322,13 +325,15 @@ if ($Installer) {
         Write-Warning "LICENSE.txt not found in repo root, installer may fail."
     }
 
+    $installerVcxproj = Join-Path $REPO "UsdShellExtensionInstaller\UsdShellExtensionInstaller.vcxproj"
     $msbuildInstallerArgs = @(
-        $SLN,
+        $installerVcxproj,
         "/p:Configuration=Release",
         "/p:Platform=x64",
         "/p:VCToolsVersion=$vcToolsVersion",
         "/p:PythonHome=$PythonHome",
-        "/t:UsdShellExtensionInstaller",
+        "/p:MAKENSIS=$nsisExe",
+        "/p:SolutionDir=$REPO\",
         "/nologo",
         "/verbosity:minimal",
         "/clp:Summary"

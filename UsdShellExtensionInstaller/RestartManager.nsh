@@ -14,7 +14,7 @@ Var RmWindowsSearchSession
 Function ${UN}ShutdownExplorer
 
 SetDetailsPrint textonly
-DetailPrint "Shutting down Windows Explorer..."
+DetailPrint "Shutting down Windows Explorer (may take a few seconds)..."
 SetDetailsPrint listonly
 
 System::StrAlloc ${CCH_RM_SESSION_KEY}
@@ -49,12 +49,18 @@ SetDetailsPrint listonly
 DetailPrint "Restarting Windows Explorer"
 
 System::Call 'Rstrtmgr::RmRestart(i $RmExplorerSession, i 0, p n) i.R0'
-
 System::Call 'Rstrtmgr::RmEndSession(i $RmExplorerSession) i.R0'
+
+Sleep 2000
+FindWindow $R0 "Shell_TrayWnd"
+${If} $R0 == 0
+    DetailPrint "Explorer did not restart automatically, launching manually"
+    Exec '$WINDIR\explorer.exe'
+${EndIf}
 
 FunctionEnd
 !macroend
-!insertmacro RestartExplorer "" 
+!insertmacro RestartExplorer ""
 !insertmacro RestartExplorer "un."
 
 
@@ -126,9 +132,8 @@ StrCpy $1 "$INSTDIR\tbb.dll"
 StrCpy $2 "$INSTDIR\tbbmalloc.dll"
 StrCpy $3 "$INSTDIR\${BOOSTDLL}"
 StrCpy $4 "$INSTDIR\${PYTHONDLL}"
-StrCpy $5 "$INSTDIR\usd_ms.dll"
-StrCpy $6 "$INSTDIR\UsdPreviewHandler.pyd"
-System::Call '*(w r0, w r1, w r2, w r3, w r4, w r5, w r6)p.R1 ?2'
+StrCpy $5 "$INSTDIR\UsdPreviewHandler.pyd"
+System::Call '*(w r0, w r1, w r2, w r3, w r4, w r5)p.R1 ?2'
 System::Call 'Rstrtmgr::RmRegisterResources(i $RmApplicationSession, i 6, p R1, i 0, p n, i 1, p R2) i.R0'
 
 DetailPrint "Shutting down applications using the USD Shell Extension"

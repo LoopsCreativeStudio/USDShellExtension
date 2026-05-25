@@ -71,6 +71,8 @@ InstallDirRegKey HKLM "SOFTWARE\UsdShellExtension" "Install_Dir"
 
 ;--------------------------------
 ;Utilities
+Var ConfigFilePath
+Var COMMONAPPDATA
 !include "${__FILEDIR__}\UsdConfigUtils.nsh"
 !include "${__FILEDIR__}\RestartManager.nsh"
 !include "${__FILEDIR__}\ShellLinkSetRunAs.nsh"
@@ -116,10 +118,6 @@ VIAddVersionKey "CompanyName" "${VER_COMPANYNAME}"
 !endif
 
 SetPluginUnload  alwaysoff
-
-;--------------------------------
-Var ConfigFilePath
-Var COMMONAPPDATA
 
 ;--------------------------------
 Function .onInit
@@ -222,7 +220,11 @@ SetOutPath "$INSTDIR"
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPythonToolsLocalServer.exe "$INSTDIR\UsdPythonToolsLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdSdkToolsLocalServer.exe "$INSTDIR\UsdSdkToolsLocalServer.exe" $INSTDIR
-!insertmacro InstallLib REGDLL NOTSHARED REBOOT_NOTPROTECTED UsdShellExtension.dll "$INSTDIR\UsdShellExtension.dll" $INSTDIR
+!insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED UsdShellExtension.dll "$INSTDIR\UsdShellExtension.dll" $INSTDIR
+ExecWait '"$SYSDIR\regsvr32.exe" /s /n /i:"/force" "$INSTDIR\UsdShellExtension.dll"' $R0
+${If} $R0 != 0
+    DetailPrint "UsdShellExtension.dll registration failed (error $R0)"
+${EndIf}
 
 ; Write the installation path into the registry
 WriteRegStr HKLM SOFTWARE\UsdShellExtension "Install_Dir" "$INSTDIR"
@@ -379,7 +381,8 @@ SetDetailsPrint textonly
 DetailPrint "Uninstalling files..."
 SetDetailsPrint listonly
 
-!insertmacro UnInstallLib REGDLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdShellExtension.dll"
+ExecWait '"$SYSDIR\regsvr32.exe" /s /u "$INSTDIR\UsdShellExtension.dll"'
+!insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdShellExtension.dll"
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPreviewLocalServer.exe"
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPythonToolsLocalServer.exe"
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdSdkToolsLocalServer.exe"
