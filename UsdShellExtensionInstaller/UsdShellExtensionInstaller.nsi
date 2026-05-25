@@ -118,6 +118,9 @@ VIAddVersionKey "CompanyName" "${VER_COMPANYNAME}"
 SetPluginUnload  alwaysoff
 
 ;--------------------------------
+Var ConfigFilePath
+
+;--------------------------------
 Function .onInit
 
 Call ParseCommandLine
@@ -179,11 +182,14 @@ SetDetailsPrint textonly
 DetailPrint "Installing files..."
 SetDetailsPrint listonly
 
+; All Users config template (C:\ProgramData\UsdShellExtension\)
 SetShellVarContext all
-${Unless} ${FileExists} "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
-    SetOutPath "$LOCALAPPDATA\UsdShellExtension"
+${Unless} ${FileExists} "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
+    SetOutPath "$COMMONAPPDATA\UsdShellExtension"
     File UsdShellExtension.ini
 ${EndUnless}
+
+; Current User config template (%LOCALAPPDATA%\UsdShellExtension\)
 SetShellVarContext current
 ${Unless} ${FileExists} "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
     SetOutPath "$LOCALAPPDATA\UsdShellExtension"
@@ -259,57 +265,53 @@ SectionEnd
 ;--------------------------------
 Function PatchConfigFileAll
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "EDITOR" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "USD" "PATH" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "USD" "EDITOR" ""
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" "GL"
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" "GL"
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" "GL"
+!insertmacro PatchConfigFile "$ConfigFilePath" "RENDERER" "PREVIEW" "GL"
+!insertmacro PatchConfigFile "$ConfigFilePath" "RENDERER" "THUMBNAIL" "GL"
+!insertmacro PatchConfigFile "$ConfigFilePath" "RENDERER" "VIEW" "GL"
 
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" ""
-!insertmacro PatchConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "PYTHON" "PATH" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "PYTHON" "PYTHONPATH" ""
 
 FunctionEnd
 
 ;--------------------------------
 Function ForceConfigFileAll
 
-SetShellVarContext all
-
 ${If} $CmdLineUsdPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" $CmdLineUsdPath
+    !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" $CmdLineUsdPath
 ${EndIf}
 
 ${If} $CmdLineUsdPythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" $CmdLineUsdPythonPath
+    !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" $CmdLineUsdPythonPath
 ${EndIf}
 
 ${If} $CmdLineUsdPxrPluginPathName != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" $CmdLineUsdPxrPluginPathName
+    !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" $CmdLineUsdPxrPluginPathName
 ${EndIf}
 
-
 ${If} $CmdLinePythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" $CmdLinePythonPath
+    !insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PATH" $CmdLinePythonPath
 ${EndIf}
 
 ${If} $CmdLinePythonPythonPath != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PYTHONPATH" $CmdLinePythonPythonPath
+    !insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PYTHONPATH" $CmdLinePythonPythonPath
 ${EndIf}
 
-
 ${If} $CmdLineRendererPreview != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "PREVIEW" $CmdLineRendererPreview
+    !insertmacro WriteConfigFile "$ConfigFilePath" "RENDERER" "PREVIEW" $CmdLineRendererPreview
 ${EndIf}
 
 ${If} $CmdLineRendererThumbnail != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "THUMBNAIL" $CmdLineRendererThumbnail
+    !insertmacro WriteConfigFile "$ConfigFilePath" "RENDERER" "THUMBNAIL" $CmdLineRendererThumbnail
 ${EndIf}
 
 ${If} $CmdLineRendererView != ""
-    !insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "RENDERER" "VIEW" $CmdLineRendererView
+    !insertmacro WriteConfigFile "$ConfigFilePath" "RENDERER" "VIEW" $CmdLineRendererView
 ${EndIf}
 
 FunctionEnd
@@ -331,11 +333,16 @@ DetailPrint "Updating config file..."
 SetDetailsPrint listonly
 
 SetShellVarContext current
-Call PatchConfigFileAll
-SetShellVarContext all
+StrCpy $ConfigFilePath "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
 
-; Force any command line settings into the config file
+SetShellVarContext all
+StrCpy $ConfigFilePath "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
+Call PatchConfigFileAll
+
+; Force command-line settings into the current user config (highest priority).
+SetShellVarContext current
+StrCpy $ConfigFilePath "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call ForceConfigFileAll
 
 SectionEnd

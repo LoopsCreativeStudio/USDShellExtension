@@ -1,12 +1,12 @@
-﻿;--------------------------------
+;--------------------------------
 ; UsdPathPage
 
 Var hWndUsdPathDlg
 Var hWndUsdPathEditPath
 Var hWndUsdPathEditPythonPath
 Var hWndUsdPathEditPxrPluginPath
+Var hWndUsdPathEditPythonExePath
 Var hWndUsdPathButtonBuild
-;Var hWndUsdPathConfigPath
 
 Function USDPathPage
     !insertmacro MUI_HEADER_TEXT "USD Libraries and Tools" "Please set the following USD environment variables."
@@ -18,15 +18,15 @@ Function USDPathPage
 		Abort
 	${EndIf}
 
-    SetShellVarContext all
+    SetShellVarContext current
 
-    ${NSD_CreateLabel} 0 0 100% 10u "PATH"
+    ${NSD_CreateLabel} 0 0 100% 10u "USD PATH"
     !insertmacro ReadConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" ""
     Pop $R0
     ${NSD_CreateText} 0 10u 100% 12u $R0
     Pop $hWndUsdPathEditPath
 
-    ${NSD_CreateLabel} 0 28u 100% 10u "PYTHONPATH"
+    ${NSD_CreateLabel} 0 28u 100% 10u "USD PYTHONPATH"
     !insertmacro ReadConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PYTHONPATH" ""
     Pop $R0
     ${NSD_CreateText} 0 38u 100% 12u $R0
@@ -38,20 +38,21 @@ Function USDPathPage
     ${NSD_CreateText} 0 66u 100% 12u $R0
     Pop $hWndUsdPathEditPxrPluginPath
 
-    ${NSD_CreateButton} -140u 90u 140u 15u "Set using root USD folder"
+    ${NSD_CreateLabel} 0 84u 100% 10u "Python PATH (path to python.exe directory)"
+    !insertmacro ReadConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" ""
+    Pop $R0
+    ${NSD_CreateText} 0 94u 100% 12u $R0
+    Pop $hWndUsdPathEditPythonExePath
+
+    ${NSD_CreateButton} -140u 113u 140u 15u "Set using root USD folder"
     Pop $hWndUsdPathButtonBuild
     ${NSD_OnClick} $hWndUsdPathButtonBuild USDPathPageBuildClick
-
-    ;${NSD_CreateLabel} 0 -30u 100% 10u "Configuration File"
-    ;${NSD_CreateText} 0 -18u 100% 12u "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
-    ;Pop $hWndUsdPathConfigPath
-    ;${NSD_Edit_SetReadOnly} $hWndUsdPathConfigPath 1
 
 	nsDialogs::Show
 FunctionEnd
 
 Function USDPathPageLeave
-    SetShellVarContext all
+    SetShellVarContext current
 
 	${NSD_GetText} $hWndUsdPathEditPath $0
 	!insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PATH" $0
@@ -62,17 +63,21 @@ Function USDPathPageLeave
 	${NSD_GetText} $hWndUsdPathEditPxrPluginPath $0
 	!insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "USD" "PXR_PLUGINPATH_NAME" $0
 
+	${NSD_GetText} $hWndUsdPathEditPythonExePath $0
+	!insertmacro WriteConfigFile "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini" "PYTHON" "PATH" $0
+
 FunctionEnd
 
 Function USDPathPageBuildClick
 
-    nsDialogs::SelectFolderDialog "Select root folder of USD installation"
+    nsDialogs::SelectFolderDialog "Select root folder of NVIDIA USD installation"
     Pop $R0
 
 	${If} $R0 != error
         ${NSD_SetText} $hWndUsdPathEditPath "$R0\bin\;$R0\lib\"
         ${NSD_SetText} $hWndUsdPathEditPythonPath "$R0\lib\python"
         ${NSD_SetText} $hWndUsdPathEditPxrPluginPath ""
+        ${NSD_SetText} $hWndUsdPathEditPythonExePath "$R0\python\"
 	${EndIf}
 
 FunctionEnd
