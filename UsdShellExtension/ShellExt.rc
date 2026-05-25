@@ -115,6 +115,7 @@ IDR_ICON_UNPACK         RCDATA                  "res/icon_unpack.png"
 IDR_ICON_STITCH         RCDATA                  "res/icon_stitch.png"
 IDR_ICON_DIFF           RCDATA                  "res/icon_diff.png"
 IDR_ICON_CONVERTTO      RCDATA                  "res/icon_convertto.png"
+IDR_ICON_HELP           RCDATA                  "res/icon_help.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -195,6 +196,7 @@ BEGIN
     IDS_SHELL_STITCH        "Stitch Layers"
     IDS_SHELL_DIFF          "Diff"
     IDS_SHELL_CONVERTTO     "Convert to..."
+    IDS_SHELL_HELP          "OpenUSD Documentation"
     IDS_USD_STARTFRAME_LABEL "Start frame"
     IDS_USD_ENDFRAME_LABEL   "End frame"
     IDS_USD_FRAMERATE_LABEL  "Frame rate"

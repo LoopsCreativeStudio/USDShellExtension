@@ -854,6 +854,32 @@ public:
     HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
 };
 
+// --- OpenUSD Documentation --------------------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdHelp ))
+ATL_NO_VTABLE CUsdCmdHelp
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdHelp, &__uuidof( CUsdCmdHelp )>
+    , public CUsdExplorerCommandImpl<CUsdCmdHelp>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdHelp )
+    static UINT TitleId() { return IDS_SHELL_HELP; }
+
+    STDMETHODIMP Invoke( IShellItemArray *, IBindCtx * )
+    {
+        SHELLEXECUTEINFOW sei = {};
+        sei.cbSize = sizeof( sei );
+        sei.fMask  = SEE_MASK_DEFAULT;
+        sei.lpVerb = L"open";
+        sei.lpFile = L"https://openusd.org/release/index.html";
+        sei.nShow  = SW_SHOWNORMAL;
+        return ::ShellExecuteExW( &sei ) ? S_OK : HRESULT_FROM_WIN32( ::GetLastError() );
+    }
+
+    HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
+};
+
 // --- View USD Logs ----------------------------------------------------------
 // Opens Windows Event Viewer; does not use the file path argument.
 
@@ -955,8 +981,10 @@ public:
         AddCmdToEnum<CUsdCmdStageStats>( pEnum );
         AddSepToEnum( pEnum );
 
-        // Group 6 — logs
+        // Group 6 — logs and help
         AddCmdToEnum<CUsdCmdViewLogs>( pEnum );
+        AddSepToEnum( pEnum );
+        AddCmdToEnum<CUsdCmdHelp>( pEnum );
 
         pEnum->AddRef();
         *ppEnum = pEnum;
@@ -989,7 +1017,7 @@ ATL_NO_VTABLE CUsdContextMenu
         ACT_PACKAGE_DEFAULT, ACT_PACKAGE_ARKIT,
         ACT_UNPACKAGE, ACT_STITCH,
         ACT_VALIDATE, ACT_FIX, ACT_LAYER_STACK, ACT_DIFF,
-        ACT_REFRESH_THUMB, ACT_STAGE_STATS, ACT_VIEW_LOGS
+        ACT_REFRESH_THUMB, ACT_STAGE_STATS, ACT_VIEW_LOGS, ACT_HELP
     };
 
     struct CmdEntry { Action action; UINT offset; };
@@ -1174,6 +1202,8 @@ public:
         AddCmd( ACT_STAGE_STATS,   IDS_SHELL_STATS,             IDR_ICON_STAGE_STATS   );
         AddSep();
         AddCmd( ACT_VIEW_LOGS, IDS_SHELL_VIEWLOGS, IDR_ICON_VIEW_LOGS );
+        AddSep();
+        AddCmd( ACT_HELP, IDS_SHELL_HELP, IDR_ICON_HELP );
 
         CStringW sTitle;
         sTitle.LoadString( g_hInstance, IDS_SHELL_USDTOOLS );
@@ -1249,6 +1279,17 @@ private:
             sei.fMask  = SEE_MASK_DEFAULT;
             sei.lpVerb = L"open";
             sei.lpFile = L"eventvwr.msc";
+            sei.nShow  = SW_SHOWNORMAL;
+            return ::ShellExecuteExW( &sei ) ? S_OK : HRESULT_FROM_WIN32( ::GetLastError() );
+        }
+
+        if ( act == ACT_HELP )
+        {
+            SHELLEXECUTEINFOW sei = {};
+            sei.cbSize = sizeof( sei );
+            sei.fMask  = SEE_MASK_DEFAULT;
+            sei.lpVerb = L"open";
+            sei.lpFile = L"https://openusd.org/release/index.html";
             sei.nShow  = SW_SHOWNORMAL;
             return ::ShellExecuteExW( &sei ) ? S_OK : HRESULT_FROM_WIN32( ::GetLastError() );
         }
