@@ -633,7 +633,7 @@ public:
     }
 };
 
-// --- Validate (usdchecker) --------------------------------------------------
+// --- Validate (usdchecker, 1+ files) ----------------------------------------
 
 class __declspec(uuid( CLSID_STR_UsdCmdValidate ))
 ATL_NO_VTABLE CUsdCmdValidate
@@ -645,13 +645,35 @@ public:
     USD_CMD_BOILERPLATE( CUsdCmdValidate )
     static UINT TitleId() { return IDS_SHELL_VALIDATE; }
 
-    HRESULT DoInvoke( LPCWSTR pszPath )
+    // Override Invoke to support multi-selection (1+ files).
+    STDMETHODIMP Invoke( IShellItemArray *psia, IBindCtx * )
     {
+        if ( !psia ) return E_INVALIDARG;
+        DWORD count = 0;
+        psia->GetCount( &count );
+        if ( count < 1 ) return E_INVALIDARG;
+
+        CStringW sPaths;
+        for ( DWORD i = 0; i < count; ++i )
+        {
+            CComPtr<IShellItem> psi;
+            if ( FAILED( psia->GetItemAt( i, &psi ) ) ) continue;
+            LPWSTR pszPath = nullptr;
+            if ( FAILED( psi->GetDisplayName( SIGDN_FILESYSPATH, &pszPath ) ) ) continue;
+            if ( !sPaths.IsEmpty() ) sPaths += L"|";
+            sPaths += pszPath;
+            CoTaskMemFree( pszPath );
+        }
+
+        if ( sPaths.IsEmpty() ) return E_FAIL;
+
         CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
         HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
         if ( FAILED( hr ) ) return hr;
-        return pTools->Validate( CComBSTR( pszPath ) );
+        return pTools->Validate( CComBSTR( sPaths ) );
     }
+
+    HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
 };
 
 // --- Fix (usdfixbrokenpixarschemas) -----------------------------------------
@@ -1267,7 +1289,16 @@ private:
             CComPtr<UsdPythonToolsLib::IUsdPythonTools> pPyTools;
             HRESULT hr = pPyTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
             if ( FAILED( hr ) ) return hr;
-            if ( act == ACT_VALIDATE )    return pPyTools->Validate( CComBSTR( pszPath ) );
+            if ( act == ACT_VALIDATE )
+            {
+                CStringW sPaths;
+                for ( const auto& path : m_filePaths )
+                {
+                    if ( !sPaths.IsEmpty() ) sPaths += L"|";
+                    sPaths += path;
+                }
+                return pPyTools->Validate( CComBSTR( sPaths ) );
+            }
             if ( act == ACT_FIX )         return pPyTools->Fix( CComBSTR( pszPath ) );
             if ( act == ACT_LAYER_STACK ) return pPyTools->ShowLayerStack( CComBSTR( pszPath ) );
             if ( act == ACT_STAGE_STATS ) return pPyTools->ShowStageStats( CComBSTR( pszPath ) );

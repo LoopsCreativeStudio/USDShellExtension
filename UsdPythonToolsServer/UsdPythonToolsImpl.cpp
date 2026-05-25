@@ -526,8 +526,23 @@ STDMETHODIMP CUsdPythonToolsImpl::Validate( IN BSTR usdStagePath )
 	std::wstring sPythonExe = GetPythonExePath();
 
 	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
+	sInner.Format( L"\"%ls\" \"%ls\"", sPythonExe.c_str(), sScriptPath );
+
+	// Append each pipe-delimited path as a separate quoted argument.
+	CStringW sPathsCopy = usdStagePath;
+	int iStart = 0;
+	while ( iStart <= sPathsCopy.GetLength() )
+	{
+		int iSep = sPathsCopy.Find( L'|', iStart );
+		CStringW sPath = ( iSep >= 0 )
+		    ? sPathsCopy.Mid( iStart, iSep - iStart )
+		    : sPathsCopy.Mid( iStart );
+		if ( !sPath.IsEmpty() )
+			sInner.AppendFormat( L" \"%ls\"", (LPCWSTR)sPath );
+		if ( iSep < 0 ) break;
+		iStart = iSep + 1;
+	}
+
 	return RunInConsole( sInner );
 }
 

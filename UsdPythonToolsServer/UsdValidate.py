@@ -2,7 +2,7 @@
 # Licensed under the MIT License. See LICENSE.txt for details.
 #
 # Runs USD compliance checking via pxr.UsdUtils.ComplianceChecker.
-# argv layout: [script.py, file.usd]
+# argv layout: [script.py, file1.usd [, file2.usd ...]]
 
 from __future__ import print_function
 import sys
@@ -13,10 +13,10 @@ os.environ.pop('PXR_PLUGINPATH_NAME', None)
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: UsdValidate.py <usd_file>")
+        print("Usage: UsdValidate.py <usd_file> [...]")
         return 1
 
-    usd_path = sys.argv[1]
+    usd_paths = sys.argv[1:]
 
     try:
         from pxr import Tf, UsdUtils
@@ -43,11 +43,6 @@ def main():
     except Exception:
         pass
 
-    print("USD Validate")
-    print("=" * 72)
-    print("File: %s" % usd_path)
-    print()
-
     try:
         import inspect
         _sig = inspect.signature(UsdUtils.ComplianceChecker.__init__)
@@ -56,41 +51,71 @@ def main():
         for _k in ('arkit', 'skipARKinds', 'rootPackageOnly', 'skipVariants', 'verbose'):
             if _k in _valid:
                 _kwargs[_k] = False
-        checker = UsdUtils.ComplianceChecker(**_kwargs)
-    except Exception as e:
-        print("Error: Failed to initialize ComplianceChecker.")
-        print("  %s" % str(e))
-        print()
-        return 1
+    except Exception:
+        _kwargs = {}
 
-    try:
-        checker.CheckCompliance(usd_path)
-    except Exception as e:
-        print("Error during validation: %s" % str(e))
-        print()
-        return 1
+    print("USD Validate")
+    print("=" * 72)
 
-    errors = checker.GetErrors()
-    warnings = checker.GetWarnings()
+    passed = 0
+    failed = 0
 
-    if warnings:
-        for w in warnings:
-            print(str(w))
-        print()
+    for idx, usd_path in enumerate(usd_paths):
+        if idx > 0:
+            print()
 
-    if errors:
-        for err in errors:
-            print(str(err))
-        print()
-        print("Failed!")
-    else:
-        if warnings:
-            print("Success (with warnings).")
+        if len(usd_paths) > 1:
+            print("[ %s ]" % os.path.basename(usd_path))
+            print("  %s" % usd_path)
         else:
-            print("Success!")
+            print("File: %s" % usd_path)
+        print()
+
+        try:
+            checker = UsdUtils.ComplianceChecker(**_kwargs)
+        except Exception as e:
+            print("Error: Failed to initialize ComplianceChecker.")
+            print("  %s" % str(e))
+            print()
+            failed += 1
+            continue
+
+        try:
+            checker.CheckCompliance(usd_path)
+        except Exception as e:
+            print("Error during validation: %s" % str(e))
+            print()
+            failed += 1
+            continue
+
+        errors = checker.GetErrors()
+        warnings = checker.GetWarnings()
+
+        if warnings:
+            for w in warnings:
+                print(str(w))
+            print()
+
+        if errors:
+            for err in errors:
+                print(str(err))
+            print()
+            print("Failed!")
+            failed += 1
+        else:
+            if warnings:
+                print("Success (with warnings).")
+            else:
+                print("Success!")
+            passed += 1
+
+    if len(usd_paths) > 1:
+        print()
+        print("-" * 72)
+        print("Summary: %d/%d passed" % (passed, len(usd_paths)))
 
     print()
-    return 1 if errors else 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
