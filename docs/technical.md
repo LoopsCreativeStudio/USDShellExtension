@@ -147,7 +147,7 @@ bin\v145\3.12\Release\
 | Switch | Prerequisite | Output |
 |--------|-------------|--------|
 | _(none)_ | MSBuild, NVIDIA USD SDK | `bin\v145\3.12\Release\` binaries |
-| `-Installer` | NSIS at `C:\Program Files\NSIS\`, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.12\Release\` |
+| `-Installer` | NSIS installed, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.12\Release\` |
 | `-Release` | `gh` CLI authenticated, `version.txt` non-empty | GitHub release created with the installer as asset |
 
 ### `-Installer`: building the NSIS setup exe
@@ -156,9 +156,14 @@ bin\v145\3.12\Release\
 .\build.ps1 -Installer
 ```
 
+Prerequisites:
+
+- NSIS installed — [nsis.sourceforge.io](https://nsis.sourceforge.io). The script checks `C:\Program Files\NSIS\` then `C:\Program Files (x86)\NSIS\` automatically.
+- `LICENSE.txt` present in the repo root
+
 After the normal build completes, this step:
 
-1. Verifies NSIS is installed at `C:\Program Files\NSIS\makensis.exe`.
+1. Locates `makensis.exe` in `C:\Program Files\NSIS\` or `C:\Program Files (x86)\NSIS\`.
 2. Stages `LICENSE.txt` from the repo root into the build output directory.
 3. Runs MSBuild on the `UsdShellExtensionInstaller` project, which invokes `makensis.exe` on `UsdShellExtensionInstaller\UsdShellExtensionInstaller.nsi`.
 4. Reports the path of the produced installer.
