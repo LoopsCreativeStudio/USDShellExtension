@@ -50,6 +50,9 @@ library UsdPythonToolsLib
 
 		[helpstring("Stitches multiple USD layers into one output file.")]
 		HRESULT Stitch( [in] BSTR inputPaths, [in] BSTR outputPath );
+
+		[helpstring("Runs usddiff on two USD files and shows the diff in a console window.")]
+		HRESULT Diff( [in] BSTR path1, [in] BSTR path2 );
 	}
 
 	[

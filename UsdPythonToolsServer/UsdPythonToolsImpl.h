@@ -31,6 +31,7 @@ public:
 	STDMETHODIMP ShowLayerStack( IN BSTR usdStagePath ) override;
 	STDMETHODIMP ShowStageStats( IN BSTR usdStagePath ) override;
 	STDMETHODIMP Stitch( IN BSTR inputPaths, IN BSTR outputPath ) override;
+	STDMETHODIMP Diff( IN BSTR path1, IN BSTR path2 ) override;
 
 	static HRESULT WINAPI UpdateRegistry(_In_ BOOL bRegister) throw();
 

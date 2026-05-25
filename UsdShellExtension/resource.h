@@ -39,6 +39,7 @@
 #define IDS_USD_FORMAT_LABEL            159
 #define IDS_SHELL_UNPACKAGE             160
 #define IDS_SHELL_STITCH                161
+#define IDS_SHELL_DIFF                  162
 
 #define IDR_ICON_COMPRESS               201
 #define IDR_ICON_UNCOMPRESS             202
@@ -55,6 +56,7 @@
 #define IDR_ICON_USD                    213
 #define IDR_ICON_UNPACK                 214
 #define IDR_ICON_STITCH                 215
+#define IDR_ICON_DIFF                   216
 
 // Next default values for new objects
 // 

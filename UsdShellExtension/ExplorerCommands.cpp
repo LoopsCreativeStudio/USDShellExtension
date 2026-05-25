@@ -731,6 +731,61 @@ public:
     HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
 };
 
+// --- Diff (usddiff, exactly 2 files) ----------------------------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdDiff ))
+ATL_NO_VTABLE CUsdCmdDiff
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdDiff, &__uuidof( CUsdCmdDiff )>
+    , public CUsdExplorerCommandImpl<CUsdCmdDiff>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdDiff )
+    static UINT TitleId() { return IDS_SHELL_DIFF; }
+
+    // Visible only when exactly 2 items are selected.
+    STDMETHODIMP GetState( IShellItemArray *psia, BOOL, EXPCMDSTATE *pState )
+    {
+        DWORD count = 0;
+        if ( psia ) psia->GetCount( &count );
+        *pState = ( count == 2 ) ? ECS_ENABLED : ECS_HIDDEN;
+        return S_OK;
+    }
+
+    // Override GetIcon to use the diff-specific icon.
+    STDMETHODIMP GetIcon( IShellItemArray *, LPWSTR *ppszIcon )
+    {
+        return SHStrDupW( GetIconSpec(), ppszIcon );
+    }
+
+    // Override Invoke to pass both selected paths to Diff().
+    STDMETHODIMP Invoke( IShellItemArray *psia, IBindCtx * )
+    {
+        if ( !psia ) return E_INVALIDARG;
+        DWORD count = 0;
+        psia->GetCount( &count );
+        if ( count != 2 ) return E_INVALIDARG;
+
+        CStringW sPaths[2];
+        for ( DWORD i = 0; i < 2; ++i )
+        {
+            CComPtr<IShellItem> psi;
+            if ( FAILED( psia->GetItemAt( i, &psi ) ) ) return E_FAIL;
+            LPWSTR pszPath = nullptr;
+            if ( FAILED( psi->GetDisplayName( SIGDN_FILESYSPATH, &pszPath ) ) ) return E_FAIL;
+            sPaths[i] = pszPath;
+            CoTaskMemFree( pszPath );
+        }
+
+        CComPtr<UsdPythonToolsLib::IUsdPythonTools> pTools;
+        HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+        if ( FAILED( hr ) ) return hr;
+        return pTools->Diff( CComBSTR( sPaths[0] ), CComBSTR( sPaths[1] ) );
+    }
+
+    HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
+};
+
 // --- View USD Logs ----------------------------------------------------------
 // Opens Windows Event Viewer; does not use the file path argument.
 
@@ -826,6 +881,7 @@ public:
         AddCmdToEnum<CUsdCmdValidate>( pEnum );
         AddCmdToEnum<CUsdCmdFix>( pEnum );
         AddCmdToEnum<CUsdCmdLayerStack>( pEnum );
+        AddCmdToEnum<CUsdCmdDiff>( pEnum );
         AddSepToEnum( pEnum );
 
         // Group 5 — utilities
@@ -866,7 +922,7 @@ ATL_NO_VTABLE CUsdContextMenu
         ACT_COMPRESS, ACT_UNCOMPRESS, ACT_FLATTEN,
         ACT_PACKAGE_DEFAULT, ACT_PACKAGE_ARKIT,
         ACT_UNPACKAGE, ACT_STITCH,
-        ACT_VALIDATE, ACT_FIX, ACT_LAYER_STACK,
+        ACT_VALIDATE, ACT_FIX, ACT_LAYER_STACK, ACT_DIFF,
         ACT_REFRESH_THUMB, ACT_STAGE_STATS, ACT_VIEW_LOGS
     };
 
@@ -994,6 +1050,11 @@ public:
             AddCmd( ACT_STITCH, IDS_SHELL_STITCH, IDR_ICON_STITCH );
         }
 
+        if ( m_filePaths.size() == 2 )
+        {
+            AddCmd( ACT_DIFF, IDS_SHELL_DIFF, IDR_ICON_DIFF );
+        }
+
         AddSep();
         AddCmd( ACT_VALIDATE,    IDS_SHELL_VALIDATE,    IDR_ICON_CHECK );
         AddCmd( ACT_FIX,         IDS_SHELL_FIX,         IDR_ICON_FIX   );
@@ -1102,6 +1163,15 @@ private:
             sOut += L"_stitched.usd";
 
             return pPyTools->Stitch( CComBSTR( sInputs ), CComBSTR( sOut ) );
+        }
+
+        if ( act == ACT_DIFF )
+        {
+            if ( m_filePaths.size() != 2 ) return E_INVALIDARG;
+            CComPtr<UsdPythonToolsLib::IUsdPythonTools> pPyTools;
+            HRESULT hr = pPyTools.CoCreateInstance( __uuidof( UsdPythonToolsLib::UsdPythonTools ) );
+            if ( FAILED( hr ) ) return hr;
+            return pPyTools->Diff( CComBSTR( m_filePaths[0] ), CComBSTR( m_filePaths[1] ) );
         }
 
         if ( act == ACT_VALIDATE || act == ACT_FIX ||

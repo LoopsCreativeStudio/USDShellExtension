@@ -113,6 +113,7 @@ IDR_ICON_EDIT           RCDATA                  "res/icon_edit.png"
 IDR_ICON_USD            RCDATA                  "res/icon_usd.png"
 IDR_ICON_UNPACK         RCDATA                  "res/icon_unpack.png"
 IDR_ICON_STITCH         RCDATA                  "res/icon_stitch.png"
+IDR_ICON_DIFF           RCDATA                  "res/icon_diff.png"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -191,6 +192,7 @@ BEGIN
     IDS_SHELL_LAYERSTACK    "Layer Stack"
     IDS_SHELL_UNPACKAGE     "Unpackage"
     IDS_SHELL_STITCH        "Stitch Layers"
+    IDS_SHELL_DIFF          "Diff"
     IDS_USD_STARTFRAME_LABEL "Start frame"
     IDS_USD_ENDFRAME_LABEL   "End frame"
     IDS_USD_FRAMERATE_LABEL  "Frame rate"

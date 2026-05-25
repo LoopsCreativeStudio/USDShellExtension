@@ -18,12 +18,13 @@
 #define IDR_PYTHON_VALIDATE             115
 #define IDR_PYTHON_STAGESTATS           116
 #define IDR_PYTHON_STITCH               117
+#define IDR_PYTHON_DIFF                 118
 
 // Next default values for new objects
 //
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        118
+#define _APS_NEXT_RESOURCE_VALUE        119
 #define _APS_NEXT_COMMAND_VALUE         40001
 #define _APS_NEXT_CONTROL_VALUE         1004
 #define _APS_NEXT_SYMED_VALUE           101

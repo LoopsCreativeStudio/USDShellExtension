@@ -712,6 +712,53 @@ STDMETHODIMP CUsdPythonToolsImpl::Stitch( IN BSTR inputPaths, IN BSTR outputPath
 	return RunInConsole( sInner );
 }
 
+// ---------------------------------------------------------------------------
+// Diff — runs usddiff on two USD files in a visible console
+// ---------------------------------------------------------------------------
+
+STDMETHODIMP CUsdPythonToolsImpl::Diff( IN BSTR path1, IN BSTR path2 )
+{
+	DEBUG_RECORD_ENTRY();
+
+	std::wstring sToolPath = FindRelativeFile( L"usddiff" );
+	if ( sToolPath.empty() )
+	{
+		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Diff: usddiff not found in USD PATH", LogEventType::Error );
+		return E_FAIL;
+	}
+
+	wchar_t sTempDir[MAX_PATH] = {};
+	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
+
+	wchar_t sWrapperPath[MAX_PATH] = {};
+	wcscpy_s( sWrapperPath, sTempDir );
+	::PathCchAppend( sWrapperPath, ARRAYSIZE( sWrapperPath ), L"UsdDiff.py" );
+
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_DIFF ), _T("PYTHON") );
+	if ( hRes )
+	{
+		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
+		void*   pData  = ::LockResource( hData );
+		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile  = ::CreateFileW( sWrapperPath, GENERIC_WRITE, 0, nullptr,
+		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile != INVALID_HANDLE_VALUE )
+		{
+			DWORD nWritten = 0;
+			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+			::CloseHandle( hFile );
+		}
+	}
+
+	std::wstring sPythonExe = GetPythonExePath();
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\" \"%ls\" \"%ls\"",
+	               sPythonExe.c_str(), sWrapperPath, sToolPath.c_str(),
+	               (LPCWSTR)path1, (LPCWSTR)path2 );
+	return RunInConsole( sInner );
+}
+
 HRESULT WINAPI CUsdPythonToolsImpl::UpdateRegistry(_In_ BOOL bRegister) throw()
 {
 	ATL::_ATL_REGMAP_ENTRY regMapEntries[] =
