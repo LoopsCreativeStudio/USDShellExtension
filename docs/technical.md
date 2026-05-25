@@ -138,6 +138,70 @@ bin\v145\3.12\Release\
 └── UsdShellExtension.ini
 ```
 
+## Packaging and releasing
+
+`build.ps1` covers the full developer workflow from compilation to GitHub release. All switches can be combined; `-Release` implies `-Installer` automatically.
+
+### Switch summary
+
+| Switch | Prerequisite | Output |
+|--------|-------------|--------|
+| _(none)_ | MSBuild, NVIDIA USD SDK | `bin\v145\3.12\Release\` binaries |
+| `-Installer` | NSIS at `C:\Program Files\NSIS\`, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.12\Release\` |
+| `-Release` | `gh` CLI authenticated, `version.txt` non-empty | GitHub release created with the installer as asset |
+
+### `-Installer`: building the NSIS setup exe
+
+```powershell
+.\build.ps1 -Installer
+```
+
+After the normal build completes, this step:
+
+1. Verifies NSIS is installed at `C:\Program Files\NSIS\makensis.exe`.
+2. Stages `LICENSE.txt` from the repo root into the build output directory.
+3. Runs MSBuild on the `UsdShellExtensionInstaller` project, which invokes `makensis.exe` on `UsdShellExtensionInstaller\UsdShellExtensionInstaller.nsi`.
+4. Reports the path of the produced installer.
+
+The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u2508-p312-setup.exe`). The version is read from `version.props`.
+
+The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file. It also presents a configuration page during installation where the user can set USD SDK paths.
+
+### `-Release`: publishing to GitHub
+
+```powershell
+.\build.ps1 -Release
+```
+
+This implies `-Installer`. After the installer exe is produced, this step:
+
+1. Reads the version from `version.txt` in the repo root and constructs the tag `v<version>` (e.g. `version.txt` containing `1.2.0` produces tag `v1.2.0`).
+2. Checks that `gh` CLI is installed and authenticated (`gh auth login` must have been run).
+3. Runs `gh release create v<version> <installer.exe> --title v<version> --generate-notes`, which creates the GitHub release and attaches the installer as a downloadable asset. Release notes are auto-generated from commits since the previous tag.
+
+Prerequisites:
+
+- `gh` CLI installed: [cli.github.com](https://cli.github.com/)
+- Authenticated: `gh auth login`
+- `version.txt` present and non-empty in the repo root
+
+### Transcript logs
+
+Both `build.ps1` and `install.ps1` write a full transcript of their console output.
+
+| Script | Default log |
+|--------|-------------|
+| `build.ps1` | `build.log` in the repo root |
+| `install.ps1` | `install.log` in the repo root |
+
+The log path can be overridden with `-LogFile`:
+
+```powershell
+.\build.ps1 -Release -LogFile "D:\logs\build-1.2.0.log"
+```
+
+The log is overwritten on each run. On error, PowerShell closes the transcript automatically so the log always contains the full output up to the failure.
+
 ## Distribution
 
 ### Installation layout
