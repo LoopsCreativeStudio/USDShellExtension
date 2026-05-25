@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.5.0...v1.6.0) (2026-05-25)
+
+
+### Features
+
+* add Diff command for two-file USD comparison via usddiff ([8e0f58e](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/8e0f58ebbf4f713f5a915b46b6787c226db3745d))
+* add OpenUSD Documentation link to context menu ([c8f894b](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/c8f894bd9f0bf6ad396f083d31ae17810e92f14b))
+* batch validate for multi-file selection (Validate, Fix, Layer Stack) ([05832b2](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/05832b2aae453e23c98cbd72c97c1d97f4e40c90))
+* group format conversions under Convert to... submenu ([e263f18](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e263f18a70626e5907fd43d1334a8ef2931fe829))
+
 ## [1.5.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.4.0...v1.5.0) (2026-05-25)
 
 
