@@ -374,7 +374,7 @@ static void AddSepToEnum( CUsdCommandEnum *pEnum )
 // Sub-commands — created programmatically, not CoCreated by the shell
 // ---------------------------------------------------------------------------
 
-// --- Compress to USDC -------------------------------------------------------
+// --- Convert to USDC --------------------------------------------------------
 
 class __declspec(uuid( CLSID_STR_UsdCmdCompress ))
 ATL_NO_VTABLE CUsdCmdCompress
@@ -385,6 +385,11 @@ ATL_NO_VTABLE CUsdCmdCompress
 public:
     USD_CMD_BOILERPLATE( CUsdCmdCompress )
     static UINT TitleId() { return IDS_SHELL_CRATE; }
+
+    STDMETHODIMP GetTitle( IShellItemArray *, LPWSTR *ppszName )
+    {
+        return SHStrDupW( L"USDC  (Binary)", ppszName );
+    }
 
     HRESULT DoInvoke( LPCWSTR pszPath )
     {
@@ -399,7 +404,7 @@ public:
     }
 };
 
-// --- Uncompress to USDA -----------------------------------------------------
+// --- Convert to USDA --------------------------------------------------------
 
 class __declspec(uuid( CLSID_STR_UsdCmdUncompress ))
 ATL_NO_VTABLE CUsdCmdUncompress
@@ -410,6 +415,11 @@ ATL_NO_VTABLE CUsdCmdUncompress
 public:
     USD_CMD_BOILERPLATE( CUsdCmdUncompress )
     static UINT TitleId() { return IDS_SHELL_UNCRATE; }
+
+    STDMETHODIMP GetTitle( IShellItemArray *, LPWSTR *ppszName )
+    {
+        return SHStrDupW( L"USDA  (ASCII)", ppszName );
+    }
 
     HRESULT DoInvoke( LPCWSTR pszPath )
     {
@@ -442,6 +452,42 @@ public:
         HRESULT hr = pTools.CoCreateInstance( __uuidof( UsdSdkToolsLib::UsdSdkTools ) );
         if ( FAILED( hr ) ) return hr;
         return pTools->Cat( CComBSTR( pszPath ), CComBSTR( pszPath ), UsdSdkToolsLib::USD_FORMAT_INPUT, VARIANT_TRUE );
+    }
+};
+
+// --- Convert to... (parent flyout: USDC + USDA + Flatten) ------------------
+
+class __declspec(uuid( CLSID_STR_UsdCmdConvertTo ))
+ATL_NO_VTABLE CUsdCmdConvertTo
+    : public CComObjectRootEx<CComSingleThreadModel>
+    , public CComCoClass<CUsdCmdConvertTo, &__uuidof( CUsdCmdConvertTo )>
+    , public CUsdExplorerCommandImpl<CUsdCmdConvertTo>
+{
+public:
+    USD_CMD_BOILERPLATE( CUsdCmdConvertTo )
+    static UINT         TitleId()      { return IDS_SHELL_CONVERTTO; }
+    static EXPCMDFLAGS  CommandFlags() { return ECF_HASSUBCOMMANDS; }
+
+    STDMETHODIMP GetIcon( IShellItemArray *, LPWSTR *ppszIcon )
+    {
+        return SHStrDupW( GetIconSpec(), ppszIcon );
+    }
+
+    HRESULT DoInvoke( LPCWSTR ) { return S_OK; }
+
+    HRESULT DoEnumSubCommands( IEnumExplorerCommand **ppEnum )
+    {
+        CUsdCommandEnum *pEnum = new ( std::nothrow ) CUsdCommandEnum();
+        if ( !pEnum ) return E_OUTOFMEMORY;
+
+        AddCmdToEnum<CUsdCmdCompress>( pEnum );
+        AddCmdToEnum<CUsdCmdUncompress>( pEnum );
+        AddSepToEnum( pEnum );
+        AddCmdToEnum<CUsdCmdFlatten>( pEnum );
+
+        pEnum->AddRef();
+        *ppEnum = pEnum;
+        return S_OK;
     }
 };
 
@@ -866,9 +912,7 @@ public:
         AddSepToEnum( pEnum );
 
         // Group 2 — format conversions
-        AddCmdToEnum<CUsdCmdCompress>( pEnum );
-        AddCmdToEnum<CUsdCmdUncompress>( pEnum );
-        AddCmdToEnum<CUsdCmdFlatten>( pEnum );
+        AddCmdToEnum<CUsdCmdConvertTo>( pEnum );
         AddSepToEnum( pEnum );
 
         // Group 3 — packaging / stitching
@@ -1029,9 +1073,52 @@ public:
         if ( !isUsdz )            AddCmd( ACT_EDIT,       IDS_SHELL_EDIT,    IDR_ICON_EDIT         );
         AddSep();
 
-        if ( !isUsdc && !isUsdz ) AddCmd( ACT_COMPRESS,   IDS_SHELL_CRATE,   IDR_ICON_COMPRESS     );
-        if ( !isUsda && !isUsdz ) AddCmd( ACT_UNCOMPRESS, IDS_SHELL_UNCRATE, IDR_ICON_UNCOMPRESS   );
-        if ( !isUsdz )            AddCmd( ACT_FLATTEN,    IDS_SHELL_FLATTEN, IDR_ICON_FLATTEN      );
+        if ( !isUsdz )
+        {
+            HMENU hConvert = ::CreatePopupMenu();
+            if ( hConvert )
+            {
+                UINT convOff = 0;
+                auto AddConv = [&]( Action act, LPCWSTR title, UINT iconResId, bool enabled )
+                {
+                    MENUITEMINFOW mii = {};
+                    mii.cbSize     = sizeof( mii );
+                    mii.fMask      = MIIM_ID | MIIM_STRING | MIIM_STATE | MIIM_BITMAP;
+                    mii.fState     = enabled ? MFS_ENABLED : MFS_GRAYED;
+                    mii.wID        = idCmdFirst + nextOff;
+                    mii.dwTypeData = const_cast<LPWSTR>( title );
+                    mii.hbmpItem   = GetMenuIcon( iconResId );
+                    ::InsertMenuItemW( hConvert, convOff, TRUE, &mii );
+                    m_cmds.push_back( { act, nextOff } );
+                    ++nextOff; ++convOff;
+                };
+                auto AddConvSep = [&]()
+                {
+                    MENUITEMINFOW mii = {};
+                    mii.cbSize = sizeof( mii );
+                    mii.fMask  = MIIM_FTYPE;
+                    mii.fType  = MFT_SEPARATOR;
+                    ::InsertMenuItemW( hConvert, convOff++, TRUE, &mii );
+                };
+
+                AddConv( ACT_COMPRESS,   L"USDC  (Binary)", IDR_ICON_COMPRESS,   !isUsdc );
+                AddConv( ACT_UNCOMPRESS, L"USDA  (ASCII)",  IDR_ICON_UNCOMPRESS, !isUsda );
+                AddConvSep();
+                AddConv( ACT_FLATTEN,    L"Flatten",        IDR_ICON_FLATTEN,    true    );
+
+                CStringW sConvert;
+                sConvert.LoadString( g_hInstance, IDS_SHELL_CONVERTTO );
+                MENUITEMINFOW mii = {};
+                mii.cbSize     = sizeof( mii );
+                mii.fMask      = MIIM_SUBMENU | MIIM_STRING | MIIM_STATE | MIIM_BITMAP;
+                mii.fState     = MFS_ENABLED;
+                mii.hSubMenu   = hConvert;
+                mii.dwTypeData = const_cast<LPWSTR>( static_cast<LPCWSTR>( sConvert ) );
+                mii.hbmpItem   = GetMenuIcon( IDR_ICON_CONVERTTO );
+                ::InsertMenuItemW( hSub, nextOff, TRUE, &mii );
+                ++nextOff;
+            }
+        }
 
         if ( !isUsdz )
         {
