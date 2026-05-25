@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.7.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.6.0...v1.7.0) (2026-05-25)
+
+
+### Features
+
+* add -Installer switch to build.ps1 for NSIS packaging ([1e3f8cb](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/1e3f8cbc9bc81a17fc5b715f200ad627aba5793a))
+
+
+### Bug Fixes
+
+* declare COMMONAPPDATA var and remove usd_ms.dll from NSIS installer ([ff331e9](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/ff331e93242a1ea8a09f166dfaad1d1d1bbf50ec))
+* installer config paths — All Users uses ProgramData, add Python PATH field ([6a0823c](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6a0823ce3c5dbd128573d7da7600627d1a6cade7))
+* use regsvr32 /n /i:"/force" in NSIS installer to bypass Python verification in DllRegisterServer ([841beaf](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/841beaf4522b401234cd41c250b96f029538c6af))
+
 ## [1.6.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.5.0...v1.6.0) (2026-05-25)
 
 
