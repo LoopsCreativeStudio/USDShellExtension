@@ -119,9 +119,14 @@ SetPluginUnload  alwaysoff
 
 ;--------------------------------
 Var ConfigFilePath
+Var COMMONAPPDATA
 
 ;--------------------------------
 Function .onInit
+
+SetShellVarContext all
+StrCpy $COMMONAPPDATA $APPDATA
+SetShellVarContext current
 
 Call ParseCommandLine
 
@@ -213,7 +218,6 @@ SetOutPath "$INSTDIR"
 !if /FileExists "${PYTHONDLL}"
     !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED ${PYTHONDLL} "$INSTDIR\${PYTHONDLL}" $INSTDIR
 !endif
-!insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED usd_ms.dll "$INSTDIR\usd_ms.dll" $INSTDIR
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED UsdPreviewHandler.pyd "$INSTDIR\UsdPreviewHandler.pyd" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPythonToolsLocalServer.exe "$INSTDIR\UsdPythonToolsLocalServer.exe" $INSTDIR
@@ -385,7 +389,6 @@ SetDetailsPrint listonly
 !if /FileExists "${PYTHONDLL}"
     !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\${PYTHONDLL}"
 !endif
-!insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\usd_ms.dll"
 !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPreviewHandler.pyd"
   
 ; Remove registry keys

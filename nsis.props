@@ -16,6 +16,7 @@
 -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <MAKENSIS>$(ProgramFiles)\NSIS\makensis.exe</MAKENSIS>
+    <MAKENSIS Condition="Exists('$(ProgramFiles)\NSIS\makensis.exe')">$(ProgramFiles)\NSIS\makensis.exe</MAKENSIS>
+    <MAKENSIS Condition="!Exists('$(ProgramFiles)\NSIS\makensis.exe')">$(ProgramFiles(x86))\NSIS\makensis.exe</MAKENSIS>
   </PropertyGroup>
 </Project>
