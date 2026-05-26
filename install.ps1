@@ -262,6 +262,13 @@ if (-not $isAdmin) {
 if ($Uninstall) {
     Invoke-Unregister $InstallDir
 
+    Write-Step "Removing registry entries"
+    Remove-Item -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" `
+        -Recurse -ErrorAction SilentlyContinue
+    Remove-Item -Path "HKLM:\SOFTWARE\UsdShellExtension" `
+        -Recurse -ErrorAction SilentlyContinue
+    Write-Item "Registry entries removed"
+
     Write-Step "Removing install directory"
     if (Test-Path $InstallDir) {
         Remove-Item $InstallDir -Recurse -Force

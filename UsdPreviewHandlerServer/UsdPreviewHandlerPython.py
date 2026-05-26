@@ -5,7 +5,7 @@ from __future__ import print_function
 import sys
 import os
 import argparse
-from pxr import Usd, UsdUtils, UsdAppUtils, Sdf
+from pxr import Usd, UsdAppUtils, Sdf
 from pxr.Usdviewq.stageView import StageView
 from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
@@ -364,6 +364,10 @@ class Widget(QWidget):
         while eventData.event != UsdPreviewHandler.UsdPreviewEvent.NoMoreEvents:
 
             if eventData.event == UsdPreviewHandler.UsdPreviewEvent.Quit:
+                if self._isPlaying:
+                    self._playTimer.stop()
+                self.view.closeRenderer()
+                self.model.stage = None
                 self.app.quit()
 
             eventData = self.previewApp.PeekEvent()
@@ -415,8 +419,7 @@ def main():
 
     args = parser.parse_args()
 
-    with Usd.StageCacheContext(UsdUtils.StageCache.Get()):
-        stage = Usd.Stage.Open(args.usdFilePath)
+    stage = Usd.Stage.Open(args.usdFilePath)
 
     previewApp = UsdPreviewHandler.UsdPreviewApp()
 
@@ -425,6 +428,7 @@ def main():
     setStyleSheetUsingState(app, args.usdviewqDir)
 
     window = Widget(stage, app, previewApp)
+    stage = None
     window.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.Tool)
     window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
     window.show()

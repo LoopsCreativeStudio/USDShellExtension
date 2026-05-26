@@ -86,6 +86,13 @@ Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkTo
 Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
 Write-Item "COM servers stopped"
 
+$winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+$prevAutoRestart = 1
+try {
+    $prevAutoRestart = [int](Get-ItemPropertyValue $winlogonKey "AutoRestartShell" -ErrorAction Stop)
+    Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
+} catch { $null = $_ }
+
 @("explorer","SearchHost","ShellExperienceHost","StartMenuExperienceHost") |
     ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
 Start-Sleep -Seconds 4
@@ -105,6 +112,16 @@ if (Test-Path $unreg) {
 } else {
     Write-Warning "unregister.bat not found in $InstallDir - skipping."
 }
+
+# ---------------------------------------------------------------------------
+# Remove Windows Apps registry entries
+# ---------------------------------------------------------------------------
+Write-Step "Removing registry entries"
+Remove-Item -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" `
+    -Recurse -ErrorAction SilentlyContinue
+Remove-Item -Path "HKLM:\SOFTWARE\UsdShellExtension" `
+    -Recurse -ErrorAction SilentlyContinue
+Write-Item "Registry entries removed"
 
 # ---------------------------------------------------------------------------
 # Clear icon and thumbnail caches
@@ -136,9 +153,18 @@ Write-Host ""
 Stop-Transcript | Out-Null
 
 Set-Location $env:TEMP
-Remove-Item $InstallDir -Recurse -Force
+
+Get-ChildItem $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+    try { $_.Attributes = [System.IO.FileAttributes]::Normal } catch { $null = $_ }
+}
+Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
 
 # ---------------------------------------------------------------------------
 # Restart Explorer
 # ---------------------------------------------------------------------------
+try {
+    Set-ItemProperty $winlogonKey "AutoRestartShell" $prevAutoRestart -Type DWord -ErrorAction SilentlyContinue
+} catch { $null = $_ }
+
+Start-Sleep -Seconds 2
 Start-Process "explorer.exe"
