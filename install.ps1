@@ -271,7 +271,10 @@ if ($Uninstall) {
 
     Write-Step "Removing install directory"
     if (Test-Path $InstallDir) {
-        Remove-Item $InstallDir -Recurse -Force
+        Get-ChildItem $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+            try { $_.Attributes = [System.IO.FileAttributes]::Normal } catch { $null = $_ }
+        }
+        Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
         Write-Removed $InstallDir
     } else {
         Write-Host "    Nothing to remove at $InstallDir" -ForegroundColor Gray
