@@ -39,6 +39,59 @@ $SEP  = "  " + ("=" * 52)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+function Remove-InstallDir {
+    param([string]$Dir)
+
+    if (-not (Test-Path $Dir)) { return }
+
+    # Kill any COM server that may have been respawned after the main process-stop phase.
+    Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer","dllhost" `
+        -Force -ErrorAction SilentlyContinue
+
+    # Give Windows Defender time to release DLL handles after the exclusion is added.
+    try { Add-MpPreference -ExclusionPath $Dir -ErrorAction Stop } catch { $null = $_ }
+    Start-Sleep -Seconds 5
+
+    & takeown /f "$Dir" /r 2>&1 | Out-Null
+    & icacls "$Dir" /grant "*S-1-5-32-544:(F)" /t /c /q 2>&1 | Out-Null
+    Get-ChildItem $Dir -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        try { $_.Attributes = [System.IO.FileAttributes]::Normal } catch { $null = $_ }
+    }
+
+    # Use Continue so a non-zero exit code from rd does not terminate the script.
+    $savedEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    & cmd /c rd /s /q "$Dir" 2>&1 | Out-Null
+    $ErrorActionPreference = $savedEap
+
+    if (-not (Test-Path $Dir)) {
+        try { Remove-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue } catch { $null = $_ }
+        return
+    }
+
+    # Some files are still locked; schedule them for deletion on next reboot
+    # (same mechanism as NSIS Delete /REBOOTOK).
+    Write-Warning "Some files are still locked. They will be removed on the next reboot."
+    try {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public static class PendingDelete {
+    [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)]
+    public static extern bool MoveFileExW(string src, string dst, uint flags);
+    public const uint MOVEFILE_DELAY_UNTIL_REBOOT = 4;
+}
+"@ -ErrorAction SilentlyContinue
+    } catch { $null = $_ }
+
+    Get-ChildItem $Dir -Recurse -Force -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        ForEach-Object { [PendingDelete]::MoveFileExW($_.FullName, $null, [PendingDelete]::MOVEFILE_DELAY_UNTIL_REBOOT) | Out-Null }
+    [PendingDelete]::MoveFileExW($Dir, $null, [PendingDelete]::MOVEFILE_DELAY_UNTIL_REBOOT) | Out-Null
+
+    try { Remove-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue } catch { $null = $_ }
+}
+
 function Read-DotEnv {
     param([string]$Path)
     $cfg = @{}
@@ -260,6 +313,61 @@ if (-not $isAdmin) {
 # Uninstall path
 # ---------------------------------------------------------------------------
 if ($Uninstall) {
+
+    Write-Step "Stopping processes"
+
+    Stop-Service -Name "WSearch" -Force -ErrorAction SilentlyContinue
+
+    Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer" `
+        -Force -ErrorAction SilentlyContinue
+    Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
+    Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Path -like "$InstallDir*" } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    Write-Item "COM servers stopped"
+
+    $winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+    $prevAutoRestart = 1
+    try {
+        $prevAutoRestart = [int](Get-ItemPropertyValue $winlogonKey "AutoRestartShell" -ErrorAction Stop)
+        Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
+    } catch { $null = $_ }
+
+    @("explorer","SearchHost","ShellExperienceHost","StartMenuExperienceHost",
+      "SearchIndexer","SearchProtocolHost","SearchFilterHost") |
+        ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+    Write-Item "Shell processes stopped"
+
+    $lockedFile = Join-Path $InstallDir "python312.dll"
+    if (Test-Path $lockedFile) {
+        $waited  = 0
+        $maxWait = 30
+        while ($waited -lt $maxWait) {
+            try {
+                $fs = [System.IO.File]::Open($lockedFile, [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+                $fs.Close()
+                $fs.Dispose()
+                break
+            } catch {
+                if ($waited -eq 0) {
+                    Write-Host "    python312.dll still locked, waiting..." -ForegroundColor DarkYellow
+                }
+                @("dllhost","explorer","SearchIndexer","SearchProtocolHost","SearchFilterHost") |
+                    ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+                Start-Sleep -Seconds 1
+                $waited++
+            }
+        }
+        if ($waited -ge $maxWait) {
+            Write-Warning "python312.dll may still be locked after ${maxWait}s."
+        } else {
+            Write-Item ("File locks released (waited {0}s)" -f $waited)
+        }
+    } else {
+        Start-Sleep -Seconds 2
+    }
+
     Invoke-Unregister $InstallDir
 
     Write-Step "Removing registry entries"
@@ -271,14 +379,34 @@ if ($Uninstall) {
 
     Write-Step "Removing install directory"
     if (Test-Path $InstallDir) {
-        Get-ChildItem $InstallDir -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
-            try { $_.Attributes = [System.IO.FileAttributes]::Normal } catch { $null = $_ }
+        Remove-InstallDir $InstallDir
+        if (Test-Path $InstallDir) {
+            Write-Host "    Locked files scheduled for deletion on next reboot." -ForegroundColor DarkYellow
+        } else {
+            Write-Removed $InstallDir
         }
-        Remove-Item $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Removed $InstallDir
     } else {
         Write-Host "    Nothing to remove at $InstallDir" -ForegroundColor Gray
     }
+
+    try {
+        Set-ItemProperty $winlogonKey "AutoRestartShell" $prevAutoRestart -Type DWord -ErrorAction SilentlyContinue
+    } catch { $null = $_ }
+
+    Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
+
+    Write-Step "Clearing icon and thumbnail caches"
+    $explorerCache = "$env:LOCALAPPDATA\Microsoft\Windows\Explorer"
+    $iconFiles  = Get-ChildItem $explorerCache -Filter "iconcache_*"  -ErrorAction SilentlyContinue
+    $thumbFiles = Get-ChildItem $explorerCache -Filter "thumbcache_*" -ErrorAction SilentlyContinue
+    $iconFiles  | Remove-Item -Force -ErrorAction SilentlyContinue
+    $thumbFiles | Remove-Item -Force -ErrorAction SilentlyContinue
+    Write-Removed ("{0} icon/thumbnail cache file(s) removed" -f ($iconFiles.Count + $thumbFiles.Count))
+
+    Write-Step "Restarting Explorer"
+    Start-Sleep -Seconds 2
+    Start-Process "explorer.exe"
+    Write-Item "Explorer restarted"
 
     Write-Host ""
     Write-Host $SEP -ForegroundColor DarkGray

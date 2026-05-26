@@ -192,5 +192,47 @@ System::Call 'Rstrtmgr::RmEndSession(i R9) i.R0'
 
 FunctionEnd
 !macroend
-!insertmacro ShutdownCOMServers "" 
+!insertmacro ShutdownCOMServers ""
 !insertmacro ShutdownCOMServers "un."
+
+
+;--------------------------------
+; Waits up to 30s for a file to be fully released by Windows Defender and other scanners.
+; Push the full file path on the stack before calling.
+!macro WaitForDllRelease UN
+Function ${UN}WaitForDllRelease
+
+Pop $0
+
+SetDetailsPrint textonly
+DetailPrint "Waiting for file locks to be released..."
+SetDetailsPrint listonly
+
+${If} ${FileExists} $0
+    StrCpy $1 0
+    ${Do}
+        ; Exclusive open with no sharing to detect any remaining handle.
+        System::Call 'kernel32::CreateFileW(w r0, i 0xC0000000, i 0, i 0, i 3, i 0x80, i 0) i.R0'
+        ${If} $R0 > 0
+            System::Call 'kernel32::CloseHandle(i R0)'
+            ${If} $1 > 0
+                DetailPrint "File lock released after $1s"
+            ${EndIf}
+            ${ExitDo}
+        ${EndIf}
+        ${If} $1 == 0
+            DetailPrint "$0 is locked, waiting..."
+        ${EndIf}
+        ${If} $1 >= 30
+            DetailPrint "Warning: $0 still locked after 30s"
+            ${ExitDo}
+        ${EndIf}
+        IntOp $1 $1 + 1
+        Sleep 1000
+    ${Loop}
+${EndIf}
+
+FunctionEnd
+!macroend
+!insertmacro WaitForDllRelease ""
+!insertmacro WaitForDllRelease "un."

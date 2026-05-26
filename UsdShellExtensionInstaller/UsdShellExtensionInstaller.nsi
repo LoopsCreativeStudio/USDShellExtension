@@ -358,15 +358,27 @@ SectionEnd
 ; Uninstaller
 
 ;--------------------------------
-Section "-Un.ShutdownProcesses" 
+Section "-Un.ShutdownProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
+
+; Add Defender exclusion early so it releases DLL handles before deletion.
+SetDetailsPrint textonly
+DetailPrint "Adding Windows Defender exclusion..."
+SetDetailsPrint listonly
+nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+Sleep 2000
 
 Call un.ShutdownExplorer
 Call un.ShutdownWindowsSearch
 Call un.ShutdownApplications
 Call un.ShutdownCOMServers
+
+!ifdef PYTHONDLL
+Push "$INSTDIR\${PYTHONDLL}"
+Call un.WaitForDllRelease
+!endif
 
 SectionEnd
 
@@ -422,7 +434,7 @@ RMDir '$SMPROGRAMS\USD Shell Extension'
 SectionEnd
 
 ;--------------------------------
-Section "-Un.RestartProcesses" 
+Section "-Un.RestartProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
@@ -430,5 +442,11 @@ SetRegView 64
 Call un.RestartExplorer
 Call un.RestartWindowsSearch
 Call un.RestartApplications
+
+; Remove the Defender exclusion added during shutdown.
+SetDetailsPrint textonly
+DetailPrint "Removing Windows Defender exclusion..."
+SetDetailsPrint listonly
+nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
 
 SectionEnd
