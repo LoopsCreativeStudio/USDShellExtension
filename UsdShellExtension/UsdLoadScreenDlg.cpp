@@ -9,6 +9,7 @@
 #include <algorithm>
 
 static constexpr UINT s_TimerIdProgress = 100;
+static constexpr UINT s_TimerIdStatus   = 101;
 
 static Gdiplus::Image *LoadImageFromResourcePNG( UINT nId )
 {
@@ -35,6 +36,19 @@ static Gdiplus::Image *LoadImageFromResourcePNG( UINT nId )
 	return nullptr;
 }
 
+LPCWSTR CUsdLoadScreenDlg::GetCurrentStatus() const
+{
+	if ( m_ullStartTime == 0 )
+		return nullptr;
+
+	ULONGLONG elapsed = ::GetTickCount64() - m_ullStartTime;
+	if ( elapsed < 3000  ) return L"Starting preview server...";
+	if ( elapsed < 10000 ) return L"Initializing Python runtime...";
+	if ( elapsed < 25000 ) return L"Opening USD stage...";
+	if ( elapsed < 45000 ) return L"Initializing renderer...";
+	return L"Please wait...";
+}
+
 LRESULT CUsdLoadScreenDlg::OnInitDialog( UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL &bHandled )
 {
 	UNREFERENCED_PARAMETER( uMsg );
@@ -53,6 +67,7 @@ LRESULT CUsdLoadScreenDlg::OnInitDialog( UINT uMsg, WPARAM wParam, LPARAM lParam
 	RECT rcClient;
 	GetClientRect( &rcClient );
 
+	m_ullStartTime = ::GetTickCount64();
 	m_ProgressBar.Init();
 
 	CreateBackBuffer( rcClient.right - rcClient.left, rcClient.bottom - rcClient.top );
@@ -60,6 +75,7 @@ LRESULT CUsdLoadScreenDlg::OnInitDialog( UINT uMsg, WPARAM wParam, LPARAM lParam
 		Draw( *m_pGfx );
 
 	SetTimer( s_TimerIdProgress, 1, nullptr );
+	SetTimer( s_TimerIdStatus, 1000, nullptr );
 
 	return 0;
 }
@@ -136,6 +152,14 @@ LRESULT CUsdLoadScreenDlg::OnTimer( UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 			m_ProgressBar.UpdateProgressBar();
 			m_ProgressBar.DrawProgressBar( m_hWnd, *m_pGfx, m_rcProgressArea, m_Background );
 			InvalidateProgressBar( m_rcProgressArea );
+		}
+		break;
+
+	case s_TimerIdStatus:
+		if ( m_pGfx && m_hWnd )
+		{
+			Draw( *m_pGfx );
+			Invalidate( FALSE );
 		}
 		break;
 	}
@@ -375,6 +399,41 @@ void CUsdLoadScreenDlg::Draw( Gdiplus::Graphics &gfx )
 
 			gfx.DrawImage( m_pImgLogo, rcDst, rcSrc, Gdiplus::UnitPixel, &attrib );
 		}
+	}
+
+	// Status text drawn in the lower half of the progress area.
+	LPCWSTR szStatus = GetCurrentStatus();
+	if ( szStatus )
+	{
+		Gdiplus::Font font( L"Segoe UI", 9.0f, Gdiplus::FontStyleRegular, Gdiplus::UnitPoint );
+		BYTE nAlpha = 160;
+		Gdiplus::Color clrText = m_bWindowsExplorerUsingLightTheme
+			? Gdiplus::Color( nAlpha, 80, 80, 80 )
+			: Gdiplus::Color( nAlpha, 160, 160, 160 );
+		Gdiplus::SolidBrush brushText( clrText );
+
+		Gdiplus::StringFormat fmt;
+		fmt.SetAlignment( Gdiplus::StringAlignmentCenter );
+		fmt.SetLineAlignment( Gdiplus::StringAlignmentCenter );
+		fmt.SetTrimming( Gdiplus::StringTrimmingEllipsisCharacter );
+
+		Gdiplus::RectF rcStatus;
+		if ( m_rcProgressArea.Height > 0 )
+		{
+			rcStatus = Gdiplus::RectF(
+				m_rcProgressArea.X,
+				m_rcProgressArea.Y + m_rcProgressArea.Height * 0.55f,
+				m_rcProgressArea.Width,
+				m_rcProgressArea.Height * 0.45f );
+		}
+		else
+		{
+			float fH = static_cast<float>( m_imgBackBuffer.GetHeight() );
+			float fW = static_cast<float>( m_imgBackBuffer.GetWidth() );
+			rcStatus = Gdiplus::RectF( 0.0f, fH - 30.0f, fW, 30.0f );
+		}
+
+		gfx.DrawString( szStatus, -1, &font, rcStatus, &fmt, &brushText );
 	}
 }
 

@@ -20,6 +20,7 @@ private:
 	void Draw( Gdiplus::Graphics &gfx );
 
 	void InvalidateProgressBar( Gdiplus::RectF &rcArea );
+	LPCWSTR GetCurrentStatus() const;
 
 	BEGIN_MSG_MAP( CUsdLoadScreenDlg )
 		MESSAGE_HANDLER( WM_INITDIALOG, OnInitDialog )
@@ -51,6 +52,7 @@ private:
 	Gdiplus::RectF m_rcProgressArea;
 
 	bool m_bWindowsExplorerUsingLightTheme = true;
+	ULONGLONG m_ullStartTime = 0;
 };
 
 class CAutoDpiAware
