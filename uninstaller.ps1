@@ -62,6 +62,87 @@ function Write-Item {
     Write-Host ("    + {0}" -f $msg) -ForegroundColor DarkGreen
 }
 
+try {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct RM_UNIQUE_PROCESS {
+    public int dwProcessId;
+    public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct RM_PROCESS_INFO {
+    public RM_UNIQUE_PROCESS Process;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+    public string strAppName;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+    public string strServiceShortName;
+    public int ApplicationType;
+    public uint AppStatus;
+    public int TSSessionId;
+    [MarshalAs(UnmanagedType.Bool)]
+    public bool bRestartable;
+}
+
+public static class LockFinder {
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, StringBuilder strSessionKey);
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmRegisterResources(uint dwSessionHandle, uint nFiles, string[] rgsFilenames,
+        uint nApplications, IntPtr rgApplications, uint nServices, string[] rgsServiceNames);
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmGetList(uint dwSessionHandle, out uint pnProcInfoNeeded, ref uint pnProcInfo,
+        [In, Out] RM_PROCESS_INFO[] rgAffectedApps, ref uint lpdwRebootReasons);
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmEndSession(uint dwSessionHandle);
+
+    public static RM_PROCESS_INFO[] GetLockingProcesses(string filePath) {
+        uint session = 0;
+        var key = new StringBuilder(33);
+        if (RmStartSession(out session, 0, key) != 0) return new RM_PROCESS_INFO[0];
+        try {
+            RmRegisterResources(session, 1, new[] { filePath }, 0, IntPtr.Zero, 0, null);
+            uint needed = 0, count = 0, reasons = 0;
+            RmGetList(session, out needed, ref count, null, ref reasons);
+            if (needed == 0) return new RM_PROCESS_INFO[0];
+            var infos = new RM_PROCESS_INFO[needed];
+            count = needed;
+            RmGetList(session, out needed, ref count, infos, ref reasons);
+            return infos;
+        } finally {
+            RmEndSession(session);
+        }
+    }
+}
+"@ -ErrorAction SilentlyContinue
+} catch { $null = $_ }
+
+function Stop-FileLockingProcesses {
+    param([string]$FilePath)
+    if (-not (Test-Path $FilePath)) { return }
+    try { $infos = [LockFinder]::GetLockingProcesses($FilePath) } catch { return }
+    if (-not $infos -or $infos.Count -eq 0) { return }
+    $leaf = Split-Path $FilePath -Leaf
+    Write-Host ("    {0} is locked by:" -f $leaf) -ForegroundColor DarkYellow
+    foreach ($lk in $infos) {
+        $line = "      PID {0,5}  {1}" -f $lk.Process.dwProcessId,
+            $(if ($lk.strAppName) { $lk.strAppName } else { '(unknown)' })
+        if ($lk.strServiceShortName) { $line += "  [service: $($lk.strServiceShortName)]" }
+        Write-Host $line -ForegroundColor DarkYellow
+        if ($lk.strServiceShortName) {
+            Stop-Service -Name $lk.strServiceShortName -Force -ErrorAction SilentlyContinue
+        }
+        if ($lk.Process.dwProcessId -gt 0) {
+            Stop-Process -Id $lk.Process.dwProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Seconds 2
+}
+
 # ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
@@ -106,6 +187,7 @@ try {
 Write-Item "Shell processes stopped"
 
 $lockedFile = Join-Path $InstallDir "python312.dll"
+Stop-FileLockingProcesses $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
     $maxWait = 30

@@ -132,7 +132,7 @@ FunctionEnd
 
 
 ;--------------------------------
-Section "-ShutdownProcesses" 
+Section "-ShutdownProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
@@ -141,6 +141,17 @@ Call ShutdownExplorer
 Call ShutdownWindowsSearch
 Call ShutdownApplications
 Call ShutdownCOMServers
+
+SetDetailsPrint textonly
+DetailPrint "Adding Windows Defender exclusion..."
+SetDetailsPrint listonly
+nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+Sleep 2000
+
+!ifdef PYTHONDLL
+Push "$INSTDIR\${PYTHONDLL}"
+Call WaitForDllRelease
+!endif
 
 SectionEnd
 
@@ -257,10 +268,15 @@ WriteRegStr HKLM "SOFTWARE\UsdShellExtension" "Installer" "${OUT_FILE}"
 SectionEnd
 
 ;--------------------------------
-Section "-RestartProcesses" 
+Section "-RestartProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
+
+SetDetailsPrint textonly
+DetailPrint "Removing Windows Defender exclusion..."
+SetDetailsPrint listonly
+nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
 
 Call RestartExplorer
 Call RestartWindowsSearch
