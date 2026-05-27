@@ -33,6 +33,7 @@ class Widget(QWidget):
         self.view = StageView(dataModel=self.model)
 
         self.model.viewSettings.showHUD = False
+        self.model.viewSettings.displayProxy = True
 
         self.app = app
         self.previewApp = previewApp
@@ -111,10 +112,12 @@ class Widget(QWidget):
             self._playTimer.stop()
             self._btnPlay.setIcon(self._iconPlay)
             self._isPlaying = False
+            self.model.playing = False
         else:
             self._playTimer.start(int(1000.0 / self._fps))
             self._btnPlay.setIcon(self._iconPause)
             self._isPlaying = True
+            self.model.playing = True
 
     def _advanceFrame(self):
         nextFrame = self._slider.value() + 1
@@ -125,13 +128,22 @@ class Widget(QWidget):
     def _onSliderChanged(self, value):
         self.model.currentFrame = Usd.TimeCode(value)
         self._frameLabel.setText(f"{value} / {int(self._endTimeCode)}")
-        self.view.updateView()
+        if self._isPlaying:
+            self.view.updateForPlayback()
+        else:
+            self.view.updateView()
 
     def setStage(self, stage):
         self.model.stage = stage
         if stage:
             start = stage.GetStartTimeCode()
             end = stage.GetEndTimeCode()
+            # DefaultDataModel keeps currentFrame at UsdTimeCode.Default(),
+            # which returns no data for time-sampled attributes (e.g. a static
+            # PointInstancer that stores positions at t=startTimeCode only).
+            # Mirror what usdview's AppController does: set the render time to
+            # the stage start time so all authored time samples are visible.
+            self.model.currentFrame = Usd.TimeCode(start)
             if end > start:
                 self._startTimeCode = start
                 self._endTimeCode = end
@@ -145,12 +157,14 @@ class Widget(QWidget):
     def OnPrimSelected(self, primPath, instanceIndex, topLevelPath, topLevelInstanceIndex, hitPoint, button, modifiers):
         if primPath != Sdf.Path.emptyPath:
             self._selectedPath = str(primPath)
+            self.model.selection.setPrimPath(primPath, instanceIndex)
             self._primLabel.setText(self._selectedPath)
             self._primLabel.setStyleSheet(
                 "QLabel { background-color: #1e1e1e; color: #ffffff; padding: 0px 6px; }")
             self._primLabel.show()
         else:
             self._selectedPath = ""
+            self.model.selection.clearPrims()
             self._primLabel.setText("Select object to view prim path...")
             self._primLabel.setStyleSheet(
                 "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")
@@ -339,6 +353,25 @@ class Widget(QWidget):
         self.buildContextMenu_DisplayPurposes(self.contextMenu)
 
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_F:
+            self._frameView()
+        else:
+            super().keyPressEvent(event)
+
+    def _frameView(self):
+        """Frame camera on the selected prim; frame the whole stage if nothing is selected."""
+        stage = self.model.stage
+        if not stage:
+            return
+        if self._selectedPath:
+            self.view.updateView(resetCam=True, forceComputeBBox=True)
+        else:
+            pseudo_root_path = stage.GetPseudoRoot().GetPath()
+            self.model.selection.setPrimPath(pseudo_root_path)
+            self.view.updateView(resetCam=True, forceComputeBBox=True)
+            self.model.selection.clearPrims()
+
     def closeEvent(self, event):
         if self._isPlaying:
             self._playTimer.stop()
@@ -352,6 +385,7 @@ class Widget(QWidget):
         controlModifer = ((modifiers & Qt.KeyboardModifier.ControlModifier) == Qt.KeyboardModifier.ControlModifier)
 
         if not altModifer and not shiftModifer and not controlModifer:
+            self.buildContextMenu()
             self.contextMenu.exec(self.mapToGlobal(event.pos()))
 
     def timerEvent(self, event):
@@ -427,8 +461,7 @@ def main():
 
     setStyleSheetUsingState(app, args.usdviewqDir)
 
-    window = Widget(stage, app, previewApp)
-    stage = None
+    window = Widget(None, app, previewApp)
     window.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.Tool)
     window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
     window.show()
@@ -446,6 +479,11 @@ def main():
 
     window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, False)
 
+    # Set stage after the GL context exists so UsdImagingGL.Engine
+    # initialises with a valid context (required for PointInstancer adapter).
+    window.setStage(stage)
+    stage = None
+
     # Make camera fit the loaded geometry
     window.view.updateView(resetCam=True, forceComputeBBox=True)
 
@@ -453,6 +491,11 @@ def main():
     window.view.glDraw()
 
     window.buildContextMenu()
+
+    # Re-frame once the event loop has processed the first scene population.
+    # Covers scenes where the initial BBox (e.g. PointInstancer extent) is not
+    # yet fully resolved at startup time.
+    QTimer.singleShot(250, lambda: window.view.updateView(resetCam=True, forceComputeBBox=True))
 
     app.exec()
 
