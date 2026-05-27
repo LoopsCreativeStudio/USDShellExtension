@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.8.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.7.0...v1.8.0) (2026-05-27)
+
+
+### Features
+
+* display time-based status messages on the preview load screen ([b59e5f2](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/b59e5f216a01af6a720f162d7055dcd3df255e7e))
+
+
+### Bug Fixes
+
+* add Defender exclusion during install and Restart Manager unlock for python312.dll ([d69b9b2](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/d69b9b29b8de44c0f808aa6540f1ba94c14c02ad))
+* correct thumbnail camera orientation and restore PBR materials ([81c0e21](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/81c0e21233d23c115764265a07ef9fb346161bde))
+* **nsis:** add Defender exclusion and DLL lock wait before uninstall deletion ([05691bf](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/05691bf0a894d1853d905397da8f65f0548c5025))
+* rebuild Hydra Renderer context menu on right-click ([3db837d](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/3db837d8f9451d4aff2a7af02d15c2bdd57cb393))
+* release USD stage on preview quit and fix uninstaller registry/explorer restart ([4ef670d](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/4ef670d343aa4552b2e93ef344fd0599b793a56e))
+* release USD stage on preview quit and fix uninstaller registry/explorer restart ([d43112f](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/d43112f9bfb8c2f7f807b2edd610c4f8525a0052))
+* resolve PSScriptAnalyzer warnings in install and uninstaller scripts ([885b2ed](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/885b2edaea54d22953a7bd0e534a0cc7b427bb10))
+* run UsdThumbnailScript as Python subprocess to fix WGL renderer init ([5e0d1f7](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/5e0d1f73dc49acc3812b1045a71bb92cc5499939))
+* use robocopy /PURGE for pip-packages to handle locked qwindows.dll ([0d48d78](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/0d48d781caf941755f7fc2f0ce71d466ed48d7a0))
+
 ## [1.7.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.6.0...v1.7.0) (2026-05-25)
 
 
