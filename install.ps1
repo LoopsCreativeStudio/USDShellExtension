@@ -40,9 +40,11 @@ $SEP  = "  " + ("=" * 52)
 # Helpers
 # ---------------------------------------------------------------------------
 function Remove-InstallDir {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$Dir)
 
     if (-not (Test-Path $Dir)) { return }
+    if (-not $PSCmdlet.ShouldProcess($Dir, 'Remove directory')) { return }
 
     # Kill any COM server that may have been respawned after the main process-stop phase.
     Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer","dllhost" `
@@ -322,7 +324,8 @@ function Copy-WithRetry {
     }
 }
 
-function Stop-FileLockingProcesses {
+function Stop-FileLockingProcess {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$FilePath)
     if (-not (Test-Path $FilePath)) { return }
     try { $infos = [LockFinder]::GetLockingProcesses($FilePath) } catch { return }
@@ -333,10 +336,10 @@ function Stop-FileLockingProcesses {
             $(if ($lk.strAppName) { $lk.strAppName } else { '(unknown)' })
         if ($lk.strServiceShortName) { $line += "  [service: $($lk.strServiceShortName)]" }
         Write-Host $line -ForegroundColor DarkYellow
-        if ($lk.strServiceShortName) {
+        if ($lk.strServiceShortName -and $PSCmdlet.ShouldProcess($lk.strServiceShortName, 'Stop service')) {
             Stop-Service -Name $lk.strServiceShortName -Force -ErrorAction SilentlyContinue
         }
-        if ($lk.Process.dwProcessId -gt 0) {
+        if ($lk.Process.dwProcessId -gt 0 -and $PSCmdlet.ShouldProcess($lk.Process.dwProcessId, 'Stop process')) {
             Stop-Process -Id $lk.Process.dwProcessId -Force -ErrorAction SilentlyContinue
         }
     }
@@ -424,7 +427,7 @@ if ($Uninstall) {
     Write-Item "Shell processes stopped"
 
     $lockedFile = Join-Path $InstallDir "python312.dll"
-    Stop-FileLockingProcesses $lockedFile
+    Stop-FileLockingProcess $lockedFile
     if (Test-Path $lockedFile) {
         $waited  = 0
         $maxWait = 30
@@ -583,7 +586,7 @@ Write-Item "Shell processes stopped"
 # every iteration; with AutoRestartShell=0 Explorer will not respawn by
 # itself, so only COM-triggered dllhost instances need chasing.
 $lockedFile = Join-Path $InstallDir "python312.dll"
-Stop-FileLockingProcesses $lockedFile
+Stop-FileLockingProcess $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
     $maxWait = 30

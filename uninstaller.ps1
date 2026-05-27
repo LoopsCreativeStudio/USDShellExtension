@@ -121,7 +121,8 @@ public static class LockFinder {
 "@ -ErrorAction SilentlyContinue
 } catch { $null = $_ }
 
-function Stop-FileLockingProcesses {
+function Stop-FileLockingProcess {
+    [CmdletBinding(SupportsShouldProcess)]
     param([string]$FilePath)
     if (-not (Test-Path $FilePath)) { return }
     try { $infos = [LockFinder]::GetLockingProcesses($FilePath) } catch { return }
@@ -133,10 +134,10 @@ function Stop-FileLockingProcesses {
             $(if ($lk.strAppName) { $lk.strAppName } else { '(unknown)' })
         if ($lk.strServiceShortName) { $line += "  [service: $($lk.strServiceShortName)]" }
         Write-Host $line -ForegroundColor DarkYellow
-        if ($lk.strServiceShortName) {
+        if ($lk.strServiceShortName -and $PSCmdlet.ShouldProcess($lk.strServiceShortName, 'Stop service')) {
             Stop-Service -Name $lk.strServiceShortName -Force -ErrorAction SilentlyContinue
         }
-        if ($lk.Process.dwProcessId -gt 0) {
+        if ($lk.Process.dwProcessId -gt 0 -and $PSCmdlet.ShouldProcess($lk.Process.dwProcessId, 'Stop process')) {
             Stop-Process -Id $lk.Process.dwProcessId -Force -ErrorAction SilentlyContinue
         }
     }
@@ -187,7 +188,7 @@ try {
 Write-Item "Shell processes stopped"
 
 $lockedFile = Join-Path $InstallDir "python312.dll"
-Stop-FileLockingProcesses $lockedFile
+Stop-FileLockingProcess $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
     $maxWait = 30
