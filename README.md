@@ -34,11 +34,11 @@ See [Features](docs/features.md) for the full description of each command.
 
 ## Overview
 
+### Context menu
+![Context right clic](docs/img/feat_overview.gif)
+
 ### Windows preview pane
 ![Windows preview static](docs/img/feat_preview.gif)
-
-### Standard properties of the USD file
-![Windows Details](docs/img/feat_details.jpg)
 
 ### Timeline
 ![Windows preview animation](docs/img/feat_animation.gif)

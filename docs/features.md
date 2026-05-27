@@ -6,7 +6,7 @@ Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 | Feature | Description |
 |---------|-------------|
-| Thumbnails | Auto-generated 3D thumbnails via `usdrecord`, cached by Windows |
+| Thumbnails | Auto-generated 3D thumbnails rendered via Hydra (Storm), square 256×256 px, front-facing view; auto-framed from the world bounding box when no camera is authored in the stage; cached by Windows |
 | Preview pane | Live Hydra viewport in the Explorer preview pane, with prim path bar and animation timeline |
 | Windows Search | USD metadata (frame range, frame rate, format, custom layer data, documentation) indexed and searchable |
 | File type icons | Custom icons and friendly type names for each USD format |

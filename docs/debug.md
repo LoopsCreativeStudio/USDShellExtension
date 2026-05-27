@@ -109,12 +109,35 @@ If you still see this after updating, verify the build is current:
 
 ### Thumbnails not generating
 
-1. Check Event Viewer; `usdrecord` errors appear there with the full traceback.
-2. Verify `usdrecord` is in the USD SDK `scripts\` folder and is listed in `[USD] PATH`.
+1. Check Event Viewer; `UsdThumbnail.py` errors appear there with the full Python traceback.
+2. Verify `[USD] PATH` in `UsdShellExtension.ini` contains the SDK `bin\`, `lib\`, and `scripts\` folders.
 3. Clear the Windows thumbnail cache:
    - Run `cleanmgr.exe` → check "Thumbnails"
    - Or delete `%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*.db`
 4. Right-click a USD file → **Refresh Thumbnail** to force regeneration.
+
+---
+
+### Thumbnails render flat or without materials
+
+The thumbnail subprocess (`UsdThumbnail.py`) derives the USD SDK `plugin\usd\` path from `PYTHONPATH` and sets `PXR_PLUGINPATH_NAME` to that path before importing pxr. If the path cannot be resolved (SDK not in `[USD] PYTHONPATH`), HdStorm and MaterialX plugins are not discovered and the render falls back to unlit geometry.
+
+Check that `[USD] PYTHONPATH` in `UsdShellExtension.ini` points to the SDK's `lib\python` folder, and that `plugin\usd\` exists at the same SDK root.
+
+---
+
+### Hydra Renderer context menu is greyed out in the preview pane
+
+Right-clicking in the preview pane shows the **Hydra Renderer** submenu but it is disabled.
+
+**Fixed in current build**: the context menu was previously built once at startup before the first OpenGL frame was rendered. `GetRendererPlugins()` returned an empty list because the Hydra engine was not yet initialized. The menu is now rebuilt on every right-click, so it always reflects the live renderer state.
+
+If you still see this after updating, verify the build is current and reinstall:
+
+```powershell
+.\build.ps1
+.\install.ps1  # as Administrator
+```
 
 ---
 
