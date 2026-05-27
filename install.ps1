@@ -198,8 +198,72 @@ public static class NativeFileHelper {
 "@
 } catch { $null = $_ }
 
+try {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+[StructLayout(LayoutKind.Sequential)]
+public struct RM_UNIQUE_PROCESS {
+    public int dwProcessId;
+    public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime;
+}
+
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct RM_PROCESS_INFO {
+    public RM_UNIQUE_PROCESS Process;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+    public string strAppName;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)]
+    public string strServiceShortName;
+    public int ApplicationType;
+    public uint AppStatus;
+    public int TSSessionId;
+    [MarshalAs(UnmanagedType.Bool)]
+    public bool bRestartable;
+}
+
+public static class LockFinder {
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, StringBuilder strSessionKey);
+    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
+    static extern int RmRegisterResources(uint dwSessionHandle, uint nFiles, string[] rgsFilenames,
+        uint nApplications, IntPtr rgApplications, uint nServices, string[] rgsServiceNames);
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmGetList(uint dwSessionHandle, out uint pnProcInfoNeeded, ref uint pnProcInfo,
+        [In, Out] RM_PROCESS_INFO[] rgAffectedApps, ref uint lpdwRebootReasons);
+    [DllImport("rstrtmgr.dll")]
+    static extern int RmEndSession(uint dwSessionHandle);
+
+    public static RM_PROCESS_INFO[] GetLockingProcesses(string filePath) {
+        uint session = 0;
+        var key = new StringBuilder(33);
+        if (RmStartSession(out session, 0, key) != 0) return new RM_PROCESS_INFO[0];
+        try {
+            RmRegisterResources(session, 1, new[] { filePath }, 0, IntPtr.Zero, 0, null);
+            uint needed = 0, count = 0, reasons = 0;
+            RmGetList(session, out needed, ref count, null, ref reasons);
+            if (needed == 0) return new RM_PROCESS_INFO[0];
+            var infos = new RM_PROCESS_INFO[needed];
+            count = needed;
+            RmGetList(session, out needed, ref count, infos, ref reasons);
+            return infos;
+        } finally {
+            RmEndSession(session);
+        }
+    }
+}
+"@ -ErrorAction SilentlyContinue
+} catch { $null = $_ }
+
 function Copy-WithRetry {
     param([string]$Source, [string]$Dest, [int]$Retries = 5, [int]$DelaySec = 2)
+
+    # Normalize: if $Dest is an existing directory, resolve the target file path.
+    if (Test-Path $Dest -PathType Container) {
+        $Dest = Join-Path $Dest (Split-Path $Source -Leaf)
+    }
 
     # Fast path: direct overwrite when the file is not locked.
     try {
@@ -256,6 +320,27 @@ function Copy-WithRetry {
             }
         }
     }
+}
+
+function Stop-FileLockingProcesses {
+    param([string]$FilePath)
+    if (-not (Test-Path $FilePath)) { return }
+    try { $infos = [LockFinder]::GetLockingProcesses($FilePath) } catch { return }
+    if (-not $infos -or $infos.Count -eq 0) { return }
+    Write-Host ("    {0} is locked by:" -f (Split-Path $FilePath -Leaf)) -ForegroundColor DarkYellow
+    foreach ($lk in $infos) {
+        $line = "      PID {0,5}  {1}" -f $lk.Process.dwProcessId,
+            $(if ($lk.strAppName) { $lk.strAppName } else { '(unknown)' })
+        if ($lk.strServiceShortName) { $line += "  [service: $($lk.strServiceShortName)]" }
+        Write-Host $line -ForegroundColor DarkYellow
+        if ($lk.strServiceShortName) {
+            Stop-Service -Name $lk.strServiceShortName -Force -ErrorAction SilentlyContinue
+        }
+        if ($lk.Process.dwProcessId -gt 0) {
+            Stop-Process -Id $lk.Process.dwProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Seconds 2
 }
 
 # ---------------------------------------------------------------------------
@@ -339,6 +424,7 @@ if ($Uninstall) {
     Write-Item "Shell processes stopped"
 
     $lockedFile = Join-Path $InstallDir "python312.dll"
+    Stop-FileLockingProcesses $lockedFile
     if (Test-Path $lockedFile) {
         $waited  = 0
         $maxWait = 30
@@ -473,6 +559,11 @@ Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue 
     Stop-Process -Force -ErrorAction SilentlyContinue
 Write-Item "COM servers stopped"
 
+# Release Windows Defender handles on the install dir before the lock-wait loop.
+# Without this, Defender re-acquires DLL handles after scanning and the loop times out.
+try { Add-MpPreference -ExclusionPath $InstallDir -ErrorAction Stop } catch { $null = $_ }
+Start-Sleep -Seconds 2
+
 # Disable Explorer auto-restart so Win11 does not respawn it during the
 # lock-wait loop.  A restarted Explorer reloads UsdShellExtension.dll via
 # its activation context and immediately re-locks python312.dll.
@@ -492,6 +583,7 @@ Write-Item "Shell processes stopped"
 # every iteration; with AutoRestartShell=0 Explorer will not respawn by
 # itself, so only COM-triggered dllhost instances need chasing.
 $lockedFile = Join-Path $InstallDir "python312.dll"
+Stop-FileLockingProcesses $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
     $maxWait = 30
@@ -535,7 +627,18 @@ if (-not (Test-Path $OUT_DIR)) {
 }
 
 Write-Step "Copying files to $InstallDir"
+
+# Guard: a previous botched Copy-WithRetry may have left a FILE at $InstallDir
+# (the entire directory was renamed away and a script/DLL was written in its place).
+# New-Item -Force does not replace a file with a directory in PS 5.1, so remove it first.
+if (Test-Path $InstallDir -PathType Leaf) {
+    Write-Warning "Install path exists as a file (corrupted state) - removing it."
+    Remove-Item $InstallDir -Force
+}
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
+if (-not (Test-Path $InstallDir -PathType Container)) {
+    Write-Error "Failed to create install directory: $InstallDir"
+}
 
 # Remove leftover .old files from any previous rename-on-lock replacements.
 Get-ChildItem $InstallDir -Filter "*.old" -ErrorAction SilentlyContinue | ForEach-Object {
@@ -563,7 +666,11 @@ if (Test-Path $usdPluginSrc) {
         Remove-Item $usdPluginDst -Recurse -Force
         Write-Removed "usd\ (old plugin folder)"
     }
-    Copy-Item $usdPluginSrc $usdPluginDst -Recurse -Force
+    Write-Host "    Copying usd\ ..." -ForegroundColor Gray
+    $rcOut = & robocopy $usdPluginSrc $usdPluginDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS 2>&1
+    if ($LASTEXITCODE -ge 8) {
+        Write-Error ("robocopy failed copying usd\ (exit $LASTEXITCODE):`n" + ($rcOut -join "`n"))
+    }
     Write-Item "usd\ (plugin folder)"
 }
 
@@ -571,8 +678,9 @@ $usdExtPluginSrc = Join-Path $OUT_DIR "plugin\usd"
 if (Test-Path $usdExtPluginSrc) {
     $usdExtPluginDst = Join-Path $InstallDir "plugin\usd"
     if (Test-Path $usdExtPluginDst) { Remove-Item $usdExtPluginDst -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path (Join-Path $InstallDir "plugin") | Out-Null
-    Copy-Item $usdExtPluginSrc $usdExtPluginDst -Recurse -Force
+    Write-Host "    Copying plugin\usd\ ..." -ForegroundColor Gray
+    & robocopy $usdExtPluginSrc $usdExtPluginDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+    if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying plugin\usd\ (exit $LASTEXITCODE)" }
     Write-Item "plugin\usd\ (hdStorm, usdAbc, ...)"
 }
 
@@ -586,12 +694,13 @@ if (Test-Path $pythonSrc) {
     if (Test-Path $pythonDst) { Remove-Item $pythonDst -Recurse -Force }
     $rcArgs = @(
         $pythonSrc, $pythonDst,
-        "/E",
+        "/E", "/R:3", "/W:1",
         "/NFL", "/NDL", "/NJH", "/NJS",
         "/XD", "include", "libs", "MaterialX", "Tools", "test", "idlelib", "ensurepip",
         "/XF", "*.pdb", "*.lib"
     )
     & robocopy @rcArgs | Out-Null
+    if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying python\ (exit $LASTEXITCODE)" }
     Write-Item "python\ (bundled Python 3.12, trimmed)"
 } else {
     Write-Warning "Python folder not found at $pythonSrc - skipping."
@@ -604,13 +713,9 @@ $pipSrc = Join-Path $USD_SDK "pip-packages"
 $pipDst = Join-Path $InstallDir "pip-packages"
 if (Test-Path $pipSrc) {
     Write-Step "Copying pip-packages"
-    if (Test-Path $pipDst) {
-        Remove-Item $pipDst -Recurse -Force
-        Write-Removed "pip-packages\ (old folder)"
-    }
     $rcArgs = @(
         $pipSrc, $pipDst,
-        "/E",
+        "/E", "/PURGE", "/R:3", "/W:1",
         "/NFL", "/NDL", "/NJH", "/NJS",
         "/XD", "qml", "metatypes", "typesystems", "include", "translations",
         "/XF",
@@ -629,8 +734,15 @@ if (Test-Path $pipSrc) {
             "*.pdb"
     )
     & robocopy @rcArgs | Out-Null
+    # Exit code 8 means some files could not be copied (locked DLLs still mapped
+    # as image sections); those files are the same version and safe to skip.
+    if ($LASTEXITCODE -ge 16) { Write-Error "robocopy failed copying pip-packages\ (exit $LASTEXITCODE)" }
+    elseif ($LASTEXITCODE -ge 8) { Write-Warning "pip-packages\: some locked files skipped (exit $LASTEXITCODE) - harmless if version unchanged." }
     Write-Item "pip-packages\ (PySide6, PyOpenGL, trimmed)"
 }
+
+# Remove the temporary Defender exclusion now that all file copies are complete.
+try { Remove-MpPreference -ExclusionPath $InstallDir -ErrorAction SilentlyContinue } catch { $null = $_ }
 
 # ---------------------------------------------------------------------------
 # Register COM servers
