@@ -4,8 +4,6 @@
 #include "stdafx.h"
 #include "UsdPythonToolsImpl.h"
 #include "Module.h"
-#include "shared\PythonUtil.h"
-#include "shared\emb.h"
 #include "shared\environment.h"
 #include "shared\EventViewerLog.h"
 #include "UsdPythonToolsLocalServer_h.h"
@@ -44,269 +42,158 @@ static std::wstring FindRelativeFile(LPCWSTR sToolFileName)
 	return L"";
 }
 
-static FILE *OpenRelativeFile(LPCWSTR sToolFileName, std::wstring& sOutFilePath)
-{
-	sOutFilePath = FindRelativeFile( sToolFileName );
 
-	FILE *fp = _wfsopen( sOutFilePath.c_str(), L"rb", _SH_SECURE );
-	if ( fp == nullptr )
-		return nullptr;
 
-	return fp;
-}
-
-static HRESULT RunDiskPythonScript( LPCWSTR sToolFileName, std::vector<const TPyChar *> &ArgV, std::string &sStdOut, int& exitCode )
-{
-	exitCode = 0;
-
-	std::wstring sFilePath;
-	FILE *fp = OpenRelativeFile( sToolFileName, sFilePath );
-	if (fp == nullptr)
-		return E_FAIL;
-
-	fseek( fp, 0, SEEK_END );
-	int sizeOfFile = ftell( fp );
-	fseek( fp, 0, SEEK_SET );
-
-	CStringA pyScript;
-	LPSTR pScriptData = pyScript.GetBufferSetLength( sizeOfFile );
-	fread( pScriptData, 1, sizeOfFile, fp );
-	pyScript.ReleaseBuffer( sizeOfFile );
-
-	fclose( fp );
-	fp = nullptr;
-
-    PyImport_AppendInittab("emb", emb::PyInit_emb);
-	CPyInterpreter pyInterpreter;
-    PyImport_ImportModule("emb");
-
-    emb::stdout_write_type writeStdOut = [&sStdOut] (std::string s) { sStdOut += s; };
-    emb::set_stdout(writeStdOut);
-    emb::stdout_write_type writeStdErr = [&sStdOut] (std::string s) { sStdOut += s; };
-    emb::set_stderr(writeStdErr);
-
-	PyAppendSysPath( GetUsdPythonPathList() );
-	PySetEnvironmentVariable( L"PATH", GetUsdPath() );
-	PySetEnvironmentVariable( L"PYTHONPATH", GetUsdPythonPath() );
-
-#pragma warning(suppress: 4996)  // PySys_SetArgvEx deprecated in 3.11, removed in 3.13
-	PySys_SetArgvEx( static_cast<int>(ArgV.size()), const_cast<TPyChar**>(&ArgV[0]), 1 );
-
-	PyObject* pMainModule = PyImport_AddModule("__main__");
-    PyObject* pGlobalDict = PyModule_GetDict(pMainModule);
-
-	CPyObject result = CPyObject( PyRun_String( pyScript.GetString(), Py_file_input, pGlobalDict, pGlobalDict ) );
-
-	HRESULT hr = S_OK;
-	if ( PyErr_Occurred() )
-	{
-		CPyException e;
-        if ( !e.IsExceptionSystemExit() )
-        {
-			CString sErrorMsg = e.tracebackW();
-			if ( sErrorMsg.IsEmpty() )
-				sErrorMsg.Format( _T( "[Error]\n%hs" ), e.what() );
-
-			if ( !sStdOut.empty() )
-				sErrorMsg.AppendFormat( _T( "\n\n[STDOUT]\n%hs" ), sStdOut.c_str() );
-
-			LogEventMessage( PYTHONTOOLS_CATEGORY, sErrorMsg.GetString(), LogEventType::Error );
-
-            hr = E_FAIL;
-        }
-		else
-		{
-			PySystemExitObject* pSystemExitObject = reinterpret_cast<PySystemExitObject*>(e.GetValue());
-			if ( pSystemExitObject && pSystemExitObject->code )
-			{
-				if ( PyLong_Check( pSystemExitObject->code ) )
-				{
-					exitCode = PyLong_AsLong( pSystemExitObject->code );
-				}
-				else if ( PyUnicode_Check( pSystemExitObject->code ) )
-				{
-					// unexpected
-					sStdOut += e.what();
-					exitCode = -1;
-					LogEventMessage( PYTHONTOOLS_CATEGORY, e.whatW(), LogEventType::Error );
-					hr = E_FAIL;
-				}
-			}
-		}
-	}
-
-    emb::reset_stdout();
-	emb::reset_stderr();
-
-	return hr;
-}
-
-static HRESULT RunResourcePythonScript( UINT nResourceId, std::vector<const TPyChar *> &ArgV, std::string &sStdOut, int& exitCode )
-{
-	exitCode = 0;
-
-	HRSRC hrscPy = ::FindResource( g_hInstance, MAKEINTRESOURCE( nResourceId ), _T("PYTHON") );
-	if ( hrscPy == nullptr )
-		return E_FAIL;
-
-	HGLOBAL hPy = ::LoadResource( g_hInstance, hrscPy );
-	if ( hPy == nullptr )
-		return E_FAIL;
-
-	void* pScriptData = ::LockResource( hPy );
-	if ( pScriptData == nullptr )
-		return E_FAIL;
-
-	DWORD nSize = SizeofResource( g_hInstance, hrscPy );
-
-	CStringA pyScript;
-	pyScript.SetString( reinterpret_cast<LPCSTR>(pScriptData), nSize );
-
-	PyImport_AppendInittab("emb", emb::PyInit_emb);
-	CPyInterpreter pyInterpreter;
-    PyImport_ImportModule("emb");
-
-    emb::stdout_write_type writeStdOut = [&sStdOut] (std::string s) { sStdOut += s; };
-    emb::set_stdout(writeStdOut);
-    emb::stdout_write_type writeStdErr = [&sStdOut] (std::string s) { sStdOut += s; };
-    emb::set_stderr(writeStdErr);
-
-	PyAppendSysPath( GetUsdPythonPathList() );
-	PySetEnvironmentVariable( L"PATH", GetUsdPath() );
-	PySetEnvironmentVariable( L"PYTHONPATH", GetUsdPythonPath() );
-
-#pragma warning(suppress: 4996)  // PySys_SetArgvEx deprecated in 3.11, removed in 3.13
-	PySys_SetArgvEx( static_cast<int>(ArgV.size()), const_cast<TPyChar**>(&ArgV[0]), 1 );
-
-	PyObject* pMainModule = PyImport_AddModule("__main__");
-    PyObject* pGlobalDict = PyModule_GetDict(pMainModule);
-
-	CPyObject result = CPyObject( PyRun_String( pyScript.GetString(), Py_file_input, pGlobalDict, pGlobalDict ) );
-
-	HRESULT hr = S_OK;
-	if ( PyErr_Occurred() )
-	{
-		CPyException e;
-        if ( !e.IsExceptionSystemExit() )
-        {
-			CString sErrorMsg = e.tracebackW();
-			if ( sErrorMsg.IsEmpty() )
-				sErrorMsg.Format( _T( "[Error]\n%hs" ), e.what() );
-
-			if ( !sStdOut.empty() )
-				sErrorMsg.AppendFormat( _T( "\n\n[STDOUT]\n%hs" ), sStdOut.c_str() );
-
-			LogEventMessage( PYTHONTOOLS_CATEGORY, sErrorMsg.GetString(), LogEventType::Error );
-
-            hr = E_FAIL;
-        }
-		else
-		{
-			PySystemExitObject* pSystemExitObject = reinterpret_cast<PySystemExitObject*>(e.GetValue());
-			if ( pSystemExitObject && pSystemExitObject->code )
-			{
-				if ( PyLong_Check( pSystemExitObject->code ) )
-				{
-					exitCode = PyLong_AsLong( pSystemExitObject->code );
-				}
-				else if ( PyUnicode_Check( pSystemExitObject->code ) )
-				{
-					// unexpected
-					sStdOut += e.what();
-					exitCode = -1;
-					LogEventMessage( PYTHONTOOLS_CATEGORY, e.whatW(), LogEventType::Error );
-					hr = E_FAIL;
-				}
-			}
-		}
-	}
-
-    emb::reset_stdout();
-	emb::reset_stderr();
-
-	return hr;
-}
+static std::wstring GetPythonExePath();
 
 STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidth, IN BSTR renderer, OUT BSTR *outputImagePath )
 {
 	DEBUG_RECORD_ENTRY();
 
-	HRESULT hr;
-
-	TPyChar sPathToHostExe[MAX_PATH];
-#if PY_MAJOR_VERSION >= 3
-	::GetModuleFileNameW( nullptr, sPathToHostExe, ARRAYSIZE( sPathToHostExe ) );
-#else
-	::GetModuleFileNameA( nullptr, sPathToHostExe, ARRAYSIZE( sPathToHostExe ) );
-#endif
-#pragma warning(suppress: 4996)  // Py_SetProgramName deprecated in 3.11, removed in 3.13
-	Py_SetProgramName( sPathToHostExe );
-
+	// --- Unique temp PNG output path ---
 	wchar_t sTempPath[MAX_PATH];
 	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
 	wchar_t sTempFileName[MAX_PATH];
 
-	// search for a unique temp file name
 	std::vector<CStringW> tempFileList;
 	for ( ;; )
 	{
 		::GetTempFileNameW( sTempPath, L"usd", 0, sTempFileName );
 		tempFileList.push_back( sTempFileName );
 		::PathCchRenameExtension( sTempFileName, ARRAYSIZE( sTempFileName ), L"png" );
-		if ( GetFileAttributesW( sTempFileName ) == INVALID_FILE_ATTRIBUTES )
+		if ( ::GetFileAttributesW( sTempFileName ) == INVALID_FILE_ATTRIBUTES )
 			break;
 	}
-
-	// delete the temp files that GetTempFileNameW created
 	for ( const CStringW &str : tempFileList )
-		DeleteFileW( str );
+		::DeleteFileW( str );
 
-    std::string sStdOut;
+	// --- Extract UsdThumbnail.py to %TEMP% ---
+	// UsdImagingGLEngine requires WGL context initialization driven by a Win32
+	// message loop. Running it via PyRun_String on the COM thread blocks the loop
+	// and causes "No renderer plugins found!". A subprocess gets its own process
+	// with full message-pump capability (same fix as View/usdview).
+	wchar_t sScriptPath[MAX_PATH] = {};
+	wcscpy_s( sScriptPath, sTempPath );
+	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdThumbnailScript.py" );
+
+	{
+		HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_THUMBNAIL ), _T("PYTHON") );
+		if ( hRes == nullptr )
+		{
+			LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: IDR_PYTHON_THUMBNAIL resource not found", LogEventType::Error );
+			return E_FAIL;
+		}
+		HGLOBAL hData = ::LoadResource( g_hInstance, hRes );
+		void*   pData = ::LockResource( hData );
+		DWORD   nSize = ::SizeofResource( g_hInstance, hRes );
+		HANDLE  hFile = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
+		                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hFile == INVALID_HANDLE_VALUE )
+		{
+			LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: failed to write UsdThumbnailScript.py", LogEventType::Error );
+			return E_FAIL;
+		}
+		DWORD nWritten = 0;
+		::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
+		::CloseHandle( hFile );
+	}
+
+	// --- Build command line ---
+	std::wstring sPythonExe = GetPythonExePath();
 
 	CStringW sImageWidth;
 	sImageWidth.Format( L"%d", imageWidth );
 
-	// locate usdrecord
-	std::wstring sUsdRecordAbsolutePath = FindRelativeFile( L"usdrecord" );
-	if ( sUsdRecordAbsolutePath.empty() )
+	CStringW sCommandLine;
+	sCommandLine.Format( L"\"%ls\" \"%ls\" --imageWidth %ls",
+	                     sPythonExe.c_str(), sScriptPath, (LPCWSTR)sImageWidth );
+
+	if ( renderer != nullptr && renderer[0] != L'\0' )
+		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
+
+	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, sTempFileName );
+
+	// --- Launch subprocess ---
+	wchar_t sLogPath[MAX_PATH] = {};
+	wcscpy_s( sLogPath, sTempPath );
+	::PathCchAppend( sLogPath, ARRAYSIZE( sLogPath ), L"UsdThumbnail.log" );
+
+	SECURITY_ATTRIBUTES sa = {};
+	sa.nLength        = sizeof( sa );
+	sa.bInheritHandle = TRUE;
+
+	HANDLE hLog = ::CreateFileW( sLogPath, GENERIC_WRITE, FILE_SHARE_READ, &sa,
+	                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
+
+	STARTUPINFOW si = {};
+	si.cb = sizeof( si );
+	BOOL bInheritHandles = FALSE;
+
+	if ( hLog != INVALID_HANDLE_VALUE )
 	{
-		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Failed to locate usdrecord", LogEventType::Error );
+		si.dwFlags    = STARTF_USESTDHANDLES;
+		si.hStdInput  = NULL;
+		si.hStdOutput = hLog;
+		si.hStdError  = hLog;
+		bInheritHandles = TRUE;
+	}
+
+	PROCESS_INFORMATION pi = {};
+
+	if ( !::CreateProcessW( nullptr, sCommandLine.GetBuffer(), nullptr, nullptr,
+	                        bInheritHandles, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi ) )
+	{
+		DWORD err = ::GetLastError();
+		CString sMsg;
+		sMsg.Format( _T("Record: CreateProcess failed (0x%08X): %ls"), err, (LPCWSTR)sCommandLine );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+		if ( hLog != INVALID_HANDLE_VALUE )
+			::CloseHandle( hLog );
+		return HRESULT_FROM_WIN32( err );
+	}
+	::CloseHandle( pi.hThread );
+
+	constexpr DWORD kTimeoutMs = 60000;
+	DWORD waitResult = ::WaitForSingleObject( pi.hProcess, kTimeoutMs );
+
+	DWORD exitCode = 0;
+	::GetExitCodeProcess( pi.hProcess, &exitCode );
+	::CloseHandle( pi.hProcess );
+
+	if ( hLog != INVALID_HANDLE_VALUE )
+		::CloseHandle( hLog );
+
+	if ( waitResult == WAIT_TIMEOUT )
+	{
+		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: thumbnail process timed out after 60s", LogEventType::Error );
 		return E_FAIL;
 	}
 
-	std::vector<const TPyChar *> ArgV;
-	// Set the first argument as the absolute path to the usdrecord python script
-	// We will use argv[0] to load it using importlib
-	CW2Py pyUsdRecordAbsolutePath( sUsdRecordAbsolutePath.c_str() );
-	ArgV.push_back( pyUsdRecordAbsolutePath );
-	ArgV.push_back( _Tpy("--imageWidth") );
-	CW2Py pyImageWidth( sImageWidth );
-	ArgV.push_back( pyImageWidth );
-
-	CW2Py pyRenderer(renderer);
-	if ( renderer != nullptr && renderer[0] != '\0' )
-	{
-		ArgV.push_back( _Tpy("--renderer") );
-		ArgV.push_back( pyRenderer );
-	}
-
-	CW2Py pyUsdStagePath(usdStagePath);
-	ArgV.push_back( pyUsdStagePath );
-	CW2Py pyTempFileName(sTempFileName);
-	ArgV.push_back( pyTempFileName );
-
-	int exitCode = 0;
-	hr = RunResourcePythonScript( IDR_PYTHON_THUMBNAIL, ArgV, sStdOut, exitCode );
-	if ( FAILED( hr ) )
-		return hr;
-
 	if ( exitCode != 0 )
 	{
+		CStringA sLogContent;
+		HANDLE hLogRead = ::CreateFileW( sLogPath, GENERIC_READ, FILE_SHARE_READ, nullptr,
+		                                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+		if ( hLogRead != INVALID_HANDLE_VALUE )
+		{
+			DWORD nLogSize = ::GetFileSize( hLogRead, nullptr );
+			if ( nLogSize > 0 && nLogSize != INVALID_FILE_SIZE )
+			{
+				LPSTR pBuf = sLogContent.GetBufferSetLength( static_cast<int>(nLogSize) );
+				DWORD nRead = 0;
+				::ReadFile( hLogRead, pBuf, nLogSize, &nRead, nullptr );
+				sLogContent.ReleaseBuffer( static_cast<int>(nRead) );
+			}
+			::CloseHandle( hLogRead );
+		}
+
 		CString sErrorMsg;
-		sErrorMsg.Format( _T( "Error generating thumbnail for %ls\n\n%hs\n\nExit Code: %d" ), usdStagePath, sStdOut.c_str(), exitCode );
-
+		if ( sLogContent.IsEmpty() )
+			sErrorMsg.Format( _T("Record: thumbnail failed for %ls (exit %lu)"), usdStagePath, exitCode );
+		else
+			sErrorMsg.Format( _T("Record: thumbnail failed for %ls (exit %lu)\n\n%hs"),
+			                  usdStagePath, exitCode, (LPCSTR)sLogContent );
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sErrorMsg.GetString(), LogEventType::Error );
-
 		return E_FAIL;
 	}
 
