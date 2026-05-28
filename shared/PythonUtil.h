@@ -102,6 +102,30 @@ public:
         return p;
     }
 
+    CPyObject( const CPyObject &other ) noexcept
+    {
+        p = other.p;
+        if ( p != nullptr )
+        {
+            Py_INCREF( p );
+        }
+    }
+    CPyObject &operator=( const CPyObject &rhs ) noexcept
+    {
+        if ( p != rhs.p )
+        {
+            if ( rhs.p != nullptr )
+            {
+                Py_INCREF( rhs.p );
+            }
+            if ( p != nullptr )
+            {
+                Py_DECREF( p );
+            }
+            p = rhs.p;
+        }
+        return *this;
+    }
     CPyObject &operator=( CPyObject &&rhs ) noexcept
     {
         reset( rhs.p );
@@ -182,10 +206,18 @@ public:
     { 
         p = pyObject;  
     }
-    CPyString( CPyString &&pyObject ) noexcept 
-    { 
-        p = pyObject.p; 
-        pyObject.p = nullptr; 
+    CPyString( CPyString &&pyObject ) noexcept
+    {
+        p = pyObject.p;
+        pyObject.p = nullptr;
+    }
+    CPyString( const CPyString &other ) noexcept
+    {
+        p = other.p;
+        if ( p != nullptr )
+        {
+            Py_INCREF( p );
+        }
     }
     ~CPyString()
     {
@@ -212,6 +244,22 @@ public:
         reset( rhs.p );
         rhs.p = nullptr;
 
+        return *this;
+    }
+    CPyString &operator=( const CPyString &rhs ) noexcept
+    {
+        if ( p != rhs.p )
+        {
+            if ( rhs.p != nullptr )
+            {
+                Py_INCREF( rhs.p );
+            }
+            if ( p != nullptr )
+            {
+                Py_DECREF( p );
+            }
+            p = rhs.p;
+        }
         return *this;
     }
 
@@ -259,10 +307,18 @@ public:
     { 
         p = pyObject;  
     }
-    CPyStringW( CPyStringW &&pyObject ) noexcept 
-    { 
-        p = pyObject.p; 
-        pyObject.p = nullptr; 
+    CPyStringW( CPyStringW &&pyObject ) noexcept
+    {
+        p = pyObject.p;
+        pyObject.p = nullptr;
+    }
+    CPyStringW( const CPyStringW &other ) noexcept
+    {
+        p = other.p;
+        if ( p != nullptr )
+        {
+            Py_INCREF( p );
+        }
     }
     ~CPyStringW()
     {
@@ -289,6 +345,27 @@ public:
         reset( rhs.p );
         rhs.p = nullptr;
 
+        return *this;
+    }
+    CPyStringW &operator=( const CPyStringW &rhs ) noexcept
+    {
+        if ( p != rhs.p )
+        {
+            if ( rhs.p != nullptr )
+            {
+                Py_INCREF( rhs.p );
+            }
+            if ( s )
+            {
+                PyMem_Free( s );
+                s = nullptr;
+            }
+            if ( p != nullptr )
+            {
+                Py_DECREF( p );
+            }
+            p = rhs.p;
+        }
         return *this;
     }
 
