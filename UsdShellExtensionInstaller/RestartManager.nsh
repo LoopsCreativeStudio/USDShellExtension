@@ -14,48 +14,116 @@ Var RmWindowsSearchSession
 Function ${UN}ShutdownExplorer
 
 SetDetailsPrint textonly
-DetailPrint "Shutting down Windows Explorer (may take a few seconds)..."
+DetailPrint "Shutting down Windows Explorer..."
 SetDetailsPrint listonly
 
 System::StrAlloc ${CCH_RM_SESSION_KEY}
 Pop $0
 System::Call 'Rstrtmgr::RmStartSession(*i .R1, i 0, p $0) i.R0'
 System::Free $0
-
 StrCpy $RmExplorerSession $R1
-
-DetailPrint "Shutting down Windows Explorer"
 
 StrCpy $0 "$WINDIR\explorer.exe"
 System::Call '*(w r0)p.R1 ?2'
 System::Call 'Rstrtmgr::RmRegisterResources(i $RmExplorerSession, i 1, p R1, i 0, p n, i 0, p n) i.R0'
 
-System::Call 'Rstrtmgr::RmShutdown(i $RmExplorerSession, i 0, p n) i.R0'
+; Use taskkill /F (non-blocking from NSIS point of view via ExecToStack, but
+; /F terminates immediately so the call returns in < 1 s), then poll so the
+; UI can show elapsed time instead of appearing frozen.
+FindWindow $R0 "Shell_TrayWnd"
+${If} $R0 != 0
+    DetailPrint "Stopping Windows Explorer"
+    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /IM explorer.exe'
+    Pop $0
+
+    ; /F is immediate; check right away first to avoid an unnecessary 1 s sleep.
+    FindWindow $R0 "Shell_TrayWnd"
+    ${If} $R0 == 0
+        DetailPrint "Windows Explorer stopped"
+    ${Else}
+        StrCpy $1 0
+        ${Do}
+            Sleep 1000
+            IntOp $1 $1 + 1
+            FindWindow $R0 "Shell_TrayWnd"
+            ${If} $R0 == 0
+                SetDetailsPrint listonly
+                DetailPrint "Windows Explorer stopped after $1s"
+                ${ExitDo}
+            ${EndIf}
+            SetDetailsPrint textonly
+            DetailPrint "Stopping Windows Explorer... $1s"
+            SetDetailsPrint listonly
+            ${If} $1 >= 15
+                DetailPrint "Warning: Windows Explorer did not stop within 15s"
+                ${ExitDo}
+            ${EndIf}
+        ${Loop}
+    ${EndIf}
+${Else}
+    DetailPrint "Windows Explorer already stopped"
+${EndIf}
 
 FunctionEnd
 !macroend
-!insertmacro ShutdownExplorer "" 
+!insertmacro ShutdownExplorer ""
 !insertmacro ShutdownExplorer "un."
 
 
 ;--------------------------------
-!macro RestartExplorer UN 
+!macro RestartExplorer UN
 Function ${UN}RestartExplorer
 
 SetDetailsPrint textonly
 DetailPrint "Restarting Windows Explorer..."
 SetDetailsPrint listonly
 
-DetailPrint "Restarting Windows Explorer"
-
 System::Call 'Rstrtmgr::RmRestart(i $RmExplorerSession, i 0, p n) i.R0'
 System::Call 'Rstrtmgr::RmEndSession(i $RmExplorerSession) i.R0'
 
-Sleep 2000
+; Wait up to 6s for Shell_TrayWnd to appear
+StrCpy $1 0
+${Do}
+    Sleep 1000
+    IntOp $1 $1 + 1
+    FindWindow $R0 "Shell_TrayWnd"
+    ${If} $R0 != 0
+        DetailPrint "Windows Explorer restarted after $1s"
+        ${ExitDo}
+    ${EndIf}
+    SetDetailsPrint textonly
+    DetailPrint "Waiting for Windows Explorer... $1s"
+    SetDetailsPrint listonly
+    ${If} $1 >= 6
+        ${ExitDo}
+    ${EndIf}
+${Loop}
+
 FindWindow $R0 "Shell_TrayWnd"
 ${If} $R0 == 0
-    DetailPrint "Explorer did not restart automatically, launching manually"
+    DetailPrint "Forcing Explorer restart..."
+    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /IM explorer.exe'
+    Pop $0
+    Sleep 1000
     Exec '$WINDIR\explorer.exe'
+    ; Wait up to 10s for the forced Explorer to appear
+    StrCpy $2 0
+    ${Do}
+        Sleep 1000
+        IntOp $2 $2 + 1
+        FindWindow $R0 "Shell_TrayWnd"
+        ${If} $R0 != 0
+            DetailPrint "Windows Explorer restarted after $2s"
+            ${ExitDo}
+        ${EndIf}
+        SetDetailsPrint textonly
+        DetailPrint "Waiting for Windows Explorer... $2s"
+        SetDetailsPrint listonly
+        ${If} $2 >= 10
+            DetailPrint "Warning: Windows Explorer did not restart within timeout"
+            ${ExitDo}
+        ${EndIf}
+    ${Loop}
 ${EndIf}
 
 FunctionEnd
