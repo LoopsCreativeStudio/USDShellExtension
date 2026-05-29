@@ -1,6 +1,8 @@
 # Quick Start
 
-This guide gets the USD Shell Extension built and installed on a fresh Windows machine in about 15 minutes.
+> **Just want to install?** Download the NVIDIA USD package and run the installer exe from the [latest release](https://github.com/LoopsCreativeStudio/USDShellExtension/releases/latest). See the [README](../README.md#quick-install) for the two-step instructions. No build required.
+
+This guide gets the USD Shell Extension **built from source** and installed on a fresh Windows machine in about 15 minutes.
 
 ## Prerequisites
 

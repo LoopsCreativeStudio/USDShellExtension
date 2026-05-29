@@ -18,15 +18,37 @@
 </p>
 
 
+## Quick Install
+
+No build required. Two steps:
+
+**1. Download the NVIDIA OpenUSD pre-built package**
+
+Go to the [NVIDIA OpenUSD page](https://developer.nvidia.com/openusd#section-getting-started) and download:
+
+> `usd.py312.windows-x86_64.usdview.release-v25.08`
+
+Extract it anywhere on your machine (e.g. `D:\usd.py312.windows-x86_64.usdview.release-v25.08`).
+
+**2. Run the installer**
+
+Download `UsdShellExtension-v*-setup.exe` from the [latest release](https://github.com/LoopsCreativeStudio/USDShellExtension/releases/latest) and run it as Administrator. The installer will ask for the path to the NVIDIA SDK and configure everything automatically.
+
+That's it. Right-click any `.usd` / `.usda` / `.usdc` / `.usdz` file to get started.
+
+> Building from source is only needed if you want to modify the code. See the [Quick Start](docs/quickstart.md) guide.
+
+---
+
 ## Features
 
 Supported formats: `.usd` `.usda` `.usdc` `.usdz`
 
 | Feature | Description |
 |---------|-------------|
-| Thumbnails | Auto-generated 3D thumbnails via `usdrecord`, cached by Windows |
-| Preview pane | Live Hydra viewport with prim path bar and animation timeline |
-| Context menu | View, Edit, Crate/Uncrate, Flatten, Package, Unpackage, Stitch, Validate, Fix, Layer Stack |
+| Thumbnails | Auto-generated 3D thumbnails via `usdrecord`, cached by Windows. Headlight is automatically disabled when the scene contains its own lights. |
+| Preview pane | Live Hydra viewport with prim path bar, animation timeline, light controls (scene lights, camera light, dome light) and camera selection. |
+| Context menu | View, Edit, Crate/Uncrate, Flatten, Package, Unpackage, Stitch, Diff, Validate, Fix, Layer Stack, Stage Statistics |
 | Windows Search | USD metadata indexed and searchable (frame range, frame rate, format, custom layer data) |
 | File type icons | Custom icons and friendly type names for each USD format |
 
