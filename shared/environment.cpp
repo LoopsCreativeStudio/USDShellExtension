@@ -290,6 +290,61 @@ void SetupPythonEnvironment( HMODULE hCurrentModule )
 	CStringW sPython_PythonPath;
 	GetPrivateProfileStringAndExpandEnvironmentStrings( L"PYTHON", L"PYTHONPATH", L"", sPython_PythonPath, ConfigFileList );
 
+	// Auto-detect pip-packages when [PYTHON] PYTHONPATH is empty or points to a
+	// directory that does not exist (e.g. NSIS install without bundled pip-packages,
+	// or upgrade where a previous installer wrote an empty/stale value).
+	// Two probes in priority order:
+	//   1. <module_dir>\pip-packages  (install.ps1 scenario)
+	//   2. <sdk_root>\pip-packages    (NSIS scenario: derived from [USD] PYTHONPATH lib\python)
+	{
+		bool bNeedDetect = sPython_PythonPath.IsEmpty();
+		if ( !bNeedDetect && sPython_PythonPath.Find( L';' ) == -1 )
+		{
+			DWORD nA = ::GetFileAttributesW( sPython_PythonPath );
+			bNeedDetect = (nA == INVALID_FILE_ATTRIBUTES) || !(nA & FILE_ATTRIBUTE_DIRECTORY);
+		}
+
+		if ( bNeedDetect )
+		{
+			sPython_PythonPath.Empty();
+
+			// Probe 1: next to the EXE
+			{
+				wchar_t sPipDir[1024];
+				::GetModuleFileNameW( hCurrentModule, sPipDir, ARRAYSIZE( sPipDir ) );
+				::PathCchRemoveFileSpec( sPipDir, ARRAYSIZE( sPipDir ) );
+				::PathCchAppend( sPipDir, ARRAYSIZE( sPipDir ), L"pip-packages" );
+				DWORD nA = ::GetFileAttributesW( sPipDir );
+				if ( (nA != INVALID_FILE_ATTRIBUTES) && (nA & FILE_ATTRIBUTE_DIRECTORY) )
+					sPython_PythonPath = sPipDir;
+			}
+
+			// Probe 2: alongside each [USD] PYTHONPATH segment
+			//   e.g. D:\sdk\lib\python  ->  D:\sdk\pip-packages
+			if ( sPython_PythonPath.IsEmpty() )
+			{
+				CStringW sUsdPyPathCopy = sUSD_PythonPath;
+				int pos = 0;
+				CStringW sToken = sUsdPyPathCopy.Tokenize( L";", pos );
+				while ( !sToken.IsEmpty() )
+				{
+					wchar_t sCand[1024];
+					wcscpy_s( sCand, sToken.GetString() );
+					::PathCchRemoveFileSpec( sCand, ARRAYSIZE( sCand ) );
+					::PathCchRemoveFileSpec( sCand, ARRAYSIZE( sCand ) );
+					::PathCchAppend( sCand, ARRAYSIZE( sCand ), L"pip-packages" );
+					DWORD nA = ::GetFileAttributesW( sCand );
+					if ( (nA != INVALID_FILE_ATTRIBUTES) && (nA & FILE_ATTRIBUTE_DIRECTORY) )
+					{
+						sPython_PythonPath = sCand;
+						break;
+					}
+					sToken = sUsdPyPathCopy.Tokenize( L";", pos );
+				}
+			}
+		}
+	}
+
 	g_UsdPathList = TranslatePathsToList(sUSD_Path);
 	g_UsdPythonPathList = TranslatePathsToList(sUSD_PythonPath);
 
