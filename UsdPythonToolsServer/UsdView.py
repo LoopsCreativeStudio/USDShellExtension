@@ -161,8 +161,38 @@ except Exception:
     def _close_splash():
         pass
 
-# ── Layer 0: remove duplicate plugin path before pxr initialises ──────────────
-os.environ.pop('PXR_PLUGINPATH_NAME', None)
+# ── Layer 0: strip plugin path entries that would load UsdShellExtension.dll ──
+# A plugInfo.json at a path root can register UsdShellExtension.dll as an
+# ArResolver. Loading it inside the usdview subprocess corrupts
+# UsdImagingGL.Engine (black 3D viewport). Filter only those entries; keep
+# usd\ and plugin\usd\ entries so Storm and other renderers are discovered.
+_pxr_raw = os.environ.get('PXR_PLUGINPATH_NAME', '')
+if _pxr_raw:
+    import json as _json
+
+    def _loads_shell_ext(path):
+        _pinfo = os.path.join(path, 'plugInfo.json')
+        if not os.path.isfile(_pinfo):
+            return False
+        try:
+            with open(_pinfo) as _f:
+                for _pl in _json.load(_f).get('Plugins', []):
+                    if 'UsdShellExtension' in _pl.get('LibraryPath', ''):
+                        return True
+        except Exception:
+            pass
+        return False
+
+    _safe = os.pathsep.join(
+        p for p in _pxr_raw.split(os.pathsep)
+        if p and not _loads_shell_ext(p)
+    )
+    if _safe:
+        os.environ['PXR_PLUGINPATH_NAME'] = _safe
+    else:
+        os.environ.pop('PXR_PLUGINPATH_NAME', None)
+    del _json, _loads_shell_ext, _safe
+del _pxr_raw
 
 import importlib.util
 

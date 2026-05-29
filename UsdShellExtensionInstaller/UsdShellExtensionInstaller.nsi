@@ -297,6 +297,15 @@ SetDetailsPrint listonly
 SetOutPath "$INSTDIR\pip-packages"
 File /r .\pip-packages\*
 
+SetDetailsPrint textonly
+DetailPrint "Installing pxr Python bindings..."
+SetDetailsPrint listonly
+SetOutPath "$INSTDIR\lib\python"
+File /r .\lib\python\*
+
+SetOutPath "$INSTDIR\scripts"
+File /r .\scripts\*
+
 SetOutPath "$INSTDIR"
 
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED tbb.dll "$INSTDIR\tbb.dll" $INSTDIR
@@ -314,6 +323,54 @@ File vcruntime140.dll
 File tbbmalloc_proxy.dll
 File python3.dll
 File usd_*.dll
+
+; Image format and MaterialX runtime libraries
+File Iex-3_3.dll
+File IlmThread-3_3.dll
+File Imath-3_1.dll
+File jpeg8.dll
+File libpng16.dll
+File MaterialXCore.dll
+File MaterialXFormat.dll
+File MaterialXGenGlsl.dll
+File MaterialXGenMdl.dll
+File MaterialXGenMsl.dll
+File MaterialXGenOsl.dll
+File MaterialXGenShader.dll
+File MaterialXRender.dll
+File MaterialXRenderGlsl.dll
+File MaterialXRenderHw.dll
+File MaterialXRenderOsl.dll
+File OpenEXR-3_3.dll
+File OpenEXRCore-3_3.dll
+File OpenEXRUtil-3_3.dll
+File OpenImageIO.dll
+File OpenImageIO_Util.dll
+File tiff.dll
+File turbojpeg.dll
+File zlib1.dll
+
+; USD tools and entry points
+File sdfdump.exe
+File sdffilter.exe
+File usdcat.exe
+File usdchecker.exe
+File usdtree.exe
+File usdview
+File usdrecord
+File usddiff
+File usddumpcrate
+File usdedit
+File usdfixbrokenpixarschemas
+File usdGenSchema
+File usdgenschemafromsdr
+File usdInitSchema
+File usdmeasureperformance
+File usdresolve
+File usdstitch
+File usdstitchclips
+File usdzip
+File usdBakeMaterialX
 
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPythonToolsLocalServer.exe "$INSTDIR\UsdPythonToolsLocalServer.exe" $INSTDIR
@@ -459,6 +516,12 @@ SetDetailsPrint listonly
 SetShellVarContext current
 StrCpy $ConfigFilePath "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
+; Force-write install-dir paths: these are not user customisations and must
+; always match the current $INSTDIR after every install or update.
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR;$INSTDIR\scripts"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" "$INSTDIR\lib\python"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" "$INSTDIR\usd;$INSTDIR\plugin\usd"
+!insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PATH" "$INSTDIR\python\"
 ; Repair [PYTHON] PYTHONPATH if a previous installer wrote an empty value.
 ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
 ${If} $R0 == ""
@@ -468,6 +531,10 @@ ${EndIf}
 SetShellVarContext all
 StrCpy $ConfigFilePath "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR;$INSTDIR\scripts"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" "$INSTDIR\lib\python"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" "$INSTDIR\usd;$INSTDIR\plugin\usd"
+!insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PATH" "$INSTDIR\python\"
 ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
 ${If} $R0 == ""
     WriteINIStr "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
@@ -595,6 +662,8 @@ RMDir /r /REBOOTOK "$INSTDIR\plugin\usd"
 RMDir /REBOOTOK "$INSTDIR\plugin"
 RMDir /r /REBOOTOK "$INSTDIR\python"
 RMDir /r /REBOOTOK "$INSTDIR\pip-packages"
+RMDir /r /REBOOTOK "$INSTDIR\lib"
+RMDir /r /REBOOTOK "$INSTDIR\scripts"
 Delete /REBOOTOK "$INSTDIR\UsdPropertyKeys.propdesc"
 
 Delete /REBOOTOK "$INSTDIR\uninstall.exe"

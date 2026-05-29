@@ -650,7 +650,8 @@ Get-ChildItem $InstallDir -Filter "*.old" -ErrorAction SilentlyContinue | ForEac
 }
 
 Get-ChildItem $OUT_DIR -File | Where-Object {
-    $_.Extension -notin @('.exp', '.lib')
+    $_.Extension -notin @('.exp', '.lib') -and
+    $_.Name -notlike 'UsdShellExtension-*-setup.exe'
 } | ForEach-Object {
     Copy-WithRetry $_.FullName $InstallDir
     Write-Item $_.Name
@@ -685,6 +686,26 @@ if (Test-Path $usdExtPluginSrc) {
     & robocopy $usdExtPluginSrc $usdExtPluginDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying plugin\usd\ (exit $LASTEXITCODE)" }
     Write-Item "plugin\usd\ (hdStorm, usdAbc, ...)"
+}
+
+$usdLibPySrc = Join-Path $OUT_DIR "lib\python"
+if (Test-Path $usdLibPySrc) {
+    $usdLibPyDst = Join-Path $InstallDir "lib\python"
+    if (Test-Path $usdLibPyDst) { Remove-Item $usdLibPyDst -Recurse -Force }
+    Write-Host "    Copying lib\python\ ..." -ForegroundColor Gray
+    & robocopy $usdLibPySrc $usdLibPyDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+    if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying lib\python\ (exit $LASTEXITCODE)" }
+    Write-Item "lib\python\ (pxr Python bindings)"
+}
+
+$usdScriptsSrc = Join-Path $OUT_DIR "scripts"
+if (Test-Path $usdScriptsSrc) {
+    $usdScriptsDst = Join-Path $InstallDir "scripts"
+    if (Test-Path $usdScriptsDst) { Remove-Item $usdScriptsDst -Recurse -Force }
+    Write-Host "    Copying scripts\ ..." -ForegroundColor Gray
+    & robocopy $usdScriptsSrc $usdScriptsDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.sh | Out-Null
+    if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying scripts\ (exit $LASTEXITCODE)" }
+    Write-Item "scripts\ (usdview, usdrecord, ...)"
 }
 
 # ---------------------------------------------------------------------------
@@ -748,23 +769,48 @@ if (Test-Path $pipSrc) {
 try { Remove-MpPreference -ExclusionPath $InstallDir -ErrorAction SilentlyContinue } catch { $null = $_ }
 
 # ---------------------------------------------------------------------------
-# Patch user-level INI: ensure [PYTHON] PATH points to the bundled Python.
-# The user INI (in %LOCALAPPDATA%) has higher priority than the system INI
-# and may retain an absolute SDK path from a previous install.
+# Write system INI with correct absolute paths.
+# The template shipped in OUT_DIR has empty path values so it works for any
+# install location. install.ps1 fills them in here for the module-dir INI
+# (lowest priority, used when no user/ProgramData INI exists).
+# ---------------------------------------------------------------------------
+Write-Step "Writing system configuration"
+
+$sysIni = Join-Path $InstallDir "UsdShellExtension.ini"
+if (Test-Path $sysIni) {
+    $currentSection = ''
+    $patched = (Get-Content $sysIni -Encoding UTF8) | ForEach-Object {
+        if ($_ -match '^\[(\w+)\]') { $currentSection = $Matches[1] }
+        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')              { "PATH=$InstallDir;$InstallDir\scripts" }
+        elseif ($currentSection -eq 'USD'    -and $_ -match '^PYTHONPATH\s*=')        { "PYTHONPATH=$InstallDir\lib\python" }
+        elseif ($currentSection -eq 'USD'    -and $_ -match '^PXR_PLUGINPATH_NAME\s*=') { "PXR_PLUGINPATH_NAME=$InstallDir\usd;$InstallDir\plugin\usd" }
+        elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PATH\s*=')              { "PATH=$InstallDir\python\" }
+        elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PYTHONPATH\s*=')        { "PYTHONPATH=$InstallDir\pip-packages" }
+        else { $_ }
+    }
+    Set-Content $sysIni $patched -Encoding UTF8
+    Write-Item "UsdShellExtension.ini -> $InstallDir"
+}
+
+# ---------------------------------------------------------------------------
+# Patch user-level INI: overwrite any stale SDK paths from a previous install.
+# The user INI (in %LOCALAPPDATA%) has higher priority than the system INI.
 # ---------------------------------------------------------------------------
 Write-Step "Patching user configuration"
 
 $userIni = "$env:LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 if (Test-Path $userIni) {
-    $inSection = $false
+    $currentSection = ''
     $patched = (Get-Content $userIni -Encoding UTF8) | ForEach-Object {
-        if ($_ -match '^\[PYTHON\]') { $inSection = $true }
-        elseif ($_ -match '^\[')     { $inSection = $false }
-        if ($inSection -and $_ -match '^PATH\s*=') { "PATH=$InstallDir\python\" }
+        if ($_ -match '^\[(\w+)\]') { $currentSection = $Matches[1] }
+        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')       { "PATH=$InstallDir;$InstallDir\scripts" }
+        elseif ($currentSection -eq 'USD'    -and $_ -match '^PYTHONPATH\s*=') { "PYTHONPATH=$InstallDir\lib\python" }
+        elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PATH\s*=')       { "PATH=$InstallDir\python\" }
+        elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PYTHONPATH\s*=') { "PYTHONPATH=$InstallDir\pip-packages" }
         else { $_ }
     }
     Set-Content $userIni $patched -Encoding UTF8
-    Write-Item "Patched [PYTHON] PATH -> $InstallDir\python\"
+    Write-Item "Patched user INI paths -> $InstallDir"
 } else {
     Write-Host "    No user INI found at $userIni, skipping." -ForegroundColor Gray
 }
