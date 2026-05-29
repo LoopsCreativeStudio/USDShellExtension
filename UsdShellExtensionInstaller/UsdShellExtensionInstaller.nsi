@@ -159,6 +159,8 @@ SetShellVarContext current
 StrCpy $LogFilePath "$TEMP\UsdShellExtension_setup.log"
 FileOpen $0 $LogFilePath w
 ${If} $0 != ""
+    FileWriteByte $0 255
+    FileWriteByte $0 254
     FileWrite $0 "USD Shell Extension Setup Log$\r$\n"
     FileClose $0
 ${EndIf}
@@ -177,6 +179,8 @@ SetShellVarContext current
 StrCpy $LogFilePath "$TEMP\UsdShellExtension_uninstall.log"
 FileOpen $0 $LogFilePath w
 ${If} $0 != ""
+    FileWriteByte $0 255
+    FileWriteByte $0 254
     FileWrite $0 "USD Shell Extension Uninstall Log$\r$\n"
     FileClose $0
 ${EndIf}
