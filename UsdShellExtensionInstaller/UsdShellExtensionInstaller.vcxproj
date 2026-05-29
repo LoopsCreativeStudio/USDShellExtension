@@ -67,12 +67,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>$(SolutionDir)bin\$(PlatformToolset)\$(PythonTag)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(PlatformToolset)\$(PythonTag)\$(Configuration)\$(ProjectName)\</IntDir>
-    <TargetName>UsdShellExtension-v$(USD_VERSION_MAJOR).$(USD_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
+    <TargetName>UsdShellExtension-v$(USD_VERSION)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>$(SolutionDir)bin\$(PlatformToolset)\$(PythonTag)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)build\$(PlatformToolset)\$(PythonTag)\$(Configuration)\$(ProjectName)\</IntDir>
-    <TargetName>UsdShellExtension-v$(USD_VERSION_MAJOR).$(USD_VERSION_MINOR)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
+    <TargetName>UsdShellExtension-v$(USD_VERSION)-u$(USDVERSION)-p$(PythonVersion)-setup.exe</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <PostBuildEvent>
