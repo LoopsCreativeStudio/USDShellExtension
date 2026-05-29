@@ -748,6 +748,28 @@ if (Test-Path $pipSrc) {
 try { Remove-MpPreference -ExclusionPath $InstallDir -ErrorAction SilentlyContinue } catch { $null = $_ }
 
 # ---------------------------------------------------------------------------
+# Patch user-level INI: ensure [PYTHON] PATH points to the bundled Python.
+# The user INI (in %LOCALAPPDATA%) has higher priority than the system INI
+# and may retain an absolute SDK path from a previous install.
+# ---------------------------------------------------------------------------
+Write-Step "Patching user configuration"
+
+$userIni = "$env:LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
+if (Test-Path $userIni) {
+    $inSection = $false
+    $patched = (Get-Content $userIni -Encoding UTF8) | ForEach-Object {
+        if ($_ -match '^\[PYTHON\]') { $inSection = $true }
+        elseif ($_ -match '^\[')     { $inSection = $false }
+        if ($inSection -and $_ -match '^PATH\s*=') { "PATH=$InstallDir\python\" }
+        else { $_ }
+    }
+    Set-Content $userIni $patched -Encoding UTF8
+    Write-Item "Patched [PYTHON] PATH -> $InstallDir\python\"
+} else {
+    Write-Host "    No user INI found at $userIni, skipping." -ForegroundColor Gray
+}
+
+# ---------------------------------------------------------------------------
 # Register COM servers
 # ---------------------------------------------------------------------------
 Write-Step "Registering COM servers"

@@ -280,9 +280,33 @@ try:
                 hwnd = int(w.winId())
 
                 # ── Icon ──────────────────────────────────────────────────
-                _ico = os.path.join(
-                    os.path.dirname(os.path.dirname(sys.executable)), 'usd.ico')
-                if os.path.exists(_ico):
+                # Priority: exe_dir, exe_dir parent, registry Install_Dir.
+                # The registry probe handles the case where [PYTHON] PATH in
+                # the user INI still points to the SDK Python instead of the
+                # install dir (user INI has priority over system INI).
+                _exe_dir = os.path.dirname(os.path.abspath(sys.executable))
+                _ico = next(
+                    (p for p in (
+                        os.path.join(_exe_dir, 'usd.ico'),
+                        os.path.join(os.path.dirname(_exe_dir), 'usd.ico'),
+                    ) if os.path.exists(p)),
+                    '',
+                )
+                if not _ico:
+                    try:
+                        import winreg as _wr
+                        with _wr.OpenKey(
+                            _wr.HKEY_LOCAL_MACHINE,
+                            r'SOFTWARE\UsdShellExtension',
+                            access=_wr.KEY_READ | _wr.KEY_WOW64_64KEY,
+                        ) as _k:
+                            _inst = _wr.QueryValueEx(_k, 'Install_Dir')[0]
+                        _cand = os.path.join(_inst, 'usd.ico')
+                        if os.path.exists(_cand):
+                            _ico = _cand
+                    except Exception:
+                        pass
+                if _ico:
                     # Win32: LoadImageW + WM_SETICON (reliable, bypasses Qt cache)
                     LR_LOADFROMFILE = 0x00000010
                     LR_DEFAULTSIZE  = 0x00000040
