@@ -325,6 +325,51 @@ if ($Installer) {
         Write-Warning "LICENSE.txt not found in repo root, installer may fail."
     }
 
+    # Stage python\ (trimmed; same exclusions as install.ps1)
+    $pythonDst = Join-Path $OUT_DIR "python"
+    if (Test-Path $USD_PY) {
+        if (Test-Path $pythonDst) { Remove-Item $pythonDst -Recurse -Force }
+        $rcPythonArgs = @(
+            $USD_PY, $pythonDst,
+            '/E', '/R:3', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS',
+            '/XD', 'include', 'libs', 'MaterialX', 'Tools', 'test', 'idlelib', 'ensurepip',
+            '/XF', '*.pdb', '*.lib'
+        )
+        $null = & robocopy @rcPythonArgs
+        Write-Item "python\ (staged for installer)"
+    } else {
+        Write-Warning "python\ not found at '$USD_PY'; installer will not bundle Python."
+    }
+
+    # Stage pip-packages\ (trimmed; same exclusions as install.ps1)
+    $pipDst = Join-Path $OUT_DIR "pip-packages"
+    if (Test-Path $USD_PKGS) {
+        if (Test-Path $pipDst) { Remove-Item $pipDst -Recurse -Force }
+        $rcPipArgs = @(
+            $USD_PKGS, $pipDst,
+            '/E', '/PURGE', '/R:3', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS',
+            '/XD', 'qml', 'metatypes', 'typesystems', 'include', 'translations',
+            '/XF',
+            'Qt6WebEngine*.dll', 'Qt6WebEngine*.pyd',
+            'Qt6Designer*.dll', 'Qt6Designer*.pyd',
+            'Qt6Qml*.dll', 'Qt6Qml*.pyd',
+            'Qt6Quick*.dll', 'Qt6Quick*.pyd',
+            'Qt63D*.dll', 'Qt63D*.pyd',
+            'Qt6Charts*.dll', 'Qt6Charts*.pyd',
+            'Qt6Graphs*.dll', 'Qt6Graphs*.pyd',
+            'Qt6ShaderTools*.dll', 'Qt6ShaderTools*.pyd',
+            'Qt6Pdf*.dll', 'Qt6Pdf*.pyd',
+            'Qt6Multimedia*.dll', 'Qt6Multimedia*.pyd',
+            'Qt6RemoteObjects*.dll', 'Qt6RemoteObjects*.pyd',
+            'Qt6DataVisualization*.dll', 'Qt6DataVisualization*.pyd',
+            '*.pdb'
+        )
+        $null = & robocopy @rcPipArgs
+        Write-Item "pip-packages\ (staged for installer)"
+    } else {
+        Write-Warning "pip-packages\ not found at '$USD_PKGS'; installer will not bundle pip packages."
+    }
+
     $installerVcxproj = Join-Path $REPO "UsdShellExtensionInstaller\UsdShellExtensionInstaller.vcxproj"
     $msbuildInstallerArgs = @(
         $installerVcxproj,
