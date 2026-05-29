@@ -10,6 +10,13 @@
 
 #include <vector>
 
+// Throttle concurrent thumbnail renders to avoid GPU/CPU thrashing when
+// Explorer requests many thumbnails at once. Named semaphore so the limit
+// is shared across all instances of this server on the current session.
+static constexpr int kMaxConcurrentRenders = 3;
+static HANDLE g_hRenderSemaphore = ::CreateSemaphoreW(
+    nullptr, kMaxConcurrentRenders, kMaxConcurrentRenders,
+    L"Local\\UsdShellExtension_ThumbnailSemaphore" );
 
 HRESULT CUsdPythonToolsImpl::FinalConstruct()
 {
@@ -113,7 +120,7 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 
 	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, sTempFileName );
 
-	// --- Launch subprocess ---
+	// --- Launch subprocess (throttled) ---
 	wchar_t sLogPath[MAX_PATH] = {};
 	wcscpy_s( sLogPath, sTempPath );
 	::PathCchAppend( sLogPath, ARRAYSIZE( sLogPath ), L"UsdThumbnail.log" );
@@ -138,6 +145,9 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		bInheritHandles = TRUE;
 	}
 
+	// Block until a render slot is available (max kMaxConcurrentRenders at once).
+	::WaitForSingleObject( g_hRenderSemaphore, INFINITE );
+
 	PROCESS_INFORMATION pi = {};
 
 	if ( !::CreateProcessW( nullptr, sCommandLine.GetBuffer(), nullptr, nullptr,
@@ -149,12 +159,24 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
 		if ( hLog != INVALID_HANDLE_VALUE )
 			::CloseHandle( hLog );
+		::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
 		return HRESULT_FROM_WIN32( err );
 	}
 	::CloseHandle( pi.hThread );
 
-	constexpr DWORD kTimeoutMs = 60000;
+	constexpr DWORD kTimeoutMs = 30000;
 	DWORD waitResult = ::WaitForSingleObject( pi.hProcess, kTimeoutMs );
+
+	if ( waitResult == WAIT_TIMEOUT )
+	{
+		::TerminateProcess( pi.hProcess, 1 );
+		::CloseHandle( pi.hProcess );
+		if ( hLog != INVALID_HANDLE_VALUE )
+			::CloseHandle( hLog );
+		::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: thumbnail process timed out after 30s", LogEventType::Error );
+		return E_FAIL;
+	}
 
 	DWORD exitCode = 0;
 	::GetExitCodeProcess( pi.hProcess, &exitCode );
@@ -163,11 +185,7 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	if ( hLog != INVALID_HANDLE_VALUE )
 		::CloseHandle( hLog );
 
-	if ( waitResult == WAIT_TIMEOUT )
-	{
-		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: thumbnail process timed out after 60s", LogEventType::Error );
-		return E_FAIL;
-	}
+	::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
 
 	if ( exitCode != 0 )
 	{
