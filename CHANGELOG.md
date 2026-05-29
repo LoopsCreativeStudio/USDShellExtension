@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.9.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.8.0...v1.9.0) (2026-05-29)
+
+
+### Features
+
+* add Light and Select Camera submenus to preview pane context menu ([c6feedb](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/c6feedbea1d83556b3d841fd59b8f7cf0be78481))
+
+
+### Bug Fixes
+
+* add copy constructor and assignment to CPyObject, CPyString and CPyStringW to resolve C5272 warnings on CPyException throw ([e50176d](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e50176d6d31a340d77f0854bf08b3b03f9657a13))
+* add UTF-16 LE BOM to installer and uninstaller log files ([be71a40](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/be71a4003bed5638275e081b59045ed7dc1937da))
+* auto-detect pip-packages directory when [PYTHON] PYTHONPATH is empty or invalid ([52cbf46](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/52cbf46a3d2652d489c0ab4fc220039380c43aa3))
+* bundle Python runtime and pip-packages, improve installer logging and registry entries ([8a0a0c8](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/8a0a0c843973c5dc7dd1a7a744c4e61dcb1fd1fb))
+* replace RmShutdown with taskkill /F and add polling for Explorer shutdown and restart ([9346600](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/934660086a6c7b2e4b951f4ef1ea4db1f8c0ad22))
+* resolve usd.ico from registry when Python exe is outside install dir ([ee14f28](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/ee14f28b72b93688abaf7ffa4abbd25e22036b40))
+* stage python and pip-packages directories for installer build ([c1a4209](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/c1a4209d88b9340d57984b219d062175fb56c65e))
+
+
+### Performance Improvements
+
+* throttle concurrent thumbnail renders to 3 slots via named semaphore ([0db6bb3](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/0db6bb31d5453b34d5bc3f9243dfa4a77a87a548))
+
 ## [1.8.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.7.0...v1.8.0) (2026-05-27)
 
 
