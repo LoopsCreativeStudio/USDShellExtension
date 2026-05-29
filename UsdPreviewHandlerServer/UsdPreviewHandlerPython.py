@@ -345,12 +345,90 @@ class Widget(QWidget):
         displayPurposesMenu.addAction(self.actionDisplay_Proxy)
         displayPurposesMenu.addAction(self.actionDisplay_Render)
 
+    def buildContextMenu_Light(self, contextMenu):
+        def _checked(attr, default=True):
+            try:
+                return bool(getattr(self.model.viewSettings, attr))
+            except AttributeError:
+                return default
+
+        lightMenu = contextMenu.addMenu("Light")
+
+        actionScene = lightMenu.addAction("Enable Scene Lights")
+        actionScene.setCheckable(True)
+        actionScene.setChecked(_checked('enableSceneLights'))
+        actionScene.triggered.connect(
+            lambda checked: self._setViewSetting('enableSceneLights', checked))
+
+        actionCamera = lightMenu.addAction("Enable Default Camera Light")
+        actionCamera.setCheckable(True)
+        actionCamera.setChecked(_checked('ambientLightEnabled'))
+        actionCamera.triggered.connect(
+            lambda checked: self._setViewSetting('ambientLightEnabled', checked))
+
+        actionDome = lightMenu.addAction("Enable Default Dome Light")
+        actionDome.setCheckable(True)
+        actionDome.setChecked(_checked('domeLightEnabled'))
+        actionDome.triggered.connect(
+            lambda checked: self._setViewSetting('domeLightEnabled', checked))
+
+    def _setViewSetting(self, attr, value):
+        try:
+            setattr(self.model.viewSettings, attr, value)
+            self.view.updateView()
+        except Exception:
+            pass
+
+    def buildContextMenu_Camera(self, contextMenu):
+        from pxr import UsdGeom
+        stage = self.model.stage
+        if not stage:
+            return
+
+        cameras = [p for p in stage.Traverse() if p.IsA(UsdGeom.Camera)]
+
+        cameraMenu = contextMenu.addMenu("Select Camera")
+
+        try:
+            current_path = self.model.viewSettings.cameraPath
+        except AttributeError:
+            current_path = Sdf.Path.emptyPath
+
+        actionFree = cameraMenu.addAction("Free Camera")
+        actionFree.setCheckable(True)
+        actionFree.setChecked(
+            not current_path or current_path == Sdf.Path.emptyPath)
+        actionFree.triggered.connect(lambda: self._selectCamera(None))
+
+        if cameras:
+            cameraMenu.addSeparator()
+            for cam_prim in cameras:
+                action = cameraMenu.addAction(cam_prim.GetName())
+                action.setCheckable(True)
+                action.setChecked(current_path == cam_prim.GetPath())
+                cam_path = cam_prim.GetPath()
+                action.triggered.connect(
+                    lambda _, p=cam_path: self._selectCamera(p))
+
+    def _selectCamera(self, cam_path):
+        try:
+            if cam_path is None:
+                self.model.viewSettings.cameraPath = Sdf.Path.emptyPath
+                self.view.updateView(resetCam=True, forceComputeBBox=True)
+            else:
+                self.model.viewSettings.cameraPath = cam_path
+                self.view.updateView(resetCam=False)
+        except Exception:
+            pass
+
     def buildContextMenu(self):
         self.contextMenu = QMenu(self)
         self.buildContextMenu_Renderer(self.contextMenu)
         self.buildContextMenu_Complexity(self.contextMenu)
         self.buildContextMenu_ShadingMode(self.contextMenu)
         self.buildContextMenu_DisplayPurposes(self.contextMenu)
+        self.buildContextMenu_Light(self.contextMenu)
+        self.buildContextMenu_Camera(self.contextMenu)
 
 
     def keyPressEvent(self, event):
@@ -482,6 +560,16 @@ def main():
     # Set stage after the GL context exists so UsdImagingGL.Engine
     # initialises with a valid context (required for PointInstancer adapter).
     window.setStage(stage)
+
+    # Disable the camera headlight when the stage has authored lights to
+    # avoid overexposure (DomeLight, DistantLight, RectLight, etc.).
+    try:
+        from pxr import UsdLux
+        if any(p.HasAPI(UsdLux.LightAPI) for p in stage.Traverse()):
+            window.model.viewSettings.ambientLightEnabled = False
+    except Exception:
+        pass
+
     stage = None
 
     # Make camera fit the loaded geometry

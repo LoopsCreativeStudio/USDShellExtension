@@ -130,6 +130,19 @@ def _make_framing_camera(stage, time_code):
     return usd_cam
 
 
+def _stage_has_lights(stage):
+    """Return True if the stage contains any authored UsdLux lights.
+
+    Used to decide whether to enable the camera headlight: if the scene
+    already provides lighting, the headlight causes overexposure.
+    """
+    from pxr import UsdLux
+    for prim in stage.Traverse():
+        if prim.HasAPI(UsdLux.LightAPI):
+            return True
+    return False
+
+
 def _find_stage_camera(stage):
     """Return the best authored camera prim in the stage, or None.
 
@@ -234,10 +247,12 @@ def main():
     usd_camera = _find_stage_camera(stage) or _make_framing_camera(stage, time_code)
 
     # --- Step 6: record. ---
+    has_lights = _stage_has_lights(stage)
+
     recorder = UsdAppUtils.FrameRecorder(renderer_plugin, True, True)
     recorder.SetImageWidth(image_width)
     recorder.SetComplexity(1.0)
-    recorder.SetCameraLightEnabled(True)
+    recorder.SetCameraLightEnabled(not has_lights)
     recorder.SetColorCorrectionMode('sRGB')
     recorder.SetIncludedPurposes([UsdGeom.Tokens.proxy])
 
