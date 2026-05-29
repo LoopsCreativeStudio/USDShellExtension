@@ -7,8 +7,9 @@
 #   Layer 2: AppController._openStage patch (sys.exit interception).
 #   Layer 3: loading splash + foreground activation.
 
-import sys
+import importlib.util
 import os
+import sys
 
 # ── Layer 3a: loading splash ───────────────────────────────────────────────────
 # Shown in a background thread while pxr libraries initialise (can take 10-30s).
@@ -193,8 +194,6 @@ if _pxr_raw:
         os.environ.pop('PXR_PLUGINPATH_NAME', None)
     del _json, _loads_shell_ext, _safe
 del _pxr_raw
-
-import importlib.util
 
 # ── Layer 1: Tf.Error.commentary — CP1252 safety ──────────────────────────────
 try:

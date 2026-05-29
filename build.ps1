@@ -197,12 +197,10 @@ Assert-Path $OUT_DIR "build output directory"
 # ---------------------------------------------------------------------------
 Write-Step "Copying runtime files"
 
-$USD_BIN     = Join-Path $USD_SDK "bin"
-$USD_LIB     = Join-Path $USD_SDK "lib"
-$USD_PY      = Join-Path $USD_SDK "python"
-$USD_SCRIPTS = Join-Path $USD_SDK "scripts"
-$USD_PYTHON  = "$USD_SDK\lib\python"
-$USD_PKGS    = "$USD_SDK\pip-packages"
+$USD_BIN  = Join-Path $USD_SDK "bin"
+$USD_LIB  = Join-Path $USD_SDK "lib"
+$USD_PY   = Join-Path $USD_SDK "python"
+$USD_PKGS = "$USD_SDK\pip-packages"
 
 $vcruntime = Join-Path $USD_PY "vcruntime140.dll"
 if (Test-Path $vcruntime) {
