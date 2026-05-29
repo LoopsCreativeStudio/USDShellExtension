@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.1](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.9.0...v1.9.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* make install self-contained; no SDK required after install ([bd8865d](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/bd8865d6d1b7d24ef272ffbc21c591adb6a6ecb0))
+* resolve ruff E402 and PSScriptAnalyzer unused-variable warnings ([51c1d31](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/51c1d319ae9ae15f76e4a02561c5b81a25fd74fa))
+
 ## [1.9.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.8.0...v1.9.0) (2026-05-29)
 
 
