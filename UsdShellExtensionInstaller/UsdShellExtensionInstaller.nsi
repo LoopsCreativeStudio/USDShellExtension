@@ -35,6 +35,7 @@
 !define /ifndef VERSION "${VER_MAJOR}.${VER_MINOR}"
 !define /ifndef USD_VERSION "Unknown Version"
 !define /ifndef PYTHON_VERSION "Unknown Version"
+!define /ifndef GITHUB_URL "https://github.com/LoopsCreativeStudio/USDShellExtension"
 
 ; The name of the installer
 Name "${VER_PRODUCTNAME}"
@@ -73,6 +74,7 @@ InstallDirRegKey HKLM "SOFTWARE\UsdShellExtension" "Install_Dir"
 ;Utilities
 Var ConfigFilePath
 Var COMMONAPPDATA
+Var LogFilePath
 !include "${__FILEDIR__}\UsdConfigUtils.nsh"
 !include "${__FILEDIR__}\RestartManager.nsh"
 !include "${__FILEDIR__}\ShellLinkSetRunAs.nsh"
@@ -90,12 +92,14 @@ Var COMMONAPPDATA
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "LICENSE.txt"
-!insertmacro MUI_PAGE_INSTFILES
 Page custom USDPathPage USDPathPageLeave
 Page custom USDConfigPage USDConfigPageLeave
+ShowInstDetails show
+!insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_WELCOME
+ShowUnInstDetails show
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_UNPAGE_FINISH
 
@@ -120,22 +124,73 @@ VIAddVersionKey "CompanyName" "${VER_COMPANYNAME}"
 SetPluginUnload  alwaysoff
 
 ;--------------------------------
+Function LogWrite
+    Exch $0
+    Push $1
+    FileOpen $1 $LogFilePath a
+    ${If} $1 != ""
+        FileWrite $1 "$0$\r$\n"
+        FileClose $1
+    ${EndIf}
+    Pop $1
+    Pop $0
+FunctionEnd
+
+;--------------------------------
+Function un.LogWrite
+    Exch $0
+    Push $1
+    FileOpen $1 $LogFilePath a
+    ${If} $1 != ""
+        FileWrite $1 "$0$\r$\n"
+        FileClose $1
+    ${EndIf}
+    Pop $1
+    Pop $0
+FunctionEnd
+
+;--------------------------------
 Function .onInit
 
 SetShellVarContext all
 StrCpy $COMMONAPPDATA $APPDATA
 SetShellVarContext current
 
+StrCpy $LogFilePath "$TEMP\UsdShellExtension_setup.log"
+FileOpen $0 $LogFilePath w
+${If} $0 != ""
+    FileWrite $0 "USD Shell Extension Setup Log$\r$\n"
+    FileClose $0
+${EndIf}
+
 Call ParseCommandLine
 
 FunctionEnd
 
+;--------------------------------
+Function un.onInit
+
+SetShellVarContext all
+StrCpy $COMMONAPPDATA $APPDATA
+SetShellVarContext current
+
+StrCpy $LogFilePath "$TEMP\UsdShellExtension_uninstall.log"
+FileOpen $0 $LogFilePath w
+${If} $0 != ""
+    FileWrite $0 "USD Shell Extension Uninstall Log$\r$\n"
+    FileClose $0
+${EndIf}
+
+FunctionEnd
 
 ;--------------------------------
 Section "-ShutdownProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
+
+Push "Shutting down processes"
+Call LogWrite
 
 Call ShutdownExplorer
 Call ShutdownWindowsSearch
@@ -145,7 +200,8 @@ Call ShutdownCOMServers
 SetDetailsPrint textonly
 DetailPrint "Adding Windows Defender exclusion..."
 SetDetailsPrint listonly
-nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+    Pop $0
 Sleep 2000
 
 !ifdef PYTHONDLL
@@ -187,10 +243,13 @@ SectionEnd
 ;--------------------------------
 
 ; The stuff to install
-Section "Install" 
+Section "Install"
 
 ${DisableX64FSRedirection}
 SetRegView 64
+
+Push "Installing files"
+Call LogWrite
 
 SetDetailsPrint textonly
 DetailPrint "Installing files..."
@@ -219,6 +278,21 @@ File NOTICE.txt
 SetOutPath "$INSTDIR\usd"
 File /r .\usd\*
 
+SetOutPath "$INSTDIR\plugin\usd"
+File /r .\plugin\usd\*
+
+SetDetailsPrint textonly
+DetailPrint "Installing Python runtime..."
+SetDetailsPrint listonly
+SetOutPath "$INSTDIR\python"
+File /r .\python\*
+
+SetDetailsPrint textonly
+DetailPrint "Installing Python packages..."
+SetDetailsPrint listonly
+SetOutPath "$INSTDIR\pip-packages"
+File /r .\pip-packages\*
+
 SetOutPath "$INSTDIR"
 
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED tbb.dll "$INSTDIR\tbb.dll" $INSTDIR
@@ -228,6 +302,15 @@ SetOutPath "$INSTDIR"
     !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED ${PYTHONDLL} "$INSTDIR\${PYTHONDLL}" $INSTDIR
 !endif
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED UsdPreviewHandler.pyd "$INSTDIR\UsdPreviewHandler.pyd" $INSTDIR
+
+SetDetailsPrint textonly
+DetailPrint "Installing USD runtime libraries..."
+SetDetailsPrint listonly
+File vcruntime140.dll
+File tbbmalloc_proxy.dll
+File python3.dll
+File usd_*.dll
+
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPythonToolsLocalServer.exe "$INSTDIR\UsdPythonToolsLocalServer.exe" $INSTDIR
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdSdkToolsLocalServer.exe "$INSTDIR\UsdSdkToolsLocalServer.exe" $INSTDIR
@@ -235,17 +318,25 @@ SetOutPath "$INSTDIR"
 ExecWait '"$SYSDIR\regsvr32.exe" /s /n /i:"/force" "$INSTDIR\UsdShellExtension.dll"' $R0
 ${If} $R0 != 0
     DetailPrint "UsdShellExtension.dll registration failed (error $R0)"
+    SetErrorLevel 2
+    MessageBox MB_OK|MB_ICONEXCLAMATION "UsdShellExtension.dll registration failed (error $R0).$\r$\nThe extension will not appear in Windows Explorer.$\r$\nTry running the installer again as Administrator."
 ${EndIf}
 
 ; Write the installation path into the registry
 WriteRegStr HKLM SOFTWARE\UsdShellExtension "Install_Dir" "$INSTDIR"
 
 ; Write the uninstall keys for Windows
-WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayName" "${VER_PRODUCTNAME}"
-WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayIcon" "$INSTDIR\UsdShellExtension.dll,0"
-WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "UninstallString" '"$INSTDIR\uninstall.exe"'
-WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "NoModify" 1
-WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "NoRepair" 1
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayName"    "${VER_PRODUCTNAME}"
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayVersion" "${VER_MAJOR}.${VER_MINOR}.${VER_REVISION}.${VER_BUILD}"
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "Publisher"      "${VER_COMPANYNAME}"
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayIcon"    "$INSTDIR\UsdShellExtension.dll,0"
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "UninstallString" '"$INSTDIR\uninstall.exe"'
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "InstallLocation" "$INSTDIR"
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "URLInfoAbout"   "${GITHUB_URL}"
+WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "VersionMajor"  ${VER_MAJOR}
+WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "VersionMinor"  ${VER_MINOR}
+WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "NoModify"      1
+WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "NoRepair"      1
 WriteUninstaller "$INSTDIR\uninstall.exe"
 
 ; Install start menu items
@@ -256,7 +347,6 @@ CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuratio
 SetShellVarContext all
 CreateDirectory '$SMPROGRAMS\USD Shell Extension'
 CreateShortCut '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk' '"$SYSDIR\NOTEPAD.EXE"' '"$LOCALAPPDATA\UsdShellExtension\USDShellExtension.ini"' '$SYSDIR\imageres.dll' 64
-CreateShortCut '$SMPROGRAMS\USD Shell Extension\Uninstall USD Shell Extension.lnk' '$INSTDIR\uninstall.exe' ""
 !insertmacro ShellLinkSetRunAs "$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk"
 
 ; Write version info to registry
@@ -273,14 +363,22 @@ Section "-RestartProcesses"
 ${DisableX64FSRedirection}
 SetRegView 64
 
+Push "Restarting processes"
+Call LogWrite
+
 SetDetailsPrint textonly
 DetailPrint "Removing Windows Defender exclusion..."
 SetDetailsPrint listonly
-nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
+nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
+    Pop $0
 
 Call RestartExplorer
 Call RestartWindowsSearch
 Call RestartApplications
+
+Push "Installation complete"
+Call LogWrite
+DetailPrint "Install log: $LogFilePath"
 
 SectionEnd
 
@@ -297,7 +395,7 @@ Function PatchConfigFileAll
 !insertmacro PatchConfigFile "$ConfigFilePath" "RENDERER" "VIEW" "GL"
 
 !insertmacro PatchConfigFile "$ConfigFilePath" "PYTHON" "PATH" ""
-!insertmacro PatchConfigFile "$ConfigFilePath" "PYTHON" "PYTHONPATH" ""
+!insertmacro PatchConfigFile "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
 
 FunctionEnd
 
@@ -357,10 +455,19 @@ SetDetailsPrint listonly
 SetShellVarContext current
 StrCpy $ConfigFilePath "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
+; Repair [PYTHON] PYTHONPATH if a previous installer wrote an empty value.
+ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
+${If} $R0 == ""
+    WriteINIStr "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
+${EndIf}
 
 SetShellVarContext all
 StrCpy $ConfigFilePath "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
+ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
+${If} $R0 == ""
+    WriteINIStr "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
+${EndIf}
 
 ; Force command-line settings into the current user config (highest priority).
 SetShellVarContext current
@@ -379,11 +486,15 @@ Section "-Un.ShutdownProcesses"
 ${DisableX64FSRedirection}
 SetRegView 64
 
+Push "Shutting down processes"
+Call un.LogWrite
+
 ; Add Defender exclusion early so it releases DLL handles before deletion.
 SetDetailsPrint textonly
 DetailPrint "Adding Windows Defender exclusion..."
 SetDetailsPrint listonly
-nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
+    Pop $0
 Sleep 2000
 
 Call un.ShutdownExplorer
@@ -405,6 +516,9 @@ ${DisableX64FSRedirection}
 SetRegView 64
 SetShellVarContext all
 
+Push "Uninstalling files"
+Call un.LogWrite
+
 SetDetailsPrint textonly
 DetailPrint "Uninstalling files..."
 SetDetailsPrint listonly
@@ -421,10 +535,51 @@ ExecWait '"$SYSDIR\regsvr32.exe" /s /u "$INSTDIR\UsdShellExtension.dll"'
     !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\${PYTHONDLL}"
 !endif
 !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPreviewHandler.pyd"
-  
+Delete /REBOOTOK "$INSTDIR\vcruntime140.dll"
+Delete /REBOOTOK "$INSTDIR\tbbmalloc_proxy.dll"
+Delete /REBOOTOK "$INSTDIR\python3.dll"
+Delete /REBOOTOK "$INSTDIR\usd_*.dll"
+
 ; Remove registry keys
 DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension"
 DeleteRegKey HKLM SOFTWARE\UsdShellExtension
+
+; Remove file type associations; extension keys are exclusively ours so delete
+; the whole key, but only if the default value still points to our ProgID.
+ReadRegStr $R0 HKCR ".usd" ""
+${If} $R0 == "OpenUSD.USD"
+    DeleteRegKey HKCR ".usd"
+${EndIf}
+ReadRegStr $R0 HKCR ".usda" ""
+${If} $R0 == "OpenUSD.USDA"
+    DeleteRegKey HKCR ".usda"
+${EndIf}
+ReadRegStr $R0 HKCR ".usdc" ""
+${If} $R0 == "OpenUSD.USDC"
+    DeleteRegKey HKCR ".usdc"
+${EndIf}
+ReadRegStr $R0 HKCR ".usdz" ""
+${If} $R0 == "OpenUSD.USDZ"
+    DeleteRegKey HKCR ".usdz"
+${EndIf}
+
+; Remove ProgID keys; entirely ours, safe to delete unconditionally.
+DeleteRegKey HKCR "OpenUSD.USD"
+DeleteRegKey HKCR "OpenUSD.USDA"
+DeleteRegKey HKCR "OpenUSD.USDC"
+DeleteRegKey HKCR "OpenUSD.USDZ"
+
+; Remove property descriptions registered by PSRegisterPropertySchema.
+; Delete only the PropertyDescriptions sub-key; leave the parent only
+; if another app has populated it.
+DeleteRegKey HKCR "SystemFileAssociations\.usd\PropertyDescriptions"
+DeleteRegKey /ifempty HKCR "SystemFileAssociations\.usd"
+DeleteRegKey HKCR "SystemFileAssociations\.usda\PropertyDescriptions"
+DeleteRegKey /ifempty HKCR "SystemFileAssociations\.usda"
+DeleteRegKey HKCR "SystemFileAssociations\.usdc\PropertyDescriptions"
+DeleteRegKey /ifempty HKCR "SystemFileAssociations\.usdc"
+DeleteRegKey HKCR "SystemFileAssociations\.usdz\PropertyDescriptions"
+DeleteRegKey /ifempty HKCR "SystemFileAssociations\.usdz"
 
 ; Remove files and uninstaller
 ;Delete /REBOOTOK "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
@@ -432,9 +587,16 @@ Delete /REBOOTOK "$INSTDIR\plugInfo.json"
 Delete /REBOOTOK "$INSTDIR\LICENSE.txt"
 Delete /REBOOTOK "$INSTDIR\NOTICE.txt"
 RMDir /r /REBOOTOK "$INSTDIR\usd"
+RMDir /r /REBOOTOK "$INSTDIR\plugin\usd"
+RMDir /REBOOTOK "$INSTDIR\plugin"
+RMDir /r /REBOOTOK "$INSTDIR\python"
+RMDir /r /REBOOTOK "$INSTDIR\pip-packages"
 Delete /REBOOTOK "$INSTDIR\UsdPropertyKeys.propdesc"
 
 Delete /REBOOTOK "$INSTDIR\uninstall.exe"
+
+Push "Uninstall complete"
+Call un.LogWrite
 
 ; Remove directories
 RMDir "$INSTDIR"
@@ -444,7 +606,6 @@ SetShellVarContext current
 Delete  '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (Current User).lnk'
 SetShellVarContext all
 Delete  '$SMPROGRAMS\USD Shell Extension\USD Shell Extension Configuration (All Users).lnk'
-Delete '$SMPROGRAMS\USD Shell Extension\Uninstall USD Shell Extension.lnk'
 RMDir '$SMPROGRAMS\USD Shell Extension'
 
 SectionEnd
@@ -455,6 +616,9 @@ Section "-Un.RestartProcesses"
 ${DisableX64FSRedirection}
 SetRegView 64
 
+Push "Restarting processes"
+Call un.LogWrite
+
 Call un.RestartExplorer
 Call un.RestartWindowsSearch
 Call un.RestartApplications
@@ -463,6 +627,7 @@ Call un.RestartApplications
 SetDetailsPrint textonly
 DetailPrint "Removing Windows Defender exclusion..."
 SetDetailsPrint listonly
-nsExec::ExecToLog "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
+nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
+    Pop $0
 
 SectionEnd
