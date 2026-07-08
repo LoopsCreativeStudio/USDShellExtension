@@ -31,13 +31,6 @@ Re-run as Administrator:
 ```
 Check Event Viewer for registration errors.
 
-**Check 3: old Activision installation still registered**  
-Run the legacy cleanup script:
-```
-\\lps-srv-01\it\loops-it\toolbox\sandbox\windows\Remove-UsdShellExtension-Legacy.ps1
-```
-Then re-run `.\install.ps1`.
-
 ---
 
 ### Right-click still shows "Activision USD Shell Extension"
