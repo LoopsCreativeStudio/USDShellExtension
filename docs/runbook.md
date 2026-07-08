@@ -66,11 +66,8 @@ This unregisters all COM servers, removes the install directory, and clears MuiC
 
 ### Remove a legacy Activision installation
 
-If a previous installation exists at `C:\Program Files\Activision\UsdShellExtension\`, it is cleaned up automatically by `install.ps1`. A standalone cleanup script is also available on the IT share:
+If a previous installation exists at `C:\Program Files\Activision\UsdShellExtension\`, it is cleaned up automatically by `install.ps1`.
 
-```
-\\lps-srv-01\it\loops-it\toolbox\sandbox\windows\Remove-UsdShellExtension-Legacy.ps1
-```
 
 ---
 
