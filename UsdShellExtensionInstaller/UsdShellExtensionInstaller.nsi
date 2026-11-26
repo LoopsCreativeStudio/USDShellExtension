@@ -303,8 +303,9 @@ SetDetailsPrint listonly
 SetOutPath "$INSTDIR\lib\python"
 File /r .\lib\python\*
 
-SetOutPath "$INSTDIR\scripts"
-File /r .\scripts\*
+; The SDK scripts\ wrappers are under an NVIDIA proprietary license (no
+; redistribution): not installed. Remove the copy of an older version.
+RMDir /r "$INSTDIR\scripts"
 
 SetOutPath "$INSTDIR"
 
@@ -518,7 +519,7 @@ StrCpy $ConfigFilePath "$LOCALAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
 ; Force-write install-dir paths: these are not user customisations and must
 ; always match the current $INSTDIR after every install or update.
-!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR;$INSTDIR\scripts"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR"
 !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" "$INSTDIR\lib\python"
 !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" "$INSTDIR\usd;$INSTDIR\plugin\usd"
 !insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PATH" "$INSTDIR\python\"
@@ -531,7 +532,7 @@ ${EndIf}
 SetShellVarContext all
 StrCpy $ConfigFilePath "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
 Call PatchConfigFileAll
-!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR;$INSTDIR\scripts"
+!insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PATH" "$INSTDIR"
 !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PYTHONPATH" "$INSTDIR\lib\python"
 !insertmacro WriteConfigFile "$ConfigFilePath" "USD" "PXR_PLUGINPATH_NAME" "$INSTDIR\usd;$INSTDIR\plugin\usd"
 !insertmacro WriteConfigFile "$ConfigFilePath" "PYTHON" "PATH" "$INSTDIR\python\"

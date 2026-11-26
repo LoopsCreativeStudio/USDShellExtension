@@ -77,7 +77,7 @@ If a previous installation exists at `C:\Program Files\Activision\UsdShellExtens
 
 ```ini
 [USD]
-; Semicolon-separated directories added to PATH (usdview, usdrecord scripts)
+; Semicolon-separated directories added to PATH (USD DLLs and tools: usdview, usdrecord, ...)
 PATH=D:\usd.py312.windows-x86_64.usdview.release-v25.08\bin;D:\...\lib
 
 ; Python module search path for USD Python bindings

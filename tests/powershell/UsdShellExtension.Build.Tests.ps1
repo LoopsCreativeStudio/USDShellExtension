@@ -31,7 +31,7 @@ Describe "Module exports" {
     It "exports exactly the shared helpers" {
         $exported = (Get-Module UsdShellExtension.Build).ExportedFunctions.Keys | Sort-Object
         $expected = @(
-            'Assert-Path', 'Copy-WithRetry', 'Invoke-Robocopy', 'Read-DotEnv',
+            'Assert-Path', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
             'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Step'
         ) | Sort-Object
         $exported | Should -Be $expected
@@ -110,6 +110,45 @@ Describe "Console helpers" {
     It "Write-Item and Write-Removed use + and - markers" {
         "$(Write-Item 'a.dll' 6>&1)"    | Should -Be "    + a.dll"
         "$(Write-Removed 'b.dll' 6>&1)" | Should -Be "    - b.dll"
+    }
+}
+
+Describe "Find-NonRedistributableFile" {
+    BeforeEach {
+        $package = Join-Path $TestDrive ("pkg_" + [guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Force (Join-Path $package "scripts"), (Join-Path $package "python"), (Join-Path $package "lib\python\pxr") | Out-Null
+    }
+
+    It "returns nothing for a clean package" {
+        Set-Content (Join-Path $package "lib\python\pxr\__init__.py") "# Copyright 2016 Pixar"
+        @(Find-NonRedistributableFile $package).Count | Should -Be 0
+    }
+
+    It "finds files under an NVIDIA proprietary license, at any depth" {
+        Set-Content (Join-Path $package "scripts\usdcat.bat") @(
+            "REM SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION & AFFILIATES.",
+            "REM SPDX-License-Identifier: LicenseRef-NvidiaProprietary"
+        )
+        $found = @(Find-NonRedistributableFile $package)
+        $found.Count | Should -Be 1
+        $found[0] | Should -BeLike "*scripts\usdcat.bat"
+    }
+
+    It "finds NVIDIA packman metadata files" {
+        Set-Content (Join-Path $package "python\.packman.sha1") "abc"
+        @(Find-NonRedistributableFile $package) | Should -BeLike "*python\.packman.sha1"
+    }
+
+    It "keeps NVIDIA files released under the OpenUSD license" {
+        # UsdPhysics: NVIDIA copyright, Pixar / OpenUSD license: redistributable.
+        Set-Content (Join-Path $package "lib\python\pxr\physics.py") @("# Copyright (c) 2018, NVIDIA CORPORATION", "# Licensed under the terms set forth in the LICENSE.txt file available at https://openusd.org/license.")
+        @(Find-NonRedistributableFile $package).Count | Should -Be 0
+    }
+
+    It "scans binary files too" {
+        $bytes = [byte[]](0, 1, 2) + [Text.Encoding]::ASCII.GetBytes("LicenseRef-NvidiaProprietary") + [byte[]](0, 255)
+        [IO.File]::WriteAllBytes((Join-Path $package "tool.dll"), $bytes)
+        @(Find-NonRedistributableFile $package) | Should -BeLike "*tool.dll"
     }
 }
 

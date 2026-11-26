@@ -104,7 +104,7 @@ If you still see this after updating, verify the build is current:
 
 1. Check Event Viewer; render errors appear there with the worker or `UsdThumbnail.py` message. "thumbnail worker unavailable" means the warm workers cannot start and every thumbnail runs its own `python.exe` (slower, still working).
    Right after an install, the first thumbnails can take tens of seconds while Windows loads the new DLLs; this is expected once.
-2. Verify `[USD] PATH` in `UsdShellExtension.ini` contains the SDK `bin\`, `lib\`, and `scripts\` folders.
+2. Verify `[USD] PATH` in `UsdShellExtension.ini` contains the folder holding the USD DLLs and tools (the install directory, or the SDK `bin\` and `lib\` folders).
 3. Clear the Windows thumbnail cache:
    - Run `cleanmgr.exe` → check "Thumbnails"
    - Or delete `%LOCALAPPDATA%\Microsoft\Windows\Explorer\thumbcache_*.db`

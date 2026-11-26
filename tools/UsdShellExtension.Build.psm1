@@ -153,6 +153,35 @@ function Write-Removed {
 }
 
 # ---------------------------------------------------------------------------
+# Redistribution check
+# ---------------------------------------------------------------------------
+function Find-NonRedistributableFile {
+    <#
+        Return the files under Path that must not be shipped:
+          - files carrying the NVIDIA proprietary license tag
+            (SPDX "LicenseRef-NvidiaProprietary": distribution prohibited
+            without an agreement), e.g. the SDK scripts\*.bat wrappers;
+          - NVIDIA packman metadata (.packman*).
+        NVIDIA files released under the OpenUSD license are not reported.
+        Binary files are scanned too.
+    #>
+    param([Parameter(Mandatory)][string]$Path)
+
+    $files = @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue)
+
+    $packman = $files | Where-Object { $_.Name -like '.packman*' }
+
+    # -List stops at the first match in each file; ASCII reads binaries too.
+    $proprietary = $files |
+        Select-String -SimpleMatch -List -Encoding ascii -Pattern 'LicenseRef-NvidiaProprietary' -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-Item -LiteralPath $_.Path }
+
+    @($packman) + @($proprietary) | Where-Object { $_ } |
+        Sort-Object FullName -Unique |
+        ForEach-Object { $_.FullName }
+}
+
+# ---------------------------------------------------------------------------
 # Folder copy with robocopy
 # ---------------------------------------------------------------------------
 function Invoke-Robocopy {
@@ -259,5 +288,5 @@ function Copy-WithRetry {
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
-    'Copy-WithRetry', 'Invoke-Robocopy'
+    'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile'
 )

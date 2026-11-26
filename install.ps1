@@ -542,14 +542,12 @@ if (Test-Path $usdLibPySrc) {
     Write-Item "lib\python\ (pxr Python bindings)"
 }
 
-$usdScriptsSrc = Join-Path $OUT_DIR "scripts"
-if (Test-Path $usdScriptsSrc) {
-    $usdScriptsDst = Join-Path $InstallDir "scripts"
-    if (Test-Path $usdScriptsDst) { Remove-Item $usdScriptsDst -Recurse -Force }
-    Write-Host "    Copying scripts\ ..." -ForegroundColor Gray
-    & robocopy $usdScriptsSrc $usdScriptsDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.sh | Out-Null
-    if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying scripts\ (exit $LASTEXITCODE)" }
-    Write-Item "scripts\ (usdview, usdrecord, ...)"
+# The SDK scripts\ wrappers are under an NVIDIA proprietary license and are
+# not installed any more: remove the copy left by an older version.
+$staleScripts = Join-Path $InstallDir "scripts"
+if (Test-Path $staleScripts) {
+    Remove-Item $staleScripts -Recurse -Force
+    Write-Removed "scripts\ (older version, not redistributable)"
 }
 
 # ---------------------------------------------------------------------------
@@ -565,7 +563,7 @@ if (Test-Path $pythonSrc) {
         "/E", "/R:3", "/W:1",
         "/NFL", "/NDL", "/NJH", "/NJS",
         "/XD", "include", "libs", "MaterialX", "Tools", "test", "idlelib", "ensurepip",
-        "/XF", "*.pdb", "*.lib"
+        "/XF", "*.pdb", "*.lib", ".packman*"
     )
     & robocopy @rcArgs | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying python\ (exit $LASTEXITCODE)" }
@@ -625,7 +623,7 @@ if (Test-Path $sysIni) {
     $currentSection = ''
     $patched = (Get-Content $sysIni -Encoding UTF8) | ForEach-Object {
         if ($_ -match '^\[(\w+)\]') { $currentSection = $Matches[1] }
-        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')              { "PATH=$InstallDir;$InstallDir\scripts" }
+        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')              { "PATH=$InstallDir" }
         elseif ($currentSection -eq 'USD'    -and $_ -match '^PYTHONPATH\s*=')        { "PYTHONPATH=$InstallDir\lib\python" }
         elseif ($currentSection -eq 'USD'    -and $_ -match '^PXR_PLUGINPATH_NAME\s*=') { "PXR_PLUGINPATH_NAME=$InstallDir\usd;$InstallDir\plugin\usd" }
         elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PATH\s*=')              { "PATH=$InstallDir\python\" }
@@ -647,7 +645,7 @@ if (Test-Path $userIni) {
     $currentSection = ''
     $patched = (Get-Content $userIni -Encoding UTF8) | ForEach-Object {
         if ($_ -match '^\[(\w+)\]') { $currentSection = $Matches[1] }
-        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')       { "PATH=$InstallDir;$InstallDir\scripts" }
+        if     ($currentSection -eq 'USD'    -and $_ -match '^PATH\s*=')       { "PATH=$InstallDir" }
         elseif ($currentSection -eq 'USD'    -and $_ -match '^PYTHONPATH\s*=') { "PYTHONPATH=$InstallDir\lib\python" }
         elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PATH\s*=')       { "PATH=$InstallDir\python\" }
         elseif ($currentSection -eq 'PYTHON' -and $_ -match '^PYTHONPATH\s*=') { "PYTHONPATH=$InstallDir\pip-packages" }

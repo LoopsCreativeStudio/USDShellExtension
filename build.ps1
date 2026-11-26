@@ -255,12 +255,14 @@ if (Test-Path $usdLibPySrc) {
     Write-Item "lib\python\ (pxr Python bindings)"
 }
 
-$usdScriptsSrc = Join-Path $USD_SDK "scripts"
-$usdScriptsDst = Join-Path $OUT_DIR "scripts"
-if (Test-Path $usdScriptsSrc) {
-    if (Test-Path $usdScriptsDst) { Remove-Item $usdScriptsDst -Recurse -Force }
-    Invoke-Robocopy $usdScriptsSrc $usdScriptsDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.sh
-    Write-Item "scripts\ (usdview, usdrecord, ...)"
+# The SDK scripts\ wrappers (*.bat) are under an NVIDIA proprietary license
+# (no redistribution): they are not copied. The product uses the Pixar entry
+# points copied from bin\ (usdview, usdrecord, ...), and usd-shell.ps1
+# defines its own command wrappers. Remove a scripts\ left by older builds.
+$staleScripts = Join-Path $OUT_DIR "scripts"
+if (Test-Path $staleScripts) {
+    Remove-Item $staleScripts -Recurse -Force
+    Write-Item "scripts\ removed (NVIDIA proprietary, not redistributable)"
 }
 
 # ---------------------------------------------------------------------------
@@ -275,7 +277,7 @@ $iniContent = @"
 ; them via WriteConfigFile. Do not add hardcoded paths to this template.
 
 [USD]
-; Folders added to PATH: install dir (USD DLLs) + scripts subdir (usdview, usdrecord)
+; Folders added to PATH: install dir (USD DLLs and tools: usdview, usdrecord, ...)
 PATH=
 ; Python module search path for pxr bindings (pxr package, usdviewq, ...)
 PYTHONPATH=
@@ -360,7 +362,7 @@ if ($Installer) {
             $USD_PY, $pythonDst,
             '/E', '/R:3', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS',
             '/XD', 'include', 'libs', 'MaterialX', 'Tools', 'test', 'idlelib', 'ensurepip',
-            '/XF', '*.pdb', '*.lib'
+            '/XF', '*.pdb', '*.lib', '.packman*'
         )
         Invoke-Robocopy @rcPythonArgs
         Write-Item "python\ (staged for installer)"
@@ -395,6 +397,16 @@ if ($Installer) {
         Write-Item "pip-packages\ (staged for installer)"
     } else {
         Write-Warning "pip-packages\ not found at '$USD_PKGS'; installer will not bundle pip packages."
+    }
+
+    # Never package a file that may not be redistributed (NVIDIA proprietary
+    # license, packman metadata): stop here, before NSIS, if one slipped in
+    # (e.g. new files in a future SDK).
+    Write-Item "checking redistribution licenses (takes a minute)"
+    $notRedistributable = @(Find-NonRedistributableFile $OUT_DIR)
+    if ($notRedistributable.Count -gt 0) {
+        Write-Error ("Files that must not be redistributed are in the installer payload:`n  " +
+                     ($notRedistributable -join "`n  "))
     }
 
     $installerVcxproj = Join-Path $REPO "UsdShellExtensionInstaller\UsdShellExtensionInstaller.vcxproj"

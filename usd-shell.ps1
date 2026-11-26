@@ -70,6 +70,23 @@ if (-not $_usdBin -and -not $_pyHome) {
 }
 
 # ---------------------------------------------------------------------------
+# Command wrappers for the USD Python tools
+# ---------------------------------------------------------------------------
+# The Pixar entry points (usdview, usdrecord, usddiff, ...) are Python files
+# without extension: Windows cannot run them by name. Each one gets a
+# function running it with the bundled Python. (The SDK scripts\*.bat
+# wrappers are NVIDIA proprietary and are not shipped.)
+$_pythonExe = Join-Path $_pyHomeClean "python.exe"
+$_tools = @(foreach ($_dir in ($_usdBin -split ';' | Where-Object { $_ -and (Test-Path -LiteralPath $_) })) {
+    Get-ChildItem -LiteralPath $_dir -File | Where-Object {
+        -not $_.Extension -and ((Get-Content -LiteralPath $_.FullName -TotalCount 1 -ErrorAction SilentlyContinue) -match '^#!.*python')
+    }
+})
+$_toolDefinitions = ($_tools | ForEach-Object {
+    "function global:$($_.Name) { & '$_pythonExe' '$($_.FullName)' @args }"
+}) -join "`n"
+
+# ---------------------------------------------------------------------------
 # Detect dot-source vs direct invocation
 # ---------------------------------------------------------------------------
 $_dotSourced = ($MyInvocation.InvocationName -eq '.')
@@ -81,6 +98,7 @@ if (-not $_dotSourced) {
 `$env:PYTHONHOME        = '$_pyHomeClean'
 `$env:PYTHONPATH        = '$_pythonPath'
 `$env:PXR_PLUGINPATH_NAME = ''
+$_toolDefinitions
 Write-Host ''
 Write-Host '  USD Shell' -ForegroundColor Cyan
 Write-Host '  INI: $_ini' -ForegroundColor DarkGray
@@ -101,6 +119,11 @@ $env:PYTHONHOME        = $_pyHomeClean
 $env:PYTHONPATH        = $_pythonPath
 $env:PXR_PLUGINPATH_NAME = ""
 
+foreach ($_tool in $_tools) {
+    Set-Item -Path "Function:global:$($_tool.Name)" `
+             -Value ([scriptblock]::Create("& '$_pythonExe' '$($_tool.FullName)' @args"))
+}
+
 Write-Host ""
 Write-Host "  USD Shell" -ForegroundColor Cyan
 Write-Host ("  INI         : {0}" -f $_ini)         -ForegroundColor DarkGray
@@ -114,6 +137,7 @@ Write-Host ""
 
 # Clean up private variables and helpers from the caller's scope.
 Remove-Variable _candidates, _ini, _usdBin, _pyHome, _pyHomeClean, `
-                _pythonPath, _dotSourced `
+                _pythonPath, _dotSourced, _pythonExe, _tools, _tool, _dir, `
+                _toolDefinitions `
                 -ErrorAction SilentlyContinue
 Remove-Item Function:_USD_ReadIni -ErrorAction SilentlyContinue
