@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.0...v1.10.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **installer:** stop shipping NVIDIA proprietary SDK scripts ([1561308](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/1561308fee1eacb775232c77d97aed4e7868d2b4))
+
 ## [1.10.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.9.1...v1.10.0) (2026-11-26)
 
 
