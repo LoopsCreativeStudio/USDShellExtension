@@ -7,6 +7,8 @@
 #include <Python.h>
 #include <shlobj.h>
 
+#include <mutex>
+
 std::vector<CStringW> g_UsdPathList;
 std::vector<CStringW> g_UsdPythonPathList;
 
@@ -246,7 +248,18 @@ std::vector<CStringW> BuildConfigFileList( HMODULE hCurrentModule )
 	return ConfigFileList;
 }
 
+static void SetupPythonEnvironmentOnce( HMODULE hCurrentModule );
+
 void SetupPythonEnvironment( HMODULE hCurrentModule )
+{
+	// Called by each new COM object; a shared (multiple use) server creates
+	// many in one process. Configure the process environment the first time
+	// only: PATH and PYTHONPATH would otherwise grow with every object.
+	static std::once_flag s_configured;
+	std::call_once( s_configured, SetupPythonEnvironmentOnce, hCurrentModule );
+}
+
+static void SetupPythonEnvironmentOnce( HMODULE hCurrentModule )
 {
 	std::vector<CStringW> ConfigFileList = BuildConfigFileList(hCurrentModule);
 

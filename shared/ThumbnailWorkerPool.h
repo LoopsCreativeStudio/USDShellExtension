@@ -49,7 +49,8 @@ public:
 	{
 		CStringW commandLine;				// starts one worker
 		size_t maxWorkers = 3;				// renders running at once
-		DWORD requestTimeoutMs = 30000;		// per render, worker start included
+		DWORD requestTimeoutMs = 30000;		// per render
+		DWORD startupTimeoutMs = 90000;		// added to the first render of a worker (cold start)
 		DWORD slotTimeoutMs = 60000;		// wait for a free worker
 		unsigned maxRendersPerWorker = 50;	// then the worker is recycled
 		DWORD idleTimeoutMs = 120000;		// unused workers are stopped

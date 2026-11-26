@@ -102,7 +102,8 @@ If you still see this after updating, verify the build is current:
 
 ### Thumbnails not generating
 
-1. Check Event Viewer; `UsdThumbnail.py` errors appear there with the full Python traceback.
+1. Check Event Viewer; render errors appear there with the worker or `UsdThumbnail.py` message. "thumbnail worker unavailable" means the warm workers cannot start and every thumbnail runs its own `python.exe` (slower, still working).
+   Right after an install, the first thumbnails can take tens of seconds while Windows loads the new DLLs; this is expected once.
 2. Verify `[USD] PATH` in `UsdShellExtension.ini` contains the SDK `bin\`, `lib\`, and `scripts\` folders.
 3. Clear the Windows thumbnail cache:
    - Run `cleanmgr.exe` → check "Thumbnails"

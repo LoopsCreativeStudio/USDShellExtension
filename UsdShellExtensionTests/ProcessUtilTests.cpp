@@ -310,6 +310,35 @@ public:
 		Assert::IsFalse( DirectoryExists( sDirectory ) );
 	}
 
+	TEST_METHOD( DeletesSubfoldersCreatedNextToTheScripts )
+	{
+		// Regression: python wrote __pycache__ next to an imported script and
+		// the non-recursive cleanup left every server folder behind.
+		CStringW sDirectory;
+		{
+			CScriptDirectory scripts( m_sParent );
+			CStringW sPath;
+			scripts.GetFile( L"UsdThumbnail.py", "a", 1, sPath );
+			sDirectory = scripts.GetDirectory();
+			::CreateDirectoryW( sDirectory + L"\\__pycache__", nullptr );
+			::CloseHandle( ::CreateFileW( sDirectory + L"\\__pycache__\\UsdThumbnail.cpython-312.pyc",
+			                              GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr ) );
+		}
+		Assert::IsFalse( DirectoryExists( sDirectory ) );
+	}
+
+	TEST_METHOD( RemovesStaleFoldersWithSubfolders )
+	{
+		CStringW sStale = m_sParent + L"\\4294967293_withcache";
+		::CreateDirectoryW( sStale, nullptr );
+		::CreateDirectoryW( sStale + L"\\__pycache__", nullptr );
+		::CloseHandle( ::CreateFileW( sStale + L"\\__pycache__\\a.pyc", GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr ) );
+
+		CScriptDirectory::RemoveStaleDirectories( m_sParent );
+
+		Assert::IsFalse( DirectoryExists( sStale ) );
+	}
+
 	TEST_METHOD( RemovesFoldersOfProcessesThatNoLongerRun )
 	{
 		// Left behind by a crashed or killed server: PID that cannot exist

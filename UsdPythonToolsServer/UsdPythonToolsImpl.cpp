@@ -7,13 +7,17 @@
 #include "shared\environment.h"
 #include "shared\EventViewerLog.h"
 #include "shared\ProcessUtil.h"
+#include "shared\ThumbnailWorkerPool.h"
 #include "UsdPythonToolsLocalServer_h.h"
 
+#include <atomic>
+#include <memory>
+#include <mutex>
 #include <vector>
 
 // Throttle concurrent thumbnail renders to avoid GPU/CPU thrashing when
-// Explorer requests many thumbnails at once. Named semaphore so the limit
-// is shared across all instances of this server on the current session.
+// Explorer requests many thumbnails at once: size of the warm worker pool,
+// and limit of the fallback mode (named semaphore shared on the session).
 static constexpr int kMaxConcurrentRenders = 3;
 // Longest wait for a free render slot before giving up on a thumbnail.
 static constexpr DWORD kRenderSlotTimeoutMs = 60000;
@@ -110,36 +114,79 @@ static HRESULT ExtractScript( UINT resourceId, LPCWSTR sFileName, CStringW &sPat
 	return hr;
 }
 
-STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidth, IN BSTR renderer, OUT BSTR *outputImagePath )
+// ---------------------------------------------------------------------------
+// Thumbnails: warm worker pool, with the one python.exe per thumbnail mode
+// as fallback
+// ---------------------------------------------------------------------------
+
+static std::mutex s_thumbnailPoolLock;
+static std::unique_ptr<CThumbnailWorkerPool> s_pThumbnailPool;
+
+// Shared pool of warm thumbnail workers, created on first use. Both scripts
+// are extracted first: the worker imports UsdThumbnail from its own folder.
+// Returns nullptr when the scripts cannot be extracted.
+static CThumbnailWorkerPool *GetThumbnailWorkerPool()
 {
-	DEBUG_RECORD_ENTRY();
+	std::lock_guard<std::mutex> guard( s_thumbnailPoolLock );
+	if ( s_pThumbnailPool )
+		return s_pThumbnailPool.get();
 
-	if ( outputImagePath == nullptr )
-		return E_POINTER;
-	*outputImagePath = nullptr;
+	CStringW sThumbnailScript, sWorkerScript;
+	if ( FAILED( ExtractScript( IDR_PYTHON_THUMBNAIL, L"UsdThumbnail.py", sThumbnailScript ) ) ||
+	     FAILED( ExtractScript( IDR_PYTHON_THUMBNAIL_WORKER, L"UsdThumbnailWorker.py", sWorkerScript ) ) )
+		return nullptr;
 
-	HRESULT hr;
+	CThumbnailWorkerPool::Settings settings;
+	// -B: no __pycache__ next to the scripts (useless in a per-process folder).
+	settings.commandLine.Format( L"\"%ls\" -B -u \"%ls\"", GetPythonExePath().c_str(), sWorkerScript.GetString() );
+	settings.maxWorkers       = kMaxConcurrentRenders;
+	settings.requestTimeoutMs = kRenderTimeoutMs;
+	settings.slotTimeoutMs    = kRenderSlotTimeoutMs;
+	s_pThumbnailPool = std::make_unique<CThumbnailWorkerPool>( settings );
+	return s_pThumbnailPool.get();
+}
 
-	// --- Unique temp PNG output path ---
-	wchar_t sTempPath[MAX_PATH];
-	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
+void ShutdownThumbnailWorkerPool()
+{
+	std::lock_guard<std::mutex> guard( s_thumbnailPoolLock );
+	s_pThumbnailPool.reset();
+}
 
-	// Temp folder without the trailing backslash, for the per-call files.
-	CStringW sTempDir = sTempPath;
-	sTempDir.TrimRight( L'\\' );
+// Render on a warm worker. Returns THUMBNAIL_E_WORKER_UNAVAILABLE when no
+// worker can run: the caller then falls back to RecordInSubprocess.
+static HRESULT RecordWithWorkerPool( BSTR usdStagePath, int imageWidth, BSTR renderer, const CStringW &sImagePath )
+{
+	CThumbnailWorkerPool *pPool = GetThumbnailWorkerPool();
+	if ( pPool == nullptr )
+		return THUMBNAIL_E_WORKER_UNAVAILABLE;
 
-	// The image name stays reserved (the file exists) until the render
-	// writes it: parallel calls can never be given the same image. It is
-	// deleted automatically on failure and handed to the caller on success.
-	CUniqueTempFile imageFile;
-	hr = imageFile.Create( sTempDir, L"UsdThumbnailImage_", L"png" );
-	if ( FAILED( hr ) )
+	CStringW sError;
+	HRESULT hr = pPool->Render( usdStagePath, sImagePath, imageWidth, renderer ? renderer : L"", sError );
+
+	if ( hr == THUMBNAIL_E_WORKER_UNAVAILABLE )
+	{
+		// Logged once per process: the cause is usually permanent.
+		static std::atomic<bool> s_bReported{ false };
+		if ( !s_bReported.exchange( true ) )
+		{
+			CString sMsg;
+			sMsg.Format( _T("Record: thumbnail worker unavailable, using one python.exe per thumbnail: %ls"), sError.GetString() );
+			LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Warning );
+		}
+	}
+	else if ( FAILED( hr ) )
 	{
 		CString sMsg;
-		sMsg.Format( _T("Record: failed to reserve the thumbnail image in %ls (0x%08X)"), sTempDir.GetString(), hr );
+		sMsg.Format( _T("Record: thumbnail failed for %ls (0x%08X)\n\n%ls"), usdStagePath, hr, sError.GetString() );
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
-		return hr;
 	}
+	return hr;
+}
+
+// Fallback: render in a new python.exe running UsdThumbnail.py.
+static HRESULT RecordInSubprocess( BSTR usdStagePath, int imageWidth, BSTR renderer, const CStringW &sImagePath, const CStringW &sTempDir )
+{
+	HRESULT hr;
 
 	// --- UsdThumbnail.py, extracted once per server process ---
 	// UsdImagingGLEngine requires WGL context initialization driven by a Win32
@@ -166,7 +213,7 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	if ( renderer != nullptr && renderer[0] != L'\0' )
 		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
 
-	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, imageFile.GetPath().GetString() );
+	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, sImagePath.GetString() );
 
 	// --- Per-call log receiving the subprocess stdout / stderr ---
 	// Optional: without it the render still runs, only the failure details
@@ -199,8 +246,8 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	// --- Report failures with the subprocess output ---
 	if ( FAILED( hr ) || exitCode != 0 )
 	{
-		// A failed or killed render may have left a partial image: imageFile
-		// deletes it when this function returns.
+		// A failed or killed render may have left a partial image: Record's
+		// imageFile deletes it.
 		CStringA sLogContent = logFile.ReadAll();
 		CString sErrorMsg;
 		if ( hr == HRESULT_FROM_WIN32( ERROR_TIMEOUT ) )
@@ -216,6 +263,47 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sErrorMsg.GetString(), LogEventType::Error );
 		return FAILED( hr ) ? hr : E_FAIL;
 	}
+
+	return S_OK;
+}
+
+STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidth, IN BSTR renderer, OUT BSTR *outputImagePath )
+{
+	DEBUG_RECORD_ENTRY();
+
+	if ( outputImagePath == nullptr )
+		return E_POINTER;
+	*outputImagePath = nullptr;
+
+	HRESULT hr;
+
+	// --- Unique temp PNG output path ---
+	wchar_t sTempPath[MAX_PATH];
+	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
+
+	// Temp folder without the trailing backslash, for the per-call files.
+	CStringW sTempDir = sTempPath;
+	sTempDir.TrimRight( L'\\' );
+
+	// The image name stays reserved (the file exists) until the render
+	// writes it: parallel calls can never be given the same image. It is
+	// deleted automatically on failure and handed to the caller on success.
+	CUniqueTempFile imageFile;
+	hr = imageFile.Create( sTempDir, L"UsdThumbnailImage_", L"png" );
+	if ( FAILED( hr ) )
+	{
+		CString sMsg;
+		sMsg.Format( _T("Record: failed to reserve the thumbnail image in %ls (0x%08X)"), sTempDir.GetString(), hr );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+		return hr;
+	}
+
+	// --- Render on a warm worker, or in a new python.exe if none can run ---
+	hr = RecordWithWorkerPool( usdStagePath, imageWidth, renderer, imageFile.GetPath() );
+	if ( hr == THUMBNAIL_E_WORKER_UNAVAILABLE )
+		hr = RecordInSubprocess( usdStagePath, imageWidth, renderer, imageFile.GetPath(), sTempDir );
+	if ( FAILED( hr ) )
+		return hr;	// imageFile deletes any partial image
 
 	// Success: the caller (shell extension) now owns and deletes the image.
 	CComBSTR bstrOutputFile( imageFile.Detach() );

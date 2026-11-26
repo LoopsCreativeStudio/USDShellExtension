@@ -242,6 +242,33 @@ public:
 	}
 };
 
+TEST_CLASS( SetupPythonEnvironmentTests )
+{
+public:
+	TEST_METHOD( ConfiguresTheProcessOnlyOnce )
+	{
+		// With a shared (multiple use) COM server, every new object runs
+		// FinalConstruct in the same process: the environment must not grow
+		// each time (PATH has a 32767 character limit).
+		std::wstring pathBefore = GetCrtEnv( L"PATH" );
+		std::wstring pythonPathBefore = GetCrtEnv( L"PYTHONPATH" );
+
+		SetupPythonEnvironment( nullptr );
+		std::wstring pathAfterFirst = GetCrtEnv( L"PATH" );
+		std::wstring pythonPathAfterFirst = GetCrtEnv( L"PYTHONPATH" );
+
+		SetupPythonEnvironment( nullptr );
+		SetupPythonEnvironment( nullptr );
+
+		Assert::AreEqual( pathAfterFirst, GetCrtEnv( L"PATH" ) );
+		Assert::AreEqual( pythonPathAfterFirst, GetCrtEnv( L"PYTHONPATH" ) );
+
+		// Leave the test host as it was.
+		_wputenv_s( L"PATH", pathBefore.c_str() );
+		_wputenv_s( L"PYTHONPATH", pythonPathBefore.c_str() );
+	}
+};
+
 TEST_CLASS( BuildConfigFileListTests )
 {
 public:

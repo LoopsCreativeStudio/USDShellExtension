@@ -25,6 +25,10 @@ import time
 
 def main():
     """Serve requests from stdin until exit command or end of input."""
+    # Optional argv[1]: startup delay in ms (cold start after an install).
+    if len(sys.argv) > 1:
+        time.sleep(int(sys.argv[1]) / 1000.0)
+
     render_count = 0
     for raw_line in sys.stdin:
         line = raw_line.strip()

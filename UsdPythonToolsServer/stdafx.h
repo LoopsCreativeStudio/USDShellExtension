@@ -24,7 +24,9 @@ namespace pxr_boost = ::PXR_INTERNAL_NS::pxr_boost;
 #define _WIN32_WINNT 0x0A00
 #include <SDKDDKVer.h>
 
-#define _ATL_APARTMENT_THREADED
+// Free threaded (MTA): the shared server receives calls from several clients
+// at once on RPC threads, so thumbnails render in parallel on the worker pool.
+#define _ATL_FREE_THREADED
 #define _ATL_CSTRING_EXPLICIT_CONSTRUCTORS	// some CString constructors will be explicit
 #define ATL_NO_ASSERT_ON_DESTROY_NONEXISTENT_WINDOW
 // Use the C++ standard templated min/max

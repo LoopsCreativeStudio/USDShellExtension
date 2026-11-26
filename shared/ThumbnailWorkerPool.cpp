@@ -163,6 +163,7 @@ struct CThumbnailWorkerPool::Worker
 	unsigned renderCount = 0;
 	ULONGLONG lastUsedTick = 0;
 	bool bBusy = false;
+	bool bAnsweredOnce = false;	// false until its first request is answered
 	std::string pendingOutput;	// bytes read past the last complete line
 };
 
@@ -269,8 +270,10 @@ HRESULT CThumbnailWorkerPool::Exchange( Worker &worker, long long id, const std:
 	}
 
 	// Read until one complete line. Anonymous pipes have no timeout: poll
-	// the available bytes, the worker state and the deadline.
-	ULONGLONG deadline = ::GetTickCount64() + m_settings.requestTimeoutMs;
+	// the available bytes, the worker state and the deadline. A new worker
+	// also loads Python, USD and its GL context first: allow it more time.
+	DWORD timeoutMs = m_settings.requestTimeoutMs + ( worker.bAnsweredOnce ? 0 : m_settings.startupTimeoutMs );
+	ULONGLONG deadline = ::GetTickCount64() + timeoutMs;
 	for( ;; )
 	{
 		size_t endOfLine = worker.pendingOutput.find( '\n' );
@@ -283,6 +286,7 @@ HRESULT CThumbnailWorkerPool::Exchange( Worker &worker, long long id, const std:
 				sError.Format( L"thumbnail worker answered an invalid result: %hs", line.substr( 0, 200 ).c_str() );
 				return HRESULT_FROM_WIN32( ERROR_BROKEN_PIPE );
 			}
+			worker.bAnsweredOnce = true;
 			return S_OK;
 		}
 
@@ -304,7 +308,7 @@ HRESULT CThumbnailWorkerPool::Exchange( Worker &worker, long long id, const std:
 
 		if( ::GetTickCount64() >= deadline )
 		{
-			sError.Format( L"thumbnail worker did not answer within %lu s", m_settings.requestTimeoutMs / 1000 );
+			sError.Format( L"thumbnail worker did not answer within %lu s", timeoutMs / 1000 );
 			return HRESULT_FROM_WIN32( ERROR_TIMEOUT );
 		}
 		::Sleep( 2 );

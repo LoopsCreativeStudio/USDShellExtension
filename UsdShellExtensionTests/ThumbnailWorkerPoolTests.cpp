@@ -30,6 +30,7 @@ namespace
 		settings.commandLine = FakeWorkerCommandLine();
 		settings.maxWorkers = 3;
 		settings.requestTimeoutMs = 10000;
+		settings.startupTimeoutMs = 0;
 		settings.slotTimeoutMs = 10000;
 		settings.maxRendersPerWorker = 50;
 		settings.idleTimeoutMs = 60000;
@@ -355,6 +356,24 @@ public:
 			Assert::IsTrue( IsProcessAlive( image.pid ) );
 		}
 		Assert::IsTrue( WaitProcessGone( image.pid, 5000 ), L"no orphan worker" );
+	}
+
+	TEST_METHOD( GivesANewWorkerExtraTimeToStart )
+	{
+		// Cold start (first load after an install): the first request of a
+		// worker may take far longer than a warm render.
+		CThumbnailWorkerPool::Settings settings = FastSettings();
+		settings.commandLine = FakeWorkerCommandLine() + L" 900";	// 900 ms startup
+		settings.requestTimeoutMs = 400;
+		settings.startupTimeoutMs = 3000;
+		CThumbnailWorkerPool pool( settings );
+		FakeImage image;
+		CStringW sError;
+
+		Assert::AreEqual( S_OK, RenderFake( pool, L"C:\\first.usda", image, sError ), L"startup allowance" );
+
+		// Warm renders keep the short timeout.
+		Assert::AreEqual( HRESULT_FROM_WIN32( ERROR_TIMEOUT ), RenderFake( pool, L"C:\\slow:800.usda", image, sError ) );
 	}
 
 	TEST_METHOD( ReportsAWorkerThatCannotStart )

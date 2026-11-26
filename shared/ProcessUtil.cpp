@@ -251,9 +251,10 @@ HRESULT LaunchProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFl
 // CScriptDirectory
 // ---------------------------------------------------------------------------
 
-// Delete the files of a flat folder, then the folder (best effort: files
-// still open are left for a later cleanup).
-static void DeleteFlatDirectory( const CStringW &sDirectory )
+// Delete a folder with everything below it, e.g. the __pycache__ Python may
+// write next to a script (best effort: files still open are left for a
+// later cleanup). Reparse points (links) are removed, never followed.
+static void DeleteDirectoryTree( const CStringW &sDirectory )
 {
 	WIN32_FIND_DATAW findData;
 	HANDLE hFind = ::FindFirstFileW( sDirectory + L"\\*", &findData );
@@ -261,8 +262,19 @@ static void DeleteFlatDirectory( const CStringW &sDirectory )
 	{
 		do
 		{
-			if( !( findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) )
-				::DeleteFileW( sDirectory + L"\\" + findData.cFileName );
+			CStringW sName = findData.cFileName;
+			if( sName == L"." || sName == L".." )
+				continue;
+
+			CStringW sPath = sDirectory + L"\\" + sName;
+			bool bDirectory = ( findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) != 0;
+			bool bLink = ( findData.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT ) != 0;
+			if( bDirectory && !bLink )
+				DeleteDirectoryTree( sPath );
+			else if( bDirectory )
+				::RemoveDirectoryW( sPath );
+			else
+				::DeleteFileW( sPath );
 		} while( ::FindNextFileW( hFind, &findData ) );
 		::FindClose( hFind );
 	}
@@ -300,7 +312,7 @@ CScriptDirectory::CScriptDirectory( LPCWSTR sParentDirectory ) :
 CScriptDirectory::~CScriptDirectory()
 {
 	if( m_bCreated )
-		DeleteFlatDirectory( m_sDirectory );
+		DeleteDirectoryTree( m_sDirectory );
 }
 
 HRESULT CScriptDirectory::GetFile( LPCWSTR sFileName, const void *pData, DWORD nSize, CStringW &sPath )
@@ -359,7 +371,7 @@ void CScriptDirectory::RemoveStaleDirectories( LPCWSTR sParentDirectory )
 		if( processId == ::GetCurrentProcessId() || IsProcessRunning( processId ) )
 			continue;
 
-		DeleteFlatDirectory( sParent + L"\\" + findData.cFileName );
+		DeleteDirectoryTree( sParent + L"\\" + findData.cFileName );
 	} while( ::FindNextFileW( hFind, &findData ) );
 	::FindClose( hFind );
 }

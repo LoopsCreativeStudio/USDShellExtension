@@ -6,7 +6,7 @@
 
 HMODULE g_hInstance;
 CUsdPythonToolsLocalServerModule g_AtlModule;
-CString g_DebugIUsdPythonToolsMethod;
+std::atomic<LPCTSTR> g_DebugIUsdPythonToolsMethod{ nullptr };
 
 extern "C" int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nShowCmd)
 {

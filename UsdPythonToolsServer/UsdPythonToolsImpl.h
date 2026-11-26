@@ -9,7 +9,7 @@
 
 class ATL_NO_VTABLE CUsdPythonToolsImpl :
 	public IDispatchImpl<IUsdPythonTools, &IID_IUsdPythonTools, &LIBID_UsdPythonToolsLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
-	public CComObjectRootEx<CComSingleThreadModel>,
+	public CComObjectRootEx<CComMultiThreadModel>,
 	public CComCoClass<CUsdPythonToolsImpl, &CLSID_UsdPythonTools>
 {
 public:
