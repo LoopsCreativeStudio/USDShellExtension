@@ -137,17 +137,17 @@ HANDLE OpenInheritableForWrite( LPCWSTR sPath )
 	return hFile == INVALID_HANDLE_VALUE ? nullptr : hFile;
 }
 
-HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeoutMs, DWORD &exitCode )
+// Create a child process (shared by RunProcessAndWait and LaunchProcess).
+// On success the caller owns pi.hProcess and pi.hThread.
+static HRESULT CreateChildProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFlags, PROCESS_INFORMATION &pi )
 {
-	exitCode = 0;
-
 	// CreateProcessW may modify the command line: work on a private copy.
 	CStringW sCommandLineCopy = sCommandLine;
 
 	STARTUPINFOEXW si = {};
 	si.StartupInfo.cb = sizeof( si );
-	DWORD creationFlags = CREATE_NO_WINDOW;
 	BOOL bInheritHandles = FALSE;
+	pi = {};
 
 	// When redirecting, restrict inheritance to the output handle only:
 	// otherwise the child would also inherit the logs of renders running in
@@ -183,7 +183,6 @@ HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeou
 		bInheritHandles           = TRUE;
 	}
 
-	PROCESS_INFORMATION pi = {};
 	BOOL bCreated = ::CreateProcessW( nullptr, sCommandLineCopy.GetBuffer(), nullptr, nullptr, bInheritHandles,
 	                                  creationFlags, nullptr, nullptr, &si.StartupInfo, &pi );
 	DWORD createError = ::GetLastError();
@@ -192,8 +191,18 @@ HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeou
 	if( pAttributeList != nullptr )
 		::DeleteProcThreadAttributeList( pAttributeList );
 
-	if( !bCreated )
-		return HRESULT_FROM_WIN32( createError );
+	return bCreated ? S_OK : HRESULT_FROM_WIN32( createError );
+}
+
+HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeoutMs, DWORD &exitCode,
+                           DWORD creationFlags )
+{
+	exitCode = 0;
+
+	PROCESS_INFORMATION pi;
+	HRESULT hr = CreateChildProcess( sCommandLine, hStdOutErr, creationFlags, pi );
+	if( FAILED( hr ) )
+		return hr;
 
 	CHandle hProcess( pi.hProcess );
 	CHandle hThread( pi.hThread );
@@ -214,4 +223,136 @@ HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeou
 		return HRESULT_FROM_WIN32( ::GetLastError() );
 
 	return S_OK;
+}
+
+HRESULT LaunchProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFlags )
+{
+	PROCESS_INFORMATION pi;
+	HRESULT hr = CreateChildProcess( sCommandLine, hStdOutErr, creationFlags, pi );
+	if( FAILED( hr ) )
+		return hr;
+
+	// The tool opens its own window: let it come to the foreground, then
+	// stop tracking it (it outlives this call).
+	::AllowSetForegroundWindow( pi.dwProcessId );
+	::CloseHandle( pi.hThread );
+	::CloseHandle( pi.hProcess );
+	return S_OK;
+}
+
+// ---------------------------------------------------------------------------
+// CScriptDirectory
+// ---------------------------------------------------------------------------
+
+// Delete the files of a flat folder, then the folder (best effort: files
+// still open are left for a later cleanup).
+static void DeleteFlatDirectory( const CStringW &sDirectory )
+{
+	WIN32_FIND_DATAW findData;
+	HANDLE hFind = ::FindFirstFileW( sDirectory + L"\\*", &findData );
+	if( hFind != INVALID_HANDLE_VALUE )
+	{
+		do
+		{
+			if( !( findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) )
+				::DeleteFileW( sDirectory + L"\\" + findData.cFileName );
+		} while( ::FindNextFileW( hFind, &findData ) );
+		::FindClose( hFind );
+	}
+	::RemoveDirectoryW( sDirectory );
+}
+
+// True when a process with this id still runs (or exists but is not ours).
+static bool IsProcessRunning( DWORD processId )
+{
+	HANDLE hProcess = ::OpenProcess( PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId );
+	if( hProcess == nullptr )
+		return ::GetLastError() == ERROR_ACCESS_DENIED;	// exists, other user
+
+	DWORD exitCode = 0;
+	BOOL bOk = ::GetExitCodeProcess( hProcess, &exitCode );
+	::CloseHandle( hProcess );
+	return bOk && exitCode == STILL_ACTIVE;
+}
+
+CScriptDirectory::CScriptDirectory( LPCWSTR sParentDirectory ) :
+	m_sParentDirectory( sParentDirectory )
+{
+	// <pid>_<guid>: unique per instance, and the pid tells whether the owner
+	// still runs (see RemoveStaleDirectories). Created lazily by GetFile.
+	GUID guid = {};
+	::CoCreateGuid( &guid );
+	wchar_t sGuid[64];
+	::StringFromGUID2( guid, sGuid, ARRAYSIZE( sGuid ) );
+	CStringW sName = sGuid;
+	sName.Trim( L"{}" );
+
+	m_sDirectory.Format( L"%ls\\%lu_%ls", sParentDirectory, ::GetCurrentProcessId(), sName.GetString() );
+}
+
+CScriptDirectory::~CScriptDirectory()
+{
+	if( m_bCreated )
+		DeleteFlatDirectory( m_sDirectory );
+}
+
+HRESULT CScriptDirectory::GetFile( LPCWSTR sFileName, const void *pData, DWORD nSize, CStringW &sPath )
+{
+	sPath = m_sDirectory + L"\\" + sFileName;
+
+	// The whole write happens under the lock: a concurrent caller never gets
+	// the path of a file that is still being written.
+	std::lock_guard<std::mutex> guard( m_lock );
+	if( m_writtenFiles.count( sFileName ) )
+		return S_OK;
+
+	if( !m_bCreated )
+	{
+		::CreateDirectoryW( m_sParentDirectory, nullptr );	// may already exist
+		if( !::CreateDirectoryW( m_sDirectory, nullptr ) && ::GetLastError() != ERROR_ALREADY_EXISTS )
+			return HRESULT_FROM_WIN32( ::GetLastError() );
+		m_bCreated = true;
+	}
+
+	CHandle hFile( ::CreateFileW( sPath, GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+	                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr ) );
+	if( hFile == INVALID_HANDLE_VALUE )
+	{
+		hFile.Detach();
+		return HRESULT_FROM_WIN32( ::GetLastError() );
+	}
+
+	DWORD nWritten = 0;
+	if( !::WriteFile( hFile, pData, nSize, &nWritten, nullptr ) || nWritten != nSize )
+		return HRESULT_FROM_WIN32( ERROR_WRITE_FAULT );
+
+	m_writtenFiles.insert( sFileName );
+	return S_OK;
+}
+
+void CScriptDirectory::RemoveStaleDirectories( LPCWSTR sParentDirectory )
+{
+	CStringW sParent = sParentDirectory;
+	WIN32_FIND_DATAW findData;
+	HANDLE hFind = ::FindFirstFileW( sParent + L"\\*_*", &findData );
+	if( hFind == INVALID_HANDLE_VALUE )
+		return;
+
+	do
+	{
+		if( !( findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ) )
+			continue;
+
+		// Folder name: <pid>_<anything>. Skip anything else.
+		wchar_t *pEnd = nullptr;
+		unsigned long processId = ::wcstoul( findData.cFileName, &pEnd, 10 );
+		if( pEnd == findData.cFileName || *pEnd != L'_' )
+			continue;
+
+		if( processId == ::GetCurrentProcessId() || IsProcessRunning( processId ) )
+			continue;
+
+		DeleteFlatDirectory( sParent + L"\\" + findData.cFileName );
+	} while( ::FindNextFileW( hFind, &findData ) );
+	::FindClose( hFind );
 }

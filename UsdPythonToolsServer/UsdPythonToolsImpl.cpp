@@ -58,6 +58,58 @@ static std::wstring FindRelativeFile(LPCWSTR sToolFileName)
 
 static std::wstring GetPythonExePath();
 
+// ---------------------------------------------------------------------------
+// Embedded tool scripts
+// ---------------------------------------------------------------------------
+
+// Folder of the scripts extracted by this server process, under
+// %TEMP%\UsdShellExtension. Each script is written once per process and
+// never rewritten while a python.exe reads it (several tools or renders may
+// run at once). Folders left by servers that crashed are removed first.
+static CStringW PrepareScriptParentDirectory()
+{
+	wchar_t sTempPath[MAX_PATH];
+	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
+	CStringW sParent = sTempPath;
+	sParent += L"UsdShellExtension";
+
+	CScriptDirectory::RemoveStaleDirectories( sParent );
+	return sParent;
+}
+
+static CScriptDirectory &GetScriptDirectory()
+{
+	// Thread-safe first-use initialization; the destructor deletes the
+	// folder when the server process exits.
+	static CScriptDirectory s_scripts( PrepareScriptParentDirectory() );
+	return s_scripts;
+}
+
+// Return the path of an embedded script (PYTHON resource), extracting it on
+// first use. Logs and fails if the resource or the file is missing.
+static HRESULT ExtractScript( UINT resourceId, LPCWSTR sFileName, CStringW &sPath )
+{
+	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( resourceId ), _T("PYTHON") );
+	HGLOBAL hData = hRes ? ::LoadResource( g_hInstance, hRes ) : nullptr;
+	void *pData = hData ? ::LockResource( hData ) : nullptr;
+	if ( pData == nullptr )
+	{
+		CString sMsg;
+		sMsg.Format( _T("Embedded script %ls not found in resources"), sFileName );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+		return HRESULT_FROM_WIN32( ERROR_RESOURCE_NAME_NOT_FOUND );
+	}
+
+	HRESULT hr = GetScriptDirectory().GetFile( sFileName, pData, ::SizeofResource( g_hInstance, hRes ), sPath );
+	if ( FAILED( hr ) )
+	{
+		CString sMsg;
+		sMsg.Format( _T("Failed to extract %ls to %ls (0x%08X)"), sFileName, GetScriptDirectory().GetDirectory().GetString(), hr );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+	}
+	return hr;
+}
+
 STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidth, IN BSTR renderer, OUT BSTR *outputImagePath )
 {
 	DEBUG_RECORD_ENTRY();
@@ -89,36 +141,17 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		return hr;
 	}
 
-	// --- Extract UsdThumbnail.py to a per-call temp file ---
+	// --- UsdThumbnail.py, extracted once per server process ---
 	// UsdImagingGLEngine requires WGL context initialization driven by a Win32
 	// message loop. Running it via PyRun_String on the COM thread blocks the loop
 	// and causes "No renderer plugins found!". A subprocess gets its own process
 	// with full message-pump capability (same fix as View/usdview).
-	// Each call owns its script: up to kMaxConcurrentRenders renders run at once
-	// and must never rewrite a file another python.exe is reading.
-	CUniqueTempFile scriptFile;
-	{
-		HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_THUMBNAIL ), _T("PYTHON") );
-		if ( hRes == nullptr )
-		{
-			LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: IDR_PYTHON_THUMBNAIL resource not found", LogEventType::Error );
-			return E_FAIL;
-		}
-		HGLOBAL hData = ::LoadResource( g_hInstance, hRes );
-		void*   pData = ::LockResource( hData );
-		DWORD   nSize = ::SizeofResource( g_hInstance, hRes );
-
-		hr = scriptFile.Create( sTempDir, L"UsdThumbnail_", L"py" );
-		if ( SUCCEEDED( hr ) )
-			hr = scriptFile.Write( pData, nSize );
-		if ( FAILED( hr ) )
-		{
-			CString sMsg;
-			sMsg.Format( _T("Record: failed to write the thumbnail script in %ls (0x%08X)"), sTempDir.GetString(), hr );
-			LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
-			return hr;
-		}
-	}
+	// The script is written once and only read afterwards, so the
+	// kMaxConcurrentRenders renders running at once can share it safely.
+	CStringW sScriptPath;
+	hr = ExtractScript( IDR_PYTHON_THUMBNAIL, L"UsdThumbnail.py", sScriptPath );
+	if ( FAILED( hr ) )
+		return hr;
 
 	// --- Build command line ---
 	std::wstring sPythonExe = GetPythonExePath();
@@ -128,7 +161,7 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 
 	CStringW sCommandLine;
 	sCommandLine.Format( L"\"%ls\" \"%ls\" --imageWidth %ls",
-	                     sPythonExe.c_str(), scriptFile.GetPath().GetString(), (LPCWSTR)sImageWidth );
+	                     sPythonExe.c_str(), sScriptPath.GetString(), (LPCWSTR)sImageWidth );
 
 	if ( renderer != nullptr && renderer[0] != L'\0' )
 		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
@@ -208,110 +241,44 @@ STDMETHODIMP CUsdPythonToolsImpl::View( IN BSTR usdStagePath, IN BSTR renderer )
 		return E_FAIL;
 	}
 
-	// Locate python.exe from [PYTHON] PATH in the INI config.
-	std::vector<CStringW> configFiles = BuildConfigFileList( g_hInstance );
-	CStringW sPythonDir;
-	GetPrivateProfileStringAndExpandEnvironmentStrings( L"PYTHON", L"PATH", L"", sPythonDir, configFiles );
+	std::wstring sPythonExe = GetPythonExePath();
 
-	wchar_t sPythonExe[MAX_PATH];
-	if ( !sPythonDir.IsEmpty() )
-	{
-		wcscpy_s( sPythonExe, sPythonDir.GetString() );
-		::PathCchAppend( sPythonExe, ARRAYSIZE( sPythonExe ), L"python.exe" );
-	}
-	else
-	{
-		wcscpy_s( sPythonExe, L"python.exe" );
-	}
-
-	// Write UsdView.py wrapper to a known temp-dir file so we can patch
-	// Tf.Error.commentary before usdview starts (CP1252/UTF-8 mismatch fix).
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sWrapperPath[MAX_PATH] = {};
-	{
-		wcscpy_s( sWrapperPath, sTempDir );
-		::PathCchAppend( sWrapperPath, ARRAYSIZE( sWrapperPath ), L"UsdViewWrapper.py" );
-
-		HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_VIEW ), _T("PYTHON") );
-		if ( hRes )
-		{
-			HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-			void*   pData  = ::LockResource( hData );
-			DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-			HANDLE  hFile  = ::CreateFileW( sWrapperPath, GENERIC_WRITE, 0, nullptr,
-			                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-			if ( hFile != INVALID_HANDLE_VALUE )
-			{
-				DWORD nWritten = 0;
-				::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-				::CloseHandle( hFile );
-			}
-		}
-	}
+	// UsdViewWrapper.py patches Tf.Error.commentary before usdview starts
+	// (CP1252/UTF-8 mismatch fix). Without it, usdview still runs unpatched.
+	CStringW sWrapperPath;
+	HRESULT hr = ExtractScript( IDR_PYTHON_VIEW, L"UsdViewWrapper.py", sWrapperPath );
 
 	// Build: "python.exe" "wrapper.py" "usdview" [--renderer R] "file.usd"
 	CStringW sCommandLine;
-	if ( sWrapperPath[0] != L'\0' )
-		sCommandLine.Format( L"\"%ls\" \"%ls\" \"%ls\"", sPythonExe, sWrapperPath, sUsdViewPath.c_str() );
+	if ( SUCCEEDED( hr ) )
+		sCommandLine.Format( L"\"%ls\" \"%ls\" \"%ls\"", sPythonExe.c_str(), sWrapperPath.GetString(), sUsdViewPath.c_str() );
 	else
-		sCommandLine.Format( L"\"%ls\" \"%ls\"", sPythonExe, sUsdViewPath.c_str() );
+		sCommandLine.Format( L"\"%ls\" \"%ls\"", sPythonExe.c_str(), sUsdViewPath.c_str() );
 
 	if ( renderer && renderer[0] != L'\0' )
 		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
 
 	sCommandLine.AppendFormat( L" \"%ls\"", usdStagePath );
 
-	// Redirect stdout/stderr to a log file — captures Python errors without
-	// creating a visible console window.  Log path: %TEMP%\UsdViewWrapper.log
-	wchar_t sLogPath[MAX_PATH] = {};
-	wcscpy_s( sLogPath, sTempDir );
-	::PathCchAppend( sLogPath, ARRAYSIZE( sLogPath ), L"UsdViewWrapper.log" );
-
-	SECURITY_ATTRIBUTES sa = {};
-	sa.nLength        = sizeof( sa );
-	sa.bInheritHandle = TRUE;
-
-	HANDLE hLog = ::CreateFileW( sLogPath, GENERIC_WRITE, FILE_SHARE_READ, &sa,
-	                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-
-	STARTUPINFOW si = {};
-	si.cb = sizeof( si );
-	BOOL bInheritHandles = FALSE;
-
-	if ( hLog != INVALID_HANDLE_VALUE )
+	// Redirect stdout/stderr to a per-call log in the script folder: captures
+	// Python errors without a visible console, and two usdview windows never
+	// share a log. It must outlive this call (usdview keeps running), so it
+	// is removed with the script folder when the server exits.
+	CHandle hLog;
 	{
-		si.dwFlags    = STARTF_USESTDHANDLES;
-		si.hStdInput  = NULL;
-		si.hStdOutput = hLog;
-		si.hStdError  = hLog;
-		bInheritHandles = TRUE;
+		CUniqueTempFile logFile;
+		if ( SUCCEEDED( logFile.Create( GetScriptDirectory().GetDirectory(), L"UsdView_", L"log" ) ) )
+			hLog.Attach( OpenInheritableForWrite( logFile.Detach() ) );
 	}
 
-	PROCESS_INFORMATION pi = {};
-
-	if ( !::CreateProcessW( nullptr, sCommandLine.GetBuffer(), nullptr, nullptr,
-	                        bInheritHandles, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi ) )
+	hr = LaunchProcess( sCommandLine, hLog.m_h, CREATE_NO_WINDOW );
+	if ( FAILED( hr ) )
 	{
-		DWORD err = ::GetLastError();
 		CString sMsg;
-		sMsg.Format( _T("View: CreateProcess failed (0x%08X): %ls"), err, (LPCWSTR)sCommandLine );
+		sMsg.Format( _T("View: CreateProcess failed (0x%08X): %ls"), hr, sCommandLine.GetString() );
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
-		if ( hLog != INVALID_HANDLE_VALUE )
-			::CloseHandle( hLog );
-		return HRESULT_FROM_WIN32( err );
 	}
-
-	// Allow the newly spawned process to call SetForegroundWindow on its Qt window.
-	::AllowSetForegroundWindow( pi.dwProcessId );
-
-	::CloseHandle( pi.hThread );
-	::CloseHandle( pi.hProcess );
-	if ( hLog != INVALID_HANDLE_VALUE )
-		::CloseHandle( hLog );
-
-	return S_OK;
+	return hr;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,8 +304,26 @@ static std::wstring GetPythonExePath()
 	return sPythonExe;
 }
 
-// Runs a command inside cmd.exe /K so the console stays open after the tool exits.
-// commandLine must be the full inner command (e.g. L"\"python\" \"tool\" \"file\"").
+// Append each '|' separated path as a separate quoted argument.
+static void AppendPipeSeparatedPaths( CStringW &sCommandLine, LPCWSTR sPaths )
+{
+	CStringW sPathsCopy = sPaths;
+	int iStart = 0;
+	while ( iStart <= sPathsCopy.GetLength() )
+	{
+		int iSep = sPathsCopy.Find( L'|', iStart );
+		CStringW sPath = ( iSep >= 0 )
+		    ? sPathsCopy.Mid( iStart, iSep - iStart )
+		    : sPathsCopy.Mid( iStart );
+		if ( !sPath.IsEmpty() )
+			sCommandLine.AppendFormat( L" \"%ls\"", (LPCWSTR)sPath );
+		if ( iSep < 0 ) break;
+		iStart = iSep + 1;
+	}
+}
+
+// Runs a command in a new console window that stays open after the tool exits.
+// innerCommand must be the full inner command (e.g. L"\"python\" \"tool\" \"file\"").
 static HRESULT RunInConsole( LPCWSTR innerCommand )
 {
 	// cmd /C ""inner" & pause" — /C exits after the command; & pause waits for a
@@ -347,24 +332,27 @@ static HRESULT RunInConsole( LPCWSTR innerCommand )
 	CStringW sCmd;
 	sCmd.Format( L"cmd.exe /C \"%ls & pause\"", innerCommand );
 
-	STARTUPINFOW si = {};
-	si.cb = sizeof( si );
-	PROCESS_INFORMATION pi = {};
-
-	if ( !::CreateProcessW( nullptr, sCmd.GetBuffer(), nullptr, nullptr,
-	                        FALSE, CREATE_NEW_CONSOLE, nullptr, nullptr, &si, &pi ) )
+	HRESULT hr = LaunchProcess( sCmd, nullptr, CREATE_NEW_CONSOLE );
+	if ( FAILED( hr ) )
 	{
-		DWORD err = ::GetLastError();
 		CString sMsg;
-		sMsg.Format( _T("RunInConsole: CreateProcess failed (0x%08X): %ls"), err, (LPCWSTR)sCmd );
+		sMsg.Format( _T("RunInConsole: CreateProcess failed (0x%08X): %ls"), hr, sCmd.GetString() );
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
-		return HRESULT_FROM_WIN32( err );
 	}
+	return hr;
+}
 
-	::AllowSetForegroundWindow( pi.dwProcessId );
-	::CloseHandle( pi.hThread );
-	::CloseHandle( pi.hProcess );
-	return S_OK;
+// Run an embedded Python script in a console: "python" "script" + arguments.
+static HRESULT RunScriptInConsole( UINT resourceId, LPCWSTR sScriptName, LPCWSTR sArguments )
+{
+	CStringW sScriptPath;
+	HRESULT hr = ExtractScript( resourceId, sScriptName, sScriptPath );
+	if ( FAILED( hr ) )
+		return hr;
+
+	CStringW sInner;
+	sInner.Format( L"\"%ls\" \"%ls\"%ls", GetPythonExePath().c_str(), sScriptPath.GetString(), sArguments );
+	return RunInConsole( sInner );
 }
 
 // ---------------------------------------------------------------------------
@@ -375,50 +363,9 @@ STDMETHODIMP CUsdPythonToolsImpl::Validate( IN BSTR usdStagePath )
 {
 	DEBUG_RECORD_ENTRY();
 
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sScriptPath[MAX_PATH] = {};
-	wcscpy_s( sScriptPath, sTempDir );
-	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdValidate.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_VALIDATE ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-		void*   pData  = ::LockResource( hData );
-		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
-		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\"", sPythonExe.c_str(), sScriptPath );
-
-	// Append each pipe-delimited path as a separate quoted argument.
-	CStringW sPathsCopy = usdStagePath;
-	int iStart = 0;
-	while ( iStart <= sPathsCopy.GetLength() )
-	{
-		int iSep = sPathsCopy.Find( L'|', iStart );
-		CStringW sPath = ( iSep >= 0 )
-		    ? sPathsCopy.Mid( iStart, iSep - iStart )
-		    : sPathsCopy.Mid( iStart );
-		if ( !sPath.IsEmpty() )
-			sInner.AppendFormat( L" \"%ls\"", (LPCWSTR)sPath );
-		if ( iSep < 0 ) break;
-		iStart = iSep + 1;
-	}
-
-	return RunInConsole( sInner );
+	CStringW sArguments;
+	AppendPipeSeparatedPaths( sArguments, usdStagePath );
+	return RunScriptInConsole( IDR_PYTHON_VALIDATE, L"UsdValidate.py", sArguments );
 }
 
 // ---------------------------------------------------------------------------
@@ -436,115 +383,37 @@ STDMETHODIMP CUsdPythonToolsImpl::Fix( IN BSTR usdStagePath )
 		return E_FAIL;
 	}
 
-	// Write UsdFix.py wrapper to temp so we can patch Tf.ErrorException.__str__
-	// before the tool starts (same pattern as View/UsdViewWrapper.py).
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sWrapperPath[MAX_PATH] = {};
-	wcscpy_s( sWrapperPath, sTempDir );
-	::PathCchAppend( sWrapperPath, ARRAYSIZE( sWrapperPath ), L"UsdFixWrapper.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_FIX ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-		void*   pData  = ::LockResource( hData );
-		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile  = ::CreateFileW( sWrapperPath, GENERIC_WRITE, 0, nullptr,
-		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sWrapperPath, sToolPath.c_str(), (LPCWSTR)usdStagePath );
-	return RunInConsole( sInner );
+	// UsdFixWrapper.py patches Tf.ErrorException.__str__ before the tool
+	// starts (same pattern as View/UsdViewWrapper.py).
+	CStringW sArguments;
+	sArguments.Format( L" \"%ls\" \"%ls\"", sToolPath.c_str(), (LPCWSTR)usdStagePath );
+	return RunScriptInConsole( IDR_PYTHON_FIX, L"UsdFixWrapper.py", sArguments );
 }
 
 // ---------------------------------------------------------------------------
-// ShowLayerStack — extracts UsdLayerStack.py to %TEMP% and runs it
+// ShowLayerStack — runs UsdLayerStack.py in a console
 // ---------------------------------------------------------------------------
 
 STDMETHODIMP CUsdPythonToolsImpl::ShowLayerStack( IN BSTR usdStagePath )
 {
 	DEBUG_RECORD_ENTRY();
 
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sScriptPath[MAX_PATH] = {};
-	wcscpy_s( sScriptPath, sTempDir );
-	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdLayerStack.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_LAYERSTACK ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-		void*   pData  = ::LockResource( hData );
-		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
-		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
-	return RunInConsole( sInner );
+	CStringW sArguments;
+	sArguments.Format( L" \"%ls\"", (LPCWSTR)usdStagePath );
+	return RunScriptInConsole( IDR_PYTHON_LAYERSTACK, L"UsdLayerStack.py", sArguments );
 }
 
 // ---------------------------------------------------------------------------
-// ShowStageStats — extracts UsdStageStats.py to %TEMP% and runs it
+// ShowStageStats — runs UsdStageStats.py in a console
 // ---------------------------------------------------------------------------
 
 STDMETHODIMP CUsdPythonToolsImpl::ShowStageStats( IN BSTR usdStagePath )
 {
 	DEBUG_RECORD_ENTRY();
 
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sScriptPath[MAX_PATH] = {};
-	wcscpy_s( sScriptPath, sTempDir );
-	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdStageStats.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_STAGESTATS ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-		void*   pData  = ::LockResource( hData );
-		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile  = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
-		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)usdStagePath );
-	return RunInConsole( sInner );
+	CStringW sArguments;
+	sArguments.Format( L" \"%ls\"", (LPCWSTR)usdStagePath );
+	return RunScriptInConsole( IDR_PYTHON_STAGESTATS, L"UsdStageStats.py", sArguments );
 }
 
 // ---------------------------------------------------------------------------
@@ -555,51 +424,11 @@ STDMETHODIMP CUsdPythonToolsImpl::Stitch( IN BSTR inputPaths, IN BSTR outputPath
 {
 	DEBUG_RECORD_ENTRY();
 
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sScriptPath[MAX_PATH] = {};
-	wcscpy_s( sScriptPath, sTempDir );
-	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdStitch.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_STITCH ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData = ::LoadResource( g_hInstance, hRes );
-		void*   pData = ::LockResource( hData );
-		DWORD   nSize = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
-		                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sScriptPath, (LPCWSTR)outputPath );
-
-	// Append each pipe-delimited input path as a quoted argument.
-	CStringW sInputsCopy = inputPaths;
-	int iStart = 0;
-	while ( iStart <= sInputsCopy.GetLength() )
-	{
-		int iSep = sInputsCopy.Find( L'|', iStart );
-		CStringW sPath = ( iSep >= 0 )
-		    ? sInputsCopy.Mid( iStart, iSep - iStart )
-		    : sInputsCopy.Mid( iStart );
-		if ( !sPath.IsEmpty() )
-			sInner.AppendFormat( L" \"%ls\"", (LPCWSTR)sPath );
-		if ( iSep < 0 ) break;
-		iStart = iSep + 1;
-	}
-
-	return RunInConsole( sInner );
+	// Output first, then each input path.
+	CStringW sArguments;
+	sArguments.Format( L" \"%ls\"", (LPCWSTR)outputPath );
+	AppendPipeSeparatedPaths( sArguments, inputPaths );
+	return RunScriptInConsole( IDR_PYTHON_STITCH, L"UsdStitch.py", sArguments );
 }
 
 // ---------------------------------------------------------------------------
@@ -617,36 +446,9 @@ STDMETHODIMP CUsdPythonToolsImpl::Diff( IN BSTR path1, IN BSTR path2 )
 		return E_FAIL;
 	}
 
-	wchar_t sTempDir[MAX_PATH] = {};
-	::GetTempPathW( ARRAYSIZE( sTempDir ), sTempDir );
-
-	wchar_t sWrapperPath[MAX_PATH] = {};
-	wcscpy_s( sWrapperPath, sTempDir );
-	::PathCchAppend( sWrapperPath, ARRAYSIZE( sWrapperPath ), L"UsdDiff.py" );
-
-	HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_DIFF ), _T("PYTHON") );
-	if ( hRes )
-	{
-		HGLOBAL hData  = ::LoadResource( g_hInstance, hRes );
-		void*   pData  = ::LockResource( hData );
-		DWORD   nSize  = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile  = ::CreateFileW( sWrapperPath, GENERIC_WRITE, 0, nullptr,
-		                                CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile != INVALID_HANDLE_VALUE )
-		{
-			DWORD nWritten = 0;
-			::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-			::CloseHandle( hFile );
-		}
-	}
-
-	std::wstring sPythonExe = GetPythonExePath();
-
-	CStringW sInner;
-	sInner.Format( L"\"%ls\" \"%ls\" \"%ls\" \"%ls\" \"%ls\"",
-	               sPythonExe.c_str(), sWrapperPath, sToolPath.c_str(),
-	               (LPCWSTR)path1, (LPCWSTR)path2 );
-	return RunInConsole( sInner );
+	CStringW sArguments;
+	sArguments.Format( L" \"%ls\" \"%ls\" \"%ls\"", sToolPath.c_str(), (LPCWSTR)path1, (LPCWSTR)path2 );
+	return RunScriptInConsole( IDR_PYTHON_DIFF, L"UsdDiff.py", sArguments );
 }
 
 HRESULT WINAPI CUsdPythonToolsImpl::UpdateRegistry(_In_ BOOL bRegister) throw()

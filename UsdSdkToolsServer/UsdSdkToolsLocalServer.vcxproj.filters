@@ -27,6 +27,9 @@
     <ClInclude Include="Module.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\shared\ProcessUtil.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
     <ClInclude Include="..\shared\environment.h">
       <Filter>Shared</Filter>
     </ClInclude>
@@ -49,6 +52,9 @@
     </ClCompile>
     <ClCompile Include="Module.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\ProcessUtil.cpp">
+      <Filter>Shared</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\environment.cpp">
       <Filter>Shared</Filter>

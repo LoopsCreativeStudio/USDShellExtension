@@ -9,6 +9,10 @@
 #include <atlbase.h>
 #include <atlstr.h>
 
+#include <mutex>
+#include <set>
+#include <string>
+
 // One slot of a counting semaphore (e.g. the thumbnail render throttle).
 // The slot is given back automatically when the object goes out of scope.
 class CSemaphoreSlot
@@ -68,5 +72,45 @@ HANDLE OpenInheritableForWrite( LPCWSTR sPath );
 // hStdOutErr (optional, inheritable) receives stdout and stderr; it is the
 // only handle the child inherits. Returns S_OK with exitCode set,
 // HRESULT_FROM_WIN32( ERROR_TIMEOUT ) after killing a child that ran too
-// long, or the CreateProcess error.
-HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeoutMs, DWORD &exitCode );
+// long, or the CreateProcess error. timeoutMs may be INFINITE when the wait is
+// on the user (editor). creationFlags: CREATE_NO_WINDOW hides console tools;
+// pass 0 for a tool the user interacts with in its own console.
+HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeoutMs, DWORD &exitCode,
+                           DWORD creationFlags = CREATE_NO_WINDOW );
+
+// Start a child process without waiting for it, for tools that live in their
+// own window (usdview, console tools). creationFlags is CREATE_NO_WINDOW or
+// CREATE_NEW_CONSOLE; hStdOutErr (optional) follows the same rules as for
+// RunProcessAndWait. The child may bring its window to the foreground.
+HRESULT LaunchProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFlags );
+
+// Folder holding the tool scripts extracted by one server process:
+// <parent>\<pid>_<guid>. A script is written once, then only read: it is
+// never rewritten while another python.exe is reading it. The folder is
+// deleted on destruction; folders of servers that crashed are removed by
+// RemoveStaleDirectories.
+class CScriptDirectory
+{
+public:
+	explicit CScriptDirectory( LPCWSTR sParentDirectory );
+	~CScriptDirectory();
+
+	CScriptDirectory( const CScriptDirectory & ) = delete;
+	CScriptDirectory &operator=( const CScriptDirectory & ) = delete;
+
+	// Return the path of sFileName in the folder, writing pData the first
+	// time only. Thread-safe: concurrent callers get the complete file.
+	HRESULT GetFile( LPCWSTR sFileName, const void *pData, DWORD nSize, CStringW &sPath );
+
+	const CStringW &GetDirectory() const { return m_sDirectory; }
+
+	// Delete the folders of processes that no longer run.
+	static void RemoveStaleDirectories( LPCWSTR sParentDirectory );
+
+private:
+	CStringW m_sParentDirectory;
+	CStringW m_sDirectory;
+	std::mutex m_lock;
+	std::set<std::wstring> m_writtenFiles;
+	bool m_bCreated = false;
+};

@@ -6,6 +6,7 @@
 #include "Module.h"
 #include "shared\environment.h"
 #include "shared\EventViewerLog.h"
+#include "shared\ProcessUtil.h"
 
 #include <string>
 #include <vector>
@@ -139,18 +140,14 @@ STDMETHODIMP CUsdSdkToolsImpl::Edit( IN BSTR usdStagePath, IN VARIANT_BOOL force
 	CStringW sCommandLine;
 	sCommandLine.Format( L"%s \"%s\"", sEditor.GetString(), usdStagePathOuputW.GetString() );
 
-	STARTUPINFO si = {};
-	si.cb = sizeof( si );
-	PROCESS_INFORMATION pi = {};
-	if ( !::CreateProcess( nullptr, sCommandLine.GetBuffer(), nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi ) )
+	// Wait for the user to close the editor: no time limit, editing takes as
+	// long as it takes. Flags 0 keeps a console editor visible.
+	DWORD exitCode = 0;
+	if ( FAILED( RunProcessAndWait( sCommandLine, nullptr, INFINITE, exitCode, 0 ) ) )
 	{
+		::DeleteFileW( usdStagePathOuputW );
 		return E_FAIL;
 	}
-
-	::WaitForSingleObject( pi.hProcess, INFINITE );
-
-	::CloseHandle( pi.hProcess );
-	::CloseHandle( pi.hThread );
 
 	WIN32_FILE_ATTRIBUTE_DATA wfadAfter = {};
 	::GetFileAttributesEx( usdStagePathOuputW, GetFileExInfoStandard, &wfadAfter );

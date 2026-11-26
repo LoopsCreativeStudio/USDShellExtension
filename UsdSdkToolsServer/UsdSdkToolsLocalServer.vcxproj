@@ -190,6 +190,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\environment.h" />
+    <ClInclude Include="..\shared\ProcessUtil.h" />
     <ClInclude Include="..\shared\EventViewerLog.h" />
     <ClInclude Include="..\shared\EventViewerMessages.h" />
     <ClInclude Include="resource.h" />
@@ -200,6 +201,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\shared\environment.cpp" />
+    <ClCompile Include="..\shared\ProcessUtil.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>

@@ -186,6 +186,186 @@ public:
 	}
 };
 
+namespace
+{
+	// Read a whole small file as bytes ("" if missing).
+	std::string ReadFileBytes( const CStringW &sPath )
+	{
+		CHandle hFile( ::CreateFileW( sPath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		                              nullptr, OPEN_EXISTING, 0, nullptr ) );
+		if( hFile == INVALID_HANDLE_VALUE )
+		{
+			hFile.Detach();
+			return "";
+		}
+		char buffer[4096];
+		DWORD nRead = 0;
+		::ReadFile( hFile, buffer, sizeof( buffer ), &nRead, nullptr );
+		return std::string( buffer, nRead );
+	}
+
+	bool DirectoryExists( const CStringW &sPath )
+	{
+		DWORD attributes = ::GetFileAttributesW( sPath );
+		return attributes != INVALID_FILE_ATTRIBUTES && ( attributes & FILE_ATTRIBUTE_DIRECTORY );
+	}
+
+	// Fresh, uniquely named parent folder for the script folders of one test.
+	CStringW CreateParentDir()
+	{
+		GUID guid;
+		::CoCreateGuid( &guid );
+		wchar_t sGuid[64];
+		::StringFromGUID2( guid, sGuid, ARRAYSIZE( sGuid ) );
+		CStringW sDir = GetTempDir() + L"\\UsdTestParent" + sGuid;
+		::CreateDirectoryW( sDir, nullptr );
+		return sDir;
+	}
+}
+
+TEST_CLASS( ScriptDirectoryTests )
+{
+	CStringW m_sParent;
+
+public:
+	TEST_METHOD_INITIALIZE( CreateParent )
+	{
+		m_sParent = CreateParentDir();
+	}
+
+	TEST_METHOD_CLEANUP( DeleteParent )
+	{
+		CScriptDirectory::RemoveStaleDirectories( m_sParent );
+		::RemoveDirectoryW( m_sParent );
+	}
+
+	TEST_METHOD( WritesAFileOnceAndReturnsItsPath )
+	{
+		CScriptDirectory scripts( m_sParent );
+		CStringW sPath;
+
+		Assert::AreEqual( S_OK, scripts.GetFile( L"UsdValidate.py", "first", 5, sPath ) );
+		Assert::AreEqual( std::string( "first" ), ReadFileBytes( sPath ) );
+		Assert::IsTrue( sPath.Right( 15 ) == L"\\UsdValidate.py" );
+
+		// Already written: never rewritten (a python.exe may be reading it).
+		CStringW sSecondPath;
+		Assert::AreEqual( S_OK, scripts.GetFile( L"UsdValidate.py", "other", 5, sSecondPath ) );
+		Assert::AreEqual( sPath.GetString(), sSecondPath.GetString() );
+		Assert::AreEqual( std::string( "first" ), ReadFileBytes( sPath ) );
+	}
+
+	TEST_METHOD( EachInstanceHasItsOwnFolderNamedAfterTheProcess )
+	{
+		CScriptDirectory first( m_sParent );
+		CScriptDirectory second( m_sParent );
+		CStringW sFirst, sSecond;
+		first.GetFile( L"a.py", "a", 1, sFirst );
+		second.GetFile( L"a.py", "b", 1, sSecond );
+
+		Assert::AreNotEqual( sFirst.GetString(), sSecond.GetString() );
+		CStringW sPidPrefix;
+		sPidPrefix.Format( L"\\%lu_", ::GetCurrentProcessId() );
+		Assert::IsTrue( first.GetDirectory().Find( sPidPrefix ) > 0 );
+	}
+
+	TEST_METHOD( ConcurrentRequestsShareOneIntactFile )
+	{
+		CScriptDirectory scripts( m_sParent );
+		const std::string content( 2000, 'x' );
+		constexpr int kThreads = 16;
+		std::vector<CStringW> paths( kThreads );
+		std::vector<HRESULT> results( kThreads, E_FAIL );
+		std::vector<std::thread> threads;
+
+		for( int index = 0; index < kThreads; ++index )
+		{
+			threads.emplace_back( [&, index]()
+			{
+				results[index] = scripts.GetFile( L"UsdThumbnail.py", content.data(),
+				                                  static_cast<DWORD>( content.size() ), paths[index] );
+			} );
+		}
+		for( std::thread &thread : threads )
+			thread.join();
+
+		for( int index = 0; index < kThreads; ++index )
+		{
+			Assert::AreEqual( S_OK, results[index] );
+			Assert::AreEqual( paths[0].GetString(), paths[index].GetString() );
+		}
+		Assert::AreEqual( content, ReadFileBytes( paths[0] ) );
+	}
+
+	TEST_METHOD( DeletesItsFolderOnDestruction )
+	{
+		CStringW sDirectory;
+		{
+			CScriptDirectory scripts( m_sParent );
+			CStringW sPath;
+			scripts.GetFile( L"a.py", "a", 1, sPath );
+			sDirectory = scripts.GetDirectory();
+			Assert::IsTrue( DirectoryExists( sDirectory ) );
+		}
+		Assert::IsFalse( DirectoryExists( sDirectory ) );
+	}
+
+	TEST_METHOD( RemovesFoldersOfProcessesThatNoLongerRun )
+	{
+		// Left behind by a crashed or killed server: PID that cannot exist
+		// (Windows PIDs are multiples of 4).
+		CStringW sStale = m_sParent + L"\\4294967293_stale";
+		::CreateDirectoryW( sStale, nullptr );
+		::CloseHandle( ::CreateFileW( sStale + L"\\UsdView.py", GENERIC_WRITE, 0, nullptr, CREATE_NEW, 0, nullptr ) );
+
+		CScriptDirectory alive( m_sParent );
+		CStringW sPath;
+		alive.GetFile( L"a.py", "a", 1, sPath );
+
+		CScriptDirectory::RemoveStaleDirectories( m_sParent );
+
+		Assert::IsFalse( DirectoryExists( sStale ) );
+		Assert::IsTrue( DirectoryExists( alive.GetDirectory() ), L"the running process keeps its folder" );
+	}
+};
+
+TEST_CLASS( LaunchProcessTests )
+{
+public:
+	TEST_METHOD( StartsWithoutWaitingAndRedirectsOutput )
+	{
+		CUniqueTempFile log;
+		log.Create( GetTempDir(), L"UsdTest", L"log" );
+		CHandle hLog( OpenInheritableForWrite( log.GetPath() ) );
+
+		// ping takes about 1 s: returning sooner proves we did not wait.
+		ULONGLONG start = ::GetTickCount64();
+		HRESULT hr = LaunchProcess( L"cmd.exe /c echo launched & ping -n 2 127.0.0.1 >nul", hLog, CREATE_NO_WINDOW );
+		ULONGLONG elapsed = ::GetTickCount64() - start;
+		hLog.Close();
+
+		Assert::AreEqual( S_OK, hr );
+		Assert::IsTrue( elapsed < 700, L"LaunchProcess must not wait for the child" );
+
+		// The child keeps running on its own and writes its output.
+		bool bFound = false;
+		for( int attempt = 0; attempt < 50 && !bFound; ++attempt )
+		{
+			bFound = log.ReadAll().Find( "launched" ) >= 0;
+			if( !bFound )
+				::Sleep( 100 );
+		}
+		Assert::IsTrue( bFound );
+		::Sleep( 1500 );	// let the child exit before the log is deleted
+	}
+
+	TEST_METHOD( ReportsAMissingExecutable )
+	{
+		HRESULT hr = LaunchProcess( L"\"C:\\no\\such\\tool.exe\"", nullptr, CREATE_NO_WINDOW );
+		Assert::IsTrue( FAILED( hr ) );
+	}
+};
+
 TEST_CLASS( RunProcessAndWaitTests )
 {
 public:
