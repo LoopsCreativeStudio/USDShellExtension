@@ -100,6 +100,17 @@ Native unit tests live in the `UsdShellExtensionTests` project (Microsoft CppUni
 
 The build stops if a test fails. The test DLL is written to `build\`, never to `bin\`, so it is neither installed nor packaged. Tests can also be run from the Visual Studio Test Explorer. These tests need the local toolchain and SDK, so they do not run in the GitHub CI.
 
+### Measuring performance
+
+Before and after a performance change, time the Python tools as the COM servers launch them (scripts from the repository, runtime from the installed folder):
+
+```powershell
+.\tools\Measure-Performance.ps1 -Label baseline     # before
+.\tools\Measure-Performance.ps1 -Label my-change    # after
+```
+
+Results are printed and saved to `build\bench\<Label>.json`; the rendered thumbnails are kept in `build\bench\out\` for a visual check. Compare runs on the same machine only.
+
 ### Manually
 The core of **USDShellExtension** focuses on staying simple and having distinct processes as much as possible. Randomly test your feature, try running something completely different during its process, play with it until you break it! If you despair of making it crash, your feature is ready to be submitted to the review process...
 
