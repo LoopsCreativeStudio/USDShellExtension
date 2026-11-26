@@ -53,26 +53,47 @@ def _setup_gl_context():
 def _compute_geometry_range(stage, bbox_cache):
     """Return the world-space range of the stage geometry, lights excluded.
 
-    Walks the stage including instance proxies. The first Boundable prim of
-    each branch (gprim, point instancer...) gives the bound of its whole
-    subtree. UsdLux lights are skipped with their descendants: they light
-    the asset but are not part of what the thumbnail must frame.
+    UsdLux lights are boundable, so a root bound would include them and
+    frame the asset off-center. To stay as fast as a single root bound:
+
+      - without lights, the whole stage is bounded in one call;
+      - with lights, only the branches leading to a light are walked: every
+        other subtree is bounded in one call, the lights are skipped.
+
+    Instance proxies are included so lights inside instances are found.
+    Limitation: the own geometry of a prim that has a light below it is not
+    counted (lights are normally siblings of the geometry, not children).
     """
-    from pxr import Gf, Usd, UsdGeom, UsdLux
+    from pxr import Gf, Sdf, Usd, UsdLux
+
+    predicate = Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate)
+    pseudo_root = stage.GetPseudoRoot()
+
+    # Paths of every light and of all its ancestors.
+    light_branches = set()
+    for prim in Usd.PrimRange(pseudo_root, predicate):
+        if prim.HasAPI(UsdLux.LightAPI):
+            light_branches.update(prim.GetPath().GetPrefixes())
+            light_branches.add(Sdf.Path.absoluteRootPath)
+
+    # One root bound: multi-threaded, and it fills the cache for every prim,
+    # so the per-subtree queries below are cache lookups.
+    root_bound = bbox_cache.ComputeWorldBound(pseudo_root)
+    if not light_branches:
+        return root_bound.ComputeAlignedRange()
 
     geometry_range = Gf.Range3d()
-    prims = iter(Usd.PrimRange(
-        stage.GetPseudoRoot(),
-        Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate),
-    ))
+    prims = iter(Usd.PrimRange(pseudo_root, predicate))
     for prim in prims:
-        if prim.HasAPI(UsdLux.LightAPI):
-            prims.PruneChildren()
+        if prim.GetPath() in light_branches:
+            # A light: skip it and what is below it. A light ancestor:
+            # keep walking down to separate it from its siblings.
+            if prim.HasAPI(UsdLux.LightAPI):
+                prims.PruneChildren()
             continue
-        if prim.IsA(UsdGeom.Boundable):
-            bound = bbox_cache.ComputeWorldBound(prim)
-            geometry_range.UnionWith(bound.ComputeAlignedRange())
-            prims.PruneChildren()
+        # A subtree without any light: bounded in one call.
+        geometry_range.UnionWith(bbox_cache.ComputeWorldBound(prim).ComputeAlignedRange())
+        prims.PruneChildren()
     return geometry_range
 
 

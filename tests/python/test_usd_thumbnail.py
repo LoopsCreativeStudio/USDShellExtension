@@ -224,6 +224,40 @@ def test_framing_includes_instanced_geometry(make_stage):
     assert Gf.IsClose(eye, Gf.Vec3d(0.0, 0.0, distance + 1.0), 1e-6)
 
 
+def _median_seconds(function, runs=5):
+    """Return the median run time of function over several runs."""
+    import time
+
+    durations = []
+    for _ in range(runs):
+        start = time.perf_counter()
+        function()
+        durations.append(time.perf_counter() - start)
+    return sorted(durations)[runs // 2]
+
+
+@pytest.mark.parametrize("with_light", [False, True])
+def test_geometry_range_costs_about_one_root_bound(make_stage, with_light):
+    # Regression: walking every prim made framing ~7x slower than one root
+    # bound on 2,500 prims, visible as slower thumbnails under load.
+    stage = make_stage()
+    for index in range(2500):
+        cube = UsdGeom.Cube.Define(stage, "/World/Group_%d/Cube" % (index // 50) + "_%d" % index)
+        UsdGeom.XformCommonAPI(cube).SetTranslate(Gf.Vec3d(index * 3.0, 0.0, 0.0))
+    if with_light:
+        UsdLux.SphereLight.Define(stage, "/World/Group_0/Lamp")
+
+    def new_cache():
+        return UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.proxy], True)
+
+    root_bound = _median_seconds(lambda: new_cache().ComputeWorldBound(stage.GetPseudoRoot()))
+    geometry_range = _median_seconds(lambda: UsdThumbnail._compute_geometry_range(stage, new_cache()))
+
+    assert geometry_range < 3.0 * root_bound + 0.005, (
+        "geometry range %.1f ms vs root bound %.1f ms" % (geometry_range * 1000, root_bound * 1000)
+    )
+
+
 def test_framing_includes_point_instancer_instances(make_stage):
     stage = make_stage()
     instancer = UsdGeom.PointInstancer.Define(stage, "/World/Scatter")
