@@ -35,10 +35,13 @@ static std::string DictionaryToString(const pxr::VtDictionary &dict, std::string
 				ss << name << "=" << stat.second.Get<size_t>() << std::endl;
 			else if ( stat.second.GetTypeid() == typeid(double) )
 				ss << name << "=" << stat.second.Get<double>() << std::endl;
-			else if ( stat.second.GetTypeid() == typeid(std::string) )
-				ss << name << "=" << stat.second << std::endl;
+			else if ( stat.second.GetTypeid() == typeid(bool) )
+				// Readable in Explorer rather than the stream default "1" / "0".
+				ss << name << "=" << ( stat.second.Get<bool>() ? "true" : "false" ) << std::endl;
 			else
-				ss << name << "=" << "[UNKNOWN TYPE]" << std::endl;
+				// Any other value (string, int, float, token, asset path,
+				// arrays...) uses USD's own text form.
+				ss << name << "=" << stat.second << std::endl;
 
 			result += ss.str();
 		}

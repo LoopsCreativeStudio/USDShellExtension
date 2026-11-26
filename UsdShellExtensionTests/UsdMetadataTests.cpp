@@ -144,14 +144,26 @@ public:
 		Assert::AreEqual( std::string( "pipeline.shot.name=010\n" ), DictionaryToString( dict ) );
 	}
 
-	TEST_METHOD( ReportsUnsupportedTypesAsUnknown )
+	TEST_METHOD( FormatsIntegersBooleansAndFloats )
 	{
-		// Current behavior: int, bool, float... are not rendered.
+		// Common customLayerData values used to show as [UNKNOWN TYPE].
 		pxr::VtDictionary dict;
-		dict["version"] = pxr::VtValue( 2 );
 		dict["approved"] = pxr::VtValue( true );
+		dict["draft"] = pxr::VtValue( false );
+		dict["scale"] = pxr::VtValue( 0.5f );
+		dict["version"] = pxr::VtValue( 2 );
 
-		Assert::AreEqual( std::string( "approved=[UNKNOWN TYPE]\nversion=[UNKNOWN TYPE]\n" ), DictionaryToString( dict ) );
+		Assert::AreEqual( std::string( "approved=true\ndraft=false\nscale=0.5\nversion=2\n" ), DictionaryToString( dict ) );
+	}
+
+	TEST_METHOD( FormatsTokensAssetPathsAndArrays )
+	{
+		pxr::VtDictionary dict;
+		dict["frames"] = pxr::VtValue( pxr::VtIntArray( { 1, 2, 3 } ) );
+		dict["purpose"] = pxr::VtValue( pxr::TfToken( "render" ) );
+		dict["texture"] = pxr::VtValue( pxr::SdfAssetPath( "./tex.png" ) );
+
+		Assert::AreEqual( std::string( "frames=[1, 2, 3]\npurpose=render\ntexture=@./tex.png@\n" ), DictionaryToString( dict ) );
 	}
 };
 
