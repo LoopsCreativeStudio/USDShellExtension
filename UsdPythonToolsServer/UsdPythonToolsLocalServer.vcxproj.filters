@@ -45,6 +45,9 @@
     <ClInclude Include="..\shared\PythonUtil.h">
       <Filter>Shared</Filter>
     </ClInclude>
+    <ClInclude Include="..\shared\ProcessUtil.h">
+      <Filter>Shared</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -63,6 +66,9 @@
       <Filter>Shared</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\environment.cpp">
+      <Filter>Shared</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\ProcessUtil.cpp">
       <Filter>Shared</Filter>
     </ClCompile>
   </ItemGroup>

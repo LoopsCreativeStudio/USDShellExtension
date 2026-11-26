@@ -91,6 +91,8 @@
   <ItemGroup>
     <ClCompile Include="EnvironmentTests.cpp" />
     <ClCompile Include="UsdMetadataTests.cpp" />
+    <ClCompile Include="ProcessUtilTests.cpp" />
+    <ClCompile Include="..\shared\ProcessUtil.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

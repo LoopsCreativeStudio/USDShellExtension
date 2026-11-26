@@ -6,6 +6,7 @@
 #include "Module.h"
 #include "shared\environment.h"
 #include "shared\EventViewerLog.h"
+#include "shared\ProcessUtil.h"
 #include "UsdPythonToolsLocalServer_h.h"
 
 #include <vector>
@@ -14,6 +15,10 @@
 // Explorer requests many thumbnails at once. Named semaphore so the limit
 // is shared across all instances of this server on the current session.
 static constexpr int kMaxConcurrentRenders = 3;
+// Longest wait for a free render slot before giving up on a thumbnail.
+static constexpr DWORD kRenderSlotTimeoutMs = 60000;
+// Longest run time of one thumbnail subprocess before it is killed.
+static constexpr DWORD kRenderTimeoutMs = 30000;
 static HANDLE g_hRenderSemaphore = ::CreateSemaphoreW(
     nullptr, kMaxConcurrentRenders, kMaxConcurrentRenders,
     L"Local\\UsdShellExtension_ThumbnailSemaphore" );
@@ -57,6 +62,12 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 {
 	DEBUG_RECORD_ENTRY();
 
+	if ( outputImagePath == nullptr )
+		return E_POINTER;
+	*outputImagePath = nullptr;
+
+	HRESULT hr;
+
 	// --- Unique temp PNG output path ---
 	wchar_t sTempPath[MAX_PATH];
 	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
@@ -74,15 +85,18 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	for ( const CStringW &str : tempFileList )
 		::DeleteFileW( str );
 
-	// --- Extract UsdThumbnail.py to %TEMP% ---
+	// Temp folder without the trailing backslash, for the per-call files.
+	CStringW sTempDir = sTempPath;
+	sTempDir.TrimRight( L'\\' );
+
+	// --- Extract UsdThumbnail.py to a per-call temp file ---
 	// UsdImagingGLEngine requires WGL context initialization driven by a Win32
 	// message loop. Running it via PyRun_String on the COM thread blocks the loop
 	// and causes "No renderer plugins found!". A subprocess gets its own process
 	// with full message-pump capability (same fix as View/usdview).
-	wchar_t sScriptPath[MAX_PATH] = {};
-	wcscpy_s( sScriptPath, sTempPath );
-	::PathCchAppend( sScriptPath, ARRAYSIZE( sScriptPath ), L"UsdThumbnailScript.py" );
-
+	// Each call owns its script: up to kMaxConcurrentRenders renders run at once
+	// and must never rewrite a file another python.exe is reading.
+	CUniqueTempFile scriptFile;
 	{
 		HRSRC hRes = ::FindResource( g_hInstance, MAKEINTRESOURCE( IDR_PYTHON_THUMBNAIL ), _T("PYTHON") );
 		if ( hRes == nullptr )
@@ -93,16 +107,17 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		HGLOBAL hData = ::LoadResource( g_hInstance, hRes );
 		void*   pData = ::LockResource( hData );
 		DWORD   nSize = ::SizeofResource( g_hInstance, hRes );
-		HANDLE  hFile = ::CreateFileW( sScriptPath, GENERIC_WRITE, 0, nullptr,
-		                               CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hFile == INVALID_HANDLE_VALUE )
+
+		hr = scriptFile.Create( sTempDir, L"UsdThumbnail_", L"py" );
+		if ( SUCCEEDED( hr ) )
+			hr = scriptFile.Write( pData, nSize );
+		if ( FAILED( hr ) )
 		{
-			LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: failed to write UsdThumbnailScript.py", LogEventType::Error );
-			return E_FAIL;
+			CString sMsg;
+			sMsg.Format( _T("Record: failed to write the thumbnail script in %ls (0x%08X)"), sTempDir.GetString(), hr );
+			LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+			return hr;
 		}
-		DWORD nWritten = 0;
-		::WriteFile( hFile, pData, nSize, &nWritten, nullptr );
-		::CloseHandle( hFile );
 	}
 
 	// --- Build command line ---
@@ -113,106 +128,61 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 
 	CStringW sCommandLine;
 	sCommandLine.Format( L"\"%ls\" \"%ls\" --imageWidth %ls",
-	                     sPythonExe.c_str(), sScriptPath, (LPCWSTR)sImageWidth );
+	                     sPythonExe.c_str(), scriptFile.GetPath().GetString(), (LPCWSTR)sImageWidth );
 
 	if ( renderer != nullptr && renderer[0] != L'\0' )
 		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
 
 	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, sTempFileName );
 
-	// --- Launch subprocess (throttled) ---
-	wchar_t sLogPath[MAX_PATH] = {};
-	wcscpy_s( sLogPath, sTempPath );
-	::PathCchAppend( sLogPath, ARRAYSIZE( sLogPath ), L"UsdThumbnail.log" );
+	// --- Per-call log receiving the subprocess stdout / stderr ---
+	// Optional: without it the render still runs, only the failure details
+	// are lost.
+	CUniqueTempFile logFile;
+	CHandle hLog;
+	if ( SUCCEEDED( logFile.Create( sTempDir, L"UsdThumbnail_", L"log" ) ) )
+		hLog.Attach( OpenInheritableForWrite( logFile.GetPath() ) );
 
-	SECURITY_ATTRIBUTES sa = {};
-	sa.nLength        = sizeof( sa );
-	sa.bInheritHandle = TRUE;
-
-	HANDLE hLog = ::CreateFileW( sLogPath, GENERIC_WRITE, FILE_SHARE_READ, &sa,
-	                              CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr );
-
-	STARTUPINFOW si = {};
-	si.cb = sizeof( si );
-	BOOL bInheritHandles = FALSE;
-
-	if ( hLog != INVALID_HANDLE_VALUE )
-	{
-		si.dwFlags    = STARTF_USESTDHANDLES;
-		si.hStdInput  = NULL;
-		si.hStdOutput = hLog;
-		si.hStdError  = hLog;
-		bInheritHandles = TRUE;
-	}
-
-	// Block until a render slot is available (max kMaxConcurrentRenders at once).
-	::WaitForSingleObject( g_hRenderSemaphore, INFINITE );
-
-	PROCESS_INFORMATION pi = {};
-
-	if ( !::CreateProcessW( nullptr, sCommandLine.GetBuffer(), nullptr, nullptr,
-	                        bInheritHandles, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi ) )
-	{
-		DWORD err = ::GetLastError();
-		CString sMsg;
-		sMsg.Format( _T("Record: CreateProcess failed (0x%08X): %ls"), err, (LPCWSTR)sCommandLine );
-		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
-		if ( hLog != INVALID_HANDLE_VALUE )
-			::CloseHandle( hLog );
-		::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
-		return HRESULT_FROM_WIN32( err );
-	}
-	::CloseHandle( pi.hThread );
-
-	constexpr DWORD kTimeoutMs = 30000;
-	DWORD waitResult = ::WaitForSingleObject( pi.hProcess, kTimeoutMs );
-
-	if ( waitResult == WAIT_TIMEOUT )
-	{
-		::TerminateProcess( pi.hProcess, 1 );
-		::CloseHandle( pi.hProcess );
-		if ( hLog != INVALID_HANDLE_VALUE )
-			::CloseHandle( hLog );
-		::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
-		LogEventMessage( PYTHONTOOLS_CATEGORY, L"Record: thumbnail process timed out after 30s", LogEventType::Error );
-		return E_FAIL;
-	}
-
+	// --- Launch subprocess (throttled, every wait bounded) ---
 	DWORD exitCode = 0;
-	::GetExitCodeProcess( pi.hProcess, &exitCode );
-	::CloseHandle( pi.hProcess );
-
-	if ( hLog != INVALID_HANDLE_VALUE )
-		::CloseHandle( hLog );
-
-	::ReleaseSemaphore( g_hRenderSemaphore, 1, nullptr );
-
-	if ( exitCode != 0 )
 	{
-		CStringA sLogContent;
-		HANDLE hLogRead = ::CreateFileW( sLogPath, GENERIC_READ, FILE_SHARE_READ, nullptr,
-		                                  OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
-		if ( hLogRead != INVALID_HANDLE_VALUE )
+		// Wait for a render slot (max kMaxConcurrentRenders at once). If the
+		// semaphore could not be created, render without throttling.
+		CSemaphoreSlot renderSlot;
+		if ( g_hRenderSemaphore != nullptr && !renderSlot.Acquire( g_hRenderSemaphore, kRenderSlotTimeoutMs ) )
 		{
-			DWORD nLogSize = ::GetFileSize( hLogRead, nullptr );
-			if ( nLogSize > 0 && nLogSize != INVALID_FILE_SIZE )
-			{
-				LPSTR pBuf = sLogContent.GetBufferSetLength( static_cast<int>(nLogSize) );
-				DWORD nRead = 0;
-				::ReadFile( hLogRead, pBuf, nLogSize, &nRead, nullptr );
-				sLogContent.ReleaseBuffer( static_cast<int>(nRead) );
-			}
-			::CloseHandle( hLogRead );
+			CString sMsg;
+			sMsg.Format( _T("Record: no render slot free after %lu s, thumbnail skipped for %ls"),
+			             kRenderSlotTimeoutMs / 1000, usdStagePath );
+			LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Warning );
+			return HRESULT_FROM_WIN32( ERROR_TIMEOUT );
 		}
 
+		hr = RunProcessAndWait( sCommandLine, hLog.m_h, kRenderTimeoutMs, exitCode );
+		// The slot is released here, as soon as the subprocess is done.
+	}
+	hLog.Close();
+
+	// --- Report failures with the subprocess output ---
+	if ( FAILED( hr ) || exitCode != 0 )
+	{
+		// A failed or killed render may have left a partial image.
+		::DeleteFileW( sTempFileName );
+
+		CStringA sLogContent = logFile.ReadAll();
 		CString sErrorMsg;
-		if ( sLogContent.IsEmpty() )
-			sErrorMsg.Format( _T("Record: thumbnail failed for %ls (exit %lu)"), usdStagePath, exitCode );
+		if ( hr == HRESULT_FROM_WIN32( ERROR_TIMEOUT ) )
+			sErrorMsg.Format( _T("Record: thumbnail process timed out after %lu s for %ls"), kRenderTimeoutMs / 1000, usdStagePath );
+		else if ( FAILED( hr ) )
+			sErrorMsg.Format( _T("Record: CreateProcess failed (0x%08X): %ls"), hr, sCommandLine.GetString() );
 		else
-			sErrorMsg.Format( _T("Record: thumbnail failed for %ls (exit %lu)\n\n%hs"),
-			                  usdStagePath, exitCode, (LPCSTR)sLogContent );
+			sErrorMsg.Format( _T("Record: thumbnail failed for %ls (exit %lu)"), usdStagePath, exitCode );
+
+		if ( !sLogContent.IsEmpty() )
+			sErrorMsg.AppendFormat( _T("\n\n%hs"), sLogContent.GetString() );
+
 		LogEventMessage( PYTHONTOOLS_CATEGORY, sErrorMsg.GetString(), LogEventType::Error );
-		return E_FAIL;
+		return FAILED( hr ) ? hr : E_FAIL;
 	}
 
 	CComBSTR bstrOutputFile( sTempFileName );

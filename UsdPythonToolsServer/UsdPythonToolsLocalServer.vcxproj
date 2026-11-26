@@ -191,6 +191,7 @@
   <ItemGroup>
     <ClInclude Include="..\shared\emb.h" />
     <ClInclude Include="..\shared\environment.h" />
+    <ClInclude Include="..\shared\ProcessUtil.h" />
     <ClInclude Include="..\shared\EventViewerLog.h" />
     <ClInclude Include="..\shared\PythonUtil.h" />
     <ClInclude Include="resource.h" />
@@ -202,6 +203,7 @@
   <ItemGroup>
     <ClCompile Include="..\shared\emb.cpp" />
     <ClCompile Include="..\shared\environment.cpp" />
+    <ClCompile Include="..\shared\ProcessUtil.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
