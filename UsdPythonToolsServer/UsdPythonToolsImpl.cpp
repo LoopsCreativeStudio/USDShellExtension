@@ -71,23 +71,23 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	// --- Unique temp PNG output path ---
 	wchar_t sTempPath[MAX_PATH];
 	::GetTempPathW( ARRAYSIZE( sTempPath ), sTempPath );
-	wchar_t sTempFileName[MAX_PATH];
-
-	std::vector<CStringW> tempFileList;
-	for ( ;; )
-	{
-		::GetTempFileNameW( sTempPath, L"usd", 0, sTempFileName );
-		tempFileList.push_back( sTempFileName );
-		::PathCchRenameExtension( sTempFileName, ARRAYSIZE( sTempFileName ), L"png" );
-		if ( ::GetFileAttributesW( sTempFileName ) == INVALID_FILE_ATTRIBUTES )
-			break;
-	}
-	for ( const CStringW &str : tempFileList )
-		::DeleteFileW( str );
 
 	// Temp folder without the trailing backslash, for the per-call files.
 	CStringW sTempDir = sTempPath;
 	sTempDir.TrimRight( L'\\' );
+
+	// The image name stays reserved (the file exists) until the render
+	// writes it: parallel calls can never be given the same image. It is
+	// deleted automatically on failure and handed to the caller on success.
+	CUniqueTempFile imageFile;
+	hr = imageFile.Create( sTempDir, L"UsdThumbnailImage_", L"png" );
+	if ( FAILED( hr ) )
+	{
+		CString sMsg;
+		sMsg.Format( _T("Record: failed to reserve the thumbnail image in %ls (0x%08X)"), sTempDir.GetString(), hr );
+		LogEventMessage( PYTHONTOOLS_CATEGORY, sMsg, LogEventType::Error );
+		return hr;
+	}
 
 	// --- Extract UsdThumbnail.py to a per-call temp file ---
 	// UsdImagingGLEngine requires WGL context initialization driven by a Win32
@@ -133,7 +133,7 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	if ( renderer != nullptr && renderer[0] != L'\0' )
 		sCommandLine.AppendFormat( L" --renderer %ls", renderer );
 
-	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, sTempFileName );
+	sCommandLine.AppendFormat( L" \"%ls\" \"%ls\"", (LPCWSTR)usdStagePath, imageFile.GetPath().GetString() );
 
 	// --- Per-call log receiving the subprocess stdout / stderr ---
 	// Optional: without it the render still runs, only the failure details
@@ -166,9 +166,8 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 	// --- Report failures with the subprocess output ---
 	if ( FAILED( hr ) || exitCode != 0 )
 	{
-		// A failed or killed render may have left a partial image.
-		::DeleteFileW( sTempFileName );
-
+		// A failed or killed render may have left a partial image: imageFile
+		// deletes it when this function returns.
 		CStringA sLogContent = logFile.ReadAll();
 		CString sErrorMsg;
 		if ( hr == HRESULT_FROM_WIN32( ERROR_TIMEOUT ) )
@@ -185,7 +184,8 @@ STDMETHODIMP CUsdPythonToolsImpl::Record( IN BSTR usdStagePath, IN int imageWidt
 		return FAILED( hr ) ? hr : E_FAIL;
 	}
 
-	CComBSTR bstrOutputFile( sTempFileName );
+	// Success: the caller (shell extension) now owns and deletes the image.
+	CComBSTR bstrOutputFile( imageFile.Detach() );
 	*outputImagePath = bstrOutputFile.Detach();
 
 	return S_OK;

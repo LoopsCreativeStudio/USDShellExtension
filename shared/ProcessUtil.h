@@ -52,6 +52,10 @@ public:
 	// Empty until Create succeeds.
 	const CStringW &GetPath() const { return m_sPath; }
 
+	// Stop owning the file: it is no longer deleted on destruction and the
+	// caller becomes responsible for it. Returns its path.
+	CStringW Detach();
+
 private:
 	CStringW m_sPath;
 };

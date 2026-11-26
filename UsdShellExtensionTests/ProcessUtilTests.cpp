@@ -164,6 +164,20 @@ public:
 		Assert::AreEqual( static_cast<size_t>( kThreads ), paths.size() );
 	}
 
+	TEST_METHOD( DetachKeepsTheFileAndHandsOverItsPath )
+	{
+		// Used for the thumbnail image: kept on success, owned by the caller.
+		CStringW sPath;
+		{
+			CUniqueTempFile file;
+			file.Create( GetTempDir(), L"UsdTest", L"png" );
+			sPath = file.Detach();
+			Assert::IsTrue( file.GetPath().IsEmpty() );
+		}
+		Assert::IsTrue( FileExists( sPath ) );
+		::DeleteFileW( sPath );
+	}
+
 	TEST_METHOD( CreateFailsInAMissingDirectory )
 	{
 		CUniqueTempFile file;

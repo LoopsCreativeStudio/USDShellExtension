@@ -76,6 +76,11 @@ STDMETHODIMP CShellThumbnailProviderImpl::GetThumbnail( UINT cx, __RPC__deref_ou
 
 	CImage imgBmp;
 	hr = imgBmp.Load( bstrThumbnailImage );
+
+	// Record hands the temp image over to us: once loaded in memory (or
+	// unreadable) it is no longer needed, so never leave it in %TEMP%.
+	::DeleteFileW( bstrThumbnailImage );
+
 	if ( FAILED( hr ) )
 		return hr;
 

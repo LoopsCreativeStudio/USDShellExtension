@@ -68,6 +68,13 @@ HRESULT CUniqueTempFile::Create( LPCWSTR sDirectory, LPCWSTR sPrefix, LPCWSTR sE
 	return S_OK;
 }
 
+CStringW CUniqueTempFile::Detach()
+{
+	CStringW sPath = m_sPath;
+	m_sPath.Empty();
+	return sPath;
+}
+
 HRESULT CUniqueTempFile::Write( const void *pData, DWORD nSize )
 {
 	if( m_sPath.IsEmpty() )
