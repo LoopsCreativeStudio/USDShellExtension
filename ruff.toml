@@ -1,0 +1,10 @@
+# Ruff configuration for the Python scripts and their tests.
+#
+# Ruff 0.17 widened its default rule set (BLE, UP, I, S, SIM, RUF...).
+# The selection below pins the previous defaults so the lint result does not
+# depend on the ruff version. New rule families are adopted deliberately, in
+# dedicated changes that also fix the code.
+target-version = "py312"
+
+[lint]
+select = ["E4", "E7", "E9", "F"]

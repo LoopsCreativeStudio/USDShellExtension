@@ -68,6 +68,17 @@ The development of **USDShellExtension** is very demanding in terms of stability
 > [!NOTE]
 > If you are fixing a bug, writing associated tests to ensure the bug will not reoccur is appreciated, but not mandatory.
 
+### Running the Python tests
+
+The Python scripts are tested with [pytest](https://pytest.org) against `usd-core`, pinned to the same USD version as the NVIDIA SDK. With [uv](https://docs.astral.sh/uv/) installed, from the repository root:
+
+```powershell
+uv run --no-project --python 3.12 --with-requirements tests/requirements.txt pytest tests/python
+uv run --no-project --python 3.12 --with-requirements tests/requirements.txt ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/
+```
+
+Tests needing modules missing from `usd-core` (e.g. `UsdAppUtils`) are skipped. The CI runs the same commands on every push.
+
 ### Manually
 The core of **USDShellExtension** focuses on staying simple and having distinct processes as much as possible. Randomly test your feature, try running something completely different during its process, play with it until you break it! If you despair of making it crash, your feature is ready to be submitted to the review process...
 
@@ -396,7 +407,7 @@ import unittest
 
 ##### Code Formatting and Linter
 
-[Ruff](https://github.com/astral-sh/ruff) is used with default conventions.
+[Ruff](https://github.com/astral-sh/ruff) is used with the rule selection pinned in `ruff.toml`.
 
 ### Code of Conduct
 

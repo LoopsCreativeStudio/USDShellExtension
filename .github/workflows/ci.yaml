@@ -17,17 +17,23 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
+      # Same Python minor version as the interpreter bundled in the NVIDIA SDK.
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+
+      # Pinned test and lint tools (usd-core matches the runtime SDK version).
+      - name: Install Python test dependencies
+        run: pip install -r tests/requirements.txt
 
       - name: Lint Python (Ruff)
-        run: |
-          pip install ruff
-          ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/
+        run: ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/
+
+      - name: Test Python (pytest)
+        run: pytest tests/python -rs
 
       - name: Lint PowerShell (PSScriptAnalyzer)
         shell: pwsh
