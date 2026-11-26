@@ -218,15 +218,10 @@ public:
 		Assert::AreEqual( L"fallback", sValue.GetString() );
 	}
 
-	BEGIN_TEST_METHOD_ATTRIBUTE( ReturnsDefaultWithEmptyFileList )
-		TEST_IGNORE()
-	END_TEST_METHOD_ATTRIBUTE()
 	TEST_METHOD( ReturnsDefaultWithEmptyFileList )
 	{
-		// Known defect, fix pending: with no config file the lookup buffer is
-		// never initialized, so the function reads uninitialized stack memory
-		// (seen returning leftovers of a previous call). Not reachable today:
-		// BuildConfigFileList always returns three paths.
+		// Regression: with no config file the lookup buffer used to be read
+		// uninitialized (returned leftovers of a previous call).
 		CStringW sValue;
 		GetPrivateProfileStringAndExpandEnvironmentStrings( L"USD", L"EDITOR", L"fallback", sValue, {} );
 

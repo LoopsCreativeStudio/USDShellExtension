@@ -171,6 +171,10 @@ void GetPrivateProfileStringAndExpandEnvironmentStrings( LPCWSTR lpAppName, LPCW
 	const wchar_t sDefault[] = L"{80CA827C-F8A2-42E3-B582-BF7940014D71}";
 	wchar_t sBuffer[8196];
 
+	// Start empty so an empty config file list falls back to the default
+	// instead of reading uninitialized memory.
+	sBuffer[0] = '\0';
+
 	for ( const CStringW &sConfigFile : ConfigFileList )
 	{
 		sBuffer[0] = '\0';
