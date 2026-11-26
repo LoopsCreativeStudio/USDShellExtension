@@ -114,41 +114,48 @@ Describe "Console helpers" {
 }
 
 Describe "Find-NonRedistributableFile" {
+    # Paths built with [IO.Path]::Combine: the CI runs these tests on Linux,
+    # where the separator is "/" (a "\" would be part of a file name).
     BeforeEach {
-        $package = Join-Path $TestDrive ("pkg_" + [guid]::NewGuid().ToString("N"))
-        New-Item -ItemType Directory -Force (Join-Path $package "scripts"), (Join-Path $package "python"), (Join-Path $package "lib\python\pxr") | Out-Null
+        $package = [IO.Path]::Combine($TestDrive, "pkg_" + [guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Force ([IO.Path]::Combine($package, "scripts")) | Out-Null
+        New-Item -ItemType Directory -Force ([IO.Path]::Combine($package, "python")) | Out-Null
+        New-Item -ItemType Directory -Force ([IO.Path]::Combine($package, "lib", "python", "pxr")) | Out-Null
     }
 
     It "returns nothing for a clean package" {
-        Set-Content (Join-Path $package "lib\python\pxr\__init__.py") "# Copyright 2016 Pixar"
+        Set-Content ([IO.Path]::Combine($package, "lib", "python", "pxr", "__init__.py")) "# Copyright 2016 Pixar"
         @(Find-NonRedistributableFile $package).Count | Should -Be 0
     }
 
     It "finds files under an NVIDIA proprietary license, at any depth" {
-        Set-Content (Join-Path $package "scripts\usdcat.bat") @(
+        $script = [IO.Path]::Combine($package, "scripts", "usdcat.bat")
+        Set-Content $script @(
             "REM SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION & AFFILIATES.",
             "REM SPDX-License-Identifier: LicenseRef-NvidiaProprietary"
         )
         $found = @(Find-NonRedistributableFile $package)
         $found.Count | Should -Be 1
-        $found[0] | Should -BeLike "*scripts\usdcat.bat"
+        $found[0] | Should -Be $script
     }
 
     It "finds NVIDIA packman metadata files" {
-        Set-Content (Join-Path $package "python\.packman.sha1") "abc"
-        @(Find-NonRedistributableFile $package) | Should -BeLike "*python\.packman.sha1"
+        $packman = [IO.Path]::Combine($package, "python", ".packman.sha1")
+        Set-Content $packman "abc"
+        @(Find-NonRedistributableFile $package) | Should -Be $packman
     }
 
     It "keeps NVIDIA files released under the OpenUSD license" {
         # UsdPhysics: NVIDIA copyright, Pixar / OpenUSD license: redistributable.
-        Set-Content (Join-Path $package "lib\python\pxr\physics.py") @("# Copyright (c) 2018, NVIDIA CORPORATION", "# Licensed under the terms set forth in the LICENSE.txt file available at https://openusd.org/license.")
+        Set-Content ([IO.Path]::Combine($package, "lib", "python", "pxr", "physics.py")) @("# Copyright (c) 2018, NVIDIA CORPORATION", "# Licensed under the terms set forth in the LICENSE.txt file available at https://openusd.org/license.")
         @(Find-NonRedistributableFile $package).Count | Should -Be 0
     }
 
     It "scans binary files too" {
+        $tool = [IO.Path]::Combine($package, "tool.dll")
         $bytes = [byte[]](0, 1, 2) + [Text.Encoding]::ASCII.GetBytes("LicenseRef-NvidiaProprietary") + [byte[]](0, 255)
-        [IO.File]::WriteAllBytes((Join-Path $package "tool.dll"), $bytes)
-        @(Find-NonRedistributableFile $package) | Should -BeLike "*tool.dll"
+        [IO.File]::WriteAllBytes($tool, $bytes)
+        @(Find-NonRedistributableFile $package) | Should -Be $tool
     }
 }
 
