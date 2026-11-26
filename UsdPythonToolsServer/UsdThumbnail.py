@@ -234,13 +234,15 @@ def _find_stage_camera(stage):
     return None
 
 
-def main():
-    # --- Step 1: narrow PXR_PLUGINPATH_NAME before any pxr import. ---
-    # The COM parent sets it to the install dir, which contains a plugInfo.json
-    # that loads UsdShellExtension.dll (our ArResolver) into the subprocess.
-    # That DLL is not designed for this context and corrupts UsdImagingGL.
-    # We redirect to the SDK's plugin/usd/ (derived from PYTHONPATH), which
-    # has HdStorm and MaterialX without UsdShellExtension.dll.
+def narrow_plugin_path():
+    """Point PXR_PLUGINPATH_NAME at the SDK plugins; call before any pxr import.
+
+    The COM parent sets it to the install dir, which contains a plugInfo.json
+    that loads UsdShellExtension.dll (our ArResolver) into the subprocess.
+    That DLL is not designed for this context and corrupts UsdImagingGL.
+    We redirect to the SDK's plugin/usd/ (derived from PYTHONPATH), which
+    has HdStorm and MaterialX without UsdShellExtension.dll.
+    """
     _sdk_plugin_usd = next(
         (c for c in (
             os.path.normpath(
@@ -255,6 +257,87 @@ def main():
         os.environ['PXR_PLUGINPATH_NAME'] = _sdk_plugin_usd
     else:
         os.environ.pop('PXR_PLUGINPATH_NAME', None)
+
+
+_tf_error_patched = False
+
+
+def install_tf_error_patch():
+    """Make Tf.Error.commentary safe with non UTF-8 (CP1252) text, once."""
+    global _tf_error_patched
+    if _tf_error_patched:
+        return
+    _tf_error_patched = True
+
+    from pxr import Tf
+    try:
+        _orig_fget = Tf.Error.commentary.fget
+
+        def _safe_commentary(self):
+            try:
+                return _orig_fget(self)
+            except (UnicodeDecodeError, UnicodeEncodeError):
+                return ''
+
+        Tf.Error.commentary = property(_safe_commentary)
+    except Exception:
+        pass
+
+
+def render_thumbnail(usd_file, output_path, image_width=256, renderer_arg=''):
+    """Render one thumbnail of usd_file into output_path.
+
+    Needs narrow_plugin_path() and _setup_gl_context() done beforehand in
+    this process. A new FrameRecorder is created for every render: reusing
+    one across stages produces wrong (grey or black) images.
+
+    Returns:
+        tuple: (ok, error) where error is a message when ok is False.
+    """
+    from pxr import Tf, Usd, UsdAppUtils, UsdGeom
+    from pxr.UsdAppUtils import rendererArgs
+
+    install_tf_error_patch()
+    image_width = min(max(1, int(image_width)), 256)
+    renderer_plugin = rendererArgs.GetPluginIdFromArgument(renderer_arg) or ''
+
+    # Open stage and find camera.
+    stage = Usd.Stage.Open(usd_file)
+    if not stage:
+        return False, 'Could not open USD stage: %s' % usd_file
+
+    # Render at startTimeCode so time-sampled attributes resolve to authored values.
+    time_code = Usd.TimeCode(stage.GetStartTimeCode())
+
+    # Prefer an authored camera; if none exists build a square framing camera
+    # from the world bbox so the output is always image_width x image_width.
+    usd_camera = _find_stage_camera(stage) or _make_framing_camera(stage, time_code)
+
+    # Record.
+    has_lights = _stage_has_lights(stage)
+
+    recorder = UsdAppUtils.FrameRecorder(renderer_plugin, True, True)
+    recorder.SetImageWidth(image_width)
+    recorder.SetComplexity(1.0)
+    recorder.SetCameraLightEnabled(not has_lights)
+    recorder.SetColorCorrectionMode('sRGB')
+    recorder.SetIncludedPurposes([UsdGeom.Tokens.proxy])
+
+    try:
+        if not recorder.Record(stage, usd_camera, time_code, output_path):
+            return False, 'Recording returned no image for %s' % usd_file
+    except Tf.ErrorException as e:
+        return False, 'Recording failed: %s' % str(e)
+    finally:
+        recorder = None
+
+    return True, ''
+
+
+def main():
+    """One-shot mode: render the thumbnail given on the command line."""
+    # --- Step 1: narrow PXR_PLUGINPATH_NAME before any pxr import. ---
+    narrow_plugin_path()
 
     # --- Step 2: parse args. ---
     # argv: <script> --imageWidth <W> [--renderer <R>] <usdFile> <outFile>
@@ -283,61 +366,14 @@ def main():
         return 1
 
     usd_file, output_path = positional[0], positional[1]
-    image_width = min(image_width, 256)
 
     # --- Step 3: create the offscreen GL context before importing UsdImagingGL. ---
     _qt_app, _gl_surface = _setup_gl_context()
 
-    # --- Step 4: import pxr modules and patch CP1252 safety. ---
-    from pxr import Usd, UsdGeom, UsdAppUtils, Tf
-    try:
-        _orig_fget = Tf.Error.commentary.fget
-
-        def _safe_commentary(self):
-            try:
-                return _orig_fget(self)
-            except (UnicodeDecodeError, UnicodeEncodeError):
-                return ''
-
-        Tf.Error.commentary = property(_safe_commentary)
-    except Exception:
-        pass
-    from pxr.UsdAppUtils import rendererArgs
-
-    renderer_plugin = rendererArgs.GetPluginIdFromArgument(renderer_arg) or ''
-
-    # --- Step 5: open stage and find camera. ---
-    stage = Usd.Stage.Open(usd_file)
-    if not stage:
-        print('Could not open USD stage: %s' % usd_file, file=sys.stderr)
-        return 1
-
-    # Render at startTimeCode so time-sampled attributes resolve to authored values.
-    time_code = Usd.TimeCode(stage.GetStartTimeCode())
-
-    # Prefer an authored camera; if none exists build a square framing camera
-    # from the world bbox so the output is always image_width x image_width.
-    usd_camera = _find_stage_camera(stage) or _make_framing_camera(stage, time_code)
-
-    # --- Step 6: record. ---
-    has_lights = _stage_has_lights(stage)
-
-    recorder = UsdAppUtils.FrameRecorder(renderer_plugin, True, True)
-    recorder.SetImageWidth(image_width)
-    recorder.SetComplexity(1.0)
-    recorder.SetCameraLightEnabled(not has_lights)
-    recorder.SetColorCorrectionMode('sRGB')
-    recorder.SetIncludedPurposes([UsdGeom.Tokens.proxy])
-
-    ok = False
-    try:
-        ok = recorder.Record(stage, usd_camera, time_code, output_path)
-    except Tf.ErrorException as e:
-        print('Recording failed: %s' % str(e), file=sys.stderr)
-        return 1
-    finally:
-        recorder = None
-
+    # --- Step 4: render. ---
+    ok, error = render_thumbnail(usd_file, output_path, image_width, renderer_arg)
+    if not ok:
+        print(error, file=sys.stderr)
     return 0 if ok else 1
 
 
