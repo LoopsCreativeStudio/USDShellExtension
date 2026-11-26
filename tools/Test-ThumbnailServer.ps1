@@ -61,6 +61,10 @@ $renderJob = {
     } catch {
         $png = $null
         $error_ = $_.Exception.Message
+    } finally {
+        # Release now: the server (one process per object) can then exit,
+        # instead of living as long as this PowerShell session.
+        [void][Runtime.InteropServices.Marshal]::ReleaseComObject($tools)
     }
     $watch.Stop()
 
