@@ -4,6 +4,55 @@
 #include "stdafx.h"
 #include "UsdMetadata.h"
 #include "UsdPropertyKeys.h"
+#include "shared/EventViewerLog.h"
+
+#include <mutex>
+#include <vector>
+
+// ---------------------------------------------------------------------------
+// Reporting of properties Windows refused to store
+// ---------------------------------------------------------------------------
+
+// Default sink: a warning in the Windows event log.
+static void LogMetadataWarning( LPCWSTR sMessage )
+{
+	LogEventMessage( SHELLEXTENSION_CATEGORY, sMessage, LogEventType::Warning );
+}
+
+// Where warnings go; the unit tests swap it to capture the messages.
+static void ( *s_pfnMetadataWarningSink )( LPCWSTR sMessage ) = &LogMetadataWarning;
+
+// Properties already reported in this process, and its lock: Explorer reads
+// properties of many files from several threads.
+static std::vector<PROPERTYKEY> s_reportedStoreFailures;
+static std::mutex s_reportedStoreFailuresLock;
+
+// Report a property that could not be stored, once per property and per
+// process: the usual cause (USD property schema not registered) fails every
+// file the same way and must not flood the event log.
+static void ReportStoreFailure( HRESULT hr, REFPROPERTYKEY key, LPCWSTR sPropertyName, LPCWSTR pszFilePath )
+{
+	if ( SUCCEEDED( hr ) )
+		return;
+
+	{
+		std::lock_guard<std::mutex> guard( s_reportedStoreFailuresLock );
+		for ( const PROPERTYKEY &reported : s_reportedStoreFailures )
+		{
+			if ( IsEqualPropertyKey( reported, key ) )
+				return;
+		}
+		s_reportedStoreFailures.push_back( key );
+	}
+
+	CStringW sMessage;
+	sMessage.Format( L"PropertyStore: the %ls property could not be stored (0x%08X) for %ls. "
+	                 L"It will be missing from the Explorer Details tab and Windows Search. "
+	                 L"If this is a USD property, check that UsdPropertyKeys.propdesc is registered (reinstall). "
+	                 L"Reported once per process.",
+	                 sPropertyName, static_cast<unsigned int>( hr ), pszFilePath );
+	s_pfnMetadataWarningSink( sMessage );
+}
 
 static std::string DictionaryToString(const pxr::VtDictionary &dict, std::string prefix = "")
 {
@@ -52,27 +101,35 @@ static std::string DictionaryToString(const pxr::VtDictionary &dict, std::string
 
 HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDictionary &customLayerData, IPropertyStoreCache* pPropertyStoreCache, LPCWSTR pszFilePath )
 {
-	HRESULT hr;
-
+	// Each property is stored independently: a refused one is reported and
+	// the others are still filled, so the Details tab stays as complete as
+	// possible.
 	std::string sComment = rootLayer->GetComment();
-	hr = StoreStringValue( pPropertyStoreCache, PKEY_Comment, sComment.c_str() );
+	ReportStoreFailure( StoreStringValue( pPropertyStoreCache, PKEY_Comment, sComment.c_str() ),
+	                    PKEY_Comment, L"Comment", pszFilePath );
 
 	std::string sDocumentation = rootLayer->GetDocumentation();
-	hr = StoreStringValue( pPropertyStoreCache, PKEY_USD_DOCUMENTATION, sDocumentation.c_str() );
+	ReportStoreFailure( StoreStringValue( pPropertyStoreCache, PKEY_USD_DOCUMENTATION, sDocumentation.c_str() ),
+	                    PKEY_USD_DOCUMENTATION, L"Documentation", pszFilePath );
 
 	std::string sCustomLayerData = DictionaryToString( customLayerData );
-	hr = StoreStringValue( pPropertyStoreCache, PKEY_USD_CUSTOMLAYERDATA, sCustomLayerData.c_str() );
+	ReportStoreFailure( StoreStringValue( pPropertyStoreCache, PKEY_USD_CUSTOMLAYERDATA, sCustomLayerData.c_str() ),
+	                    PKEY_USD_CUSTOMLAYERDATA, L"CustomLayerData", pszFilePath );
 
 	if ( rootLayer->HasStartTimeCode() )
-		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_STARTFRAME, rootLayer->GetStartTimeCode() );
+		ReportStoreFailure( StoreDoubleValue( pPropertyStoreCache, PKEY_USD_STARTFRAME, rootLayer->GetStartTimeCode() ),
+		                    PKEY_USD_STARTFRAME, L"StartFrame", pszFilePath );
 
 	if ( rootLayer->HasEndTimeCode() )
-		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_ENDFRAME, rootLayer->GetEndTimeCode() );
+		ReportStoreFailure( StoreDoubleValue( pPropertyStoreCache, PKEY_USD_ENDFRAME, rootLayer->GetEndTimeCode() ),
+		                    PKEY_USD_ENDFRAME, L"EndFrame", pszFilePath );
 
 	if ( rootLayer->HasFramesPerSecond() )
-		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetFramesPerSecond() );
+		ReportStoreFailure( StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetFramesPerSecond() ),
+		                    PKEY_USD_FRAMERATE, L"FrameRate", pszFilePath );
 	else if ( rootLayer->HasTimeCodesPerSecond() )
-		StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetTimeCodesPerSecond() );
+		ReportStoreFailure( StoreDoubleValue( pPropertyStoreCache, PKEY_USD_FRAMERATE, rootLayer->GetTimeCodesPerSecond() ),
+		                    PKEY_USD_FRAMERATE, L"FrameRate", pszFilePath );
 
 	{
 		// Derive the format from the original file path.
@@ -82,7 +139,8 @@ HRESULT ReadUsdMetadata( const pxr::SdfLayerRefPtr &rootLayer, const pxr::VtDict
 		{
 			CStringW sExtW( pszExt + 1 );
 			sExtW.MakeUpper();
-			StoreStringValue( pPropertyStoreCache, PKEY_USD_FORMAT, static_cast<LPCWSTR>( sExtW ) );
+			ReportStoreFailure( StoreStringValue( pPropertyStoreCache, PKEY_USD_FORMAT, static_cast<LPCWSTR>( sExtW ) ),
+			                    PKEY_USD_FORMAT, L"Format", pszFilePath );
 		}
 	}
 

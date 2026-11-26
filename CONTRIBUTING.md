@@ -121,6 +121,12 @@ After `.\install.ps1`, check the thumbnail COM server under parallel load, the w
 
 It fails if any render does not return a valid PNG, if two calls share an image, or if a per-call temp file is left in `%TEMP%`.
 
+To check the property handler (Explorer Details tab and Windows Search) the same way, through `Shell.Application`:
+
+```powershell
+.\tools\Test-PropertyHandler.ps1
+```
+
 ### Manually
 The core of **USDShellExtension** focuses on staying simple and having distinct processes as much as possible. Randomly test your feature, try running something completely different during its process, play with it until you break it! If you despair of making it crash, your feature is ready to be submitted to the review process...
 

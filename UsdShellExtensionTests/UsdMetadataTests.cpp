@@ -250,6 +250,173 @@ public:
 	}
 };
 
+namespace
+{
+	// Property store refusing one property (as Windows does when the
+	// property schema is missing); everything else goes to a real store.
+	class CRefusingPropertyStore : public IPropertyStoreCache
+	{
+	public:
+		CRefusingPropertyStore( REFPROPERTYKEY refusedKey ) : m_refusedKey( refusedKey )
+		{
+			::PSCreateMemoryPropertyStore( IID_PPV_ARGS( &m_pInner ) );
+		}
+		virtual ~CRefusingPropertyStore() = default;
+
+		// IUnknown
+		STDMETHODIMP QueryInterface( REFIID riid, void **ppv ) override
+		{
+			if( riid == IID_IUnknown || riid == IID_IPropertyStore || riid == IID_IPropertyStoreCache )
+			{
+				*ppv = static_cast<IPropertyStoreCache *>( this );
+				AddRef();
+				return S_OK;
+			}
+			*ppv = nullptr;
+			return E_NOINTERFACE;
+		}
+		STDMETHODIMP_(ULONG) AddRef() override { return ++m_refCount; }
+		STDMETHODIMP_(ULONG) Release() override
+		{
+			ULONG count = --m_refCount;
+			if( count == 0 )
+				delete this;
+			return count;
+		}
+
+		// IPropertyStore
+		STDMETHODIMP GetCount( DWORD *pCount ) override { return m_pInner->GetCount( pCount ); }
+		STDMETHODIMP GetAt( DWORD index, PROPERTYKEY *pKey ) override { return m_pInner->GetAt( index, pKey ); }
+		STDMETHODIMP GetValue( REFPROPERTYKEY key, PROPVARIANT *pValue ) override { return m_pInner->GetValue( key, pValue ); }
+		STDMETHODIMP SetValue( REFPROPERTYKEY key, REFPROPVARIANT value ) override { return m_pInner->SetValue( key, value ); }
+		STDMETHODIMP Commit() override { return m_pInner->Commit(); }
+
+		// IPropertyStoreCache
+		STDMETHODIMP GetState( REFPROPERTYKEY key, PSC_STATE *pState ) override { return m_pInner->GetState( key, pState ); }
+		STDMETHODIMP GetValueAndState( REFPROPERTYKEY key, PROPVARIANT *pValue, PSC_STATE *pState ) override
+		{
+			return m_pInner->GetValueAndState( key, pValue, pState );
+		}
+		STDMETHODIMP SetState( REFPROPERTYKEY key, PSC_STATE state ) override { return m_pInner->SetState( key, state ); }
+		STDMETHODIMP SetValueAndState( REFPROPERTYKEY key, const PROPVARIANT *pValue, PSC_STATE state ) override
+		{
+			if( IsEqualPropertyKey( key, m_refusedKey ) )
+				return TYPE_E_ELEMENTNOTFOUND;
+			return m_pInner->SetValueAndState( key, pValue, state );
+		}
+
+	private:
+		ULONG m_refCount = 1;
+		PROPERTYKEY m_refusedKey;
+		CComPtr<IPropertyStoreCache> m_pInner;
+	};
+
+	// Warnings captured instead of going to the Windows event log.
+	std::vector<std::wstring> g_capturedWarnings;
+	void CaptureWarning( LPCWSTR sMessage )
+	{
+		g_capturedWarnings.push_back( sMessage );
+	}
+
+	CComPtr<IPropertyStoreCache> CreateRefusingStore( REFPROPERTYKEY refusedKey )
+	{
+		CComPtr<IPropertyStoreCache> pStore;
+		pStore.Attach( new CRefusingPropertyStore( refusedKey ) );
+		return pStore;
+	}
+}
+
+TEST_CLASS( ReadUsdMetadataFailureReportTests )
+{
+public:
+	TEST_CLASS_INITIALIZE( RegisterPlugins )
+	{
+		RegisterUsdPluginsForTests();
+	}
+
+	TEST_METHOD_INITIALIZE( CaptureWarnings )
+	{
+		g_capturedWarnings.clear();
+		s_reportedStoreFailures.clear();
+		s_pfnMetadataWarningSink = &CaptureWarning;
+	}
+
+	TEST_METHOD_CLEANUP( RestoreWarnings )
+	{
+		s_pfnMetadataWarningSink = &LogMetadataWarning;
+		s_reportedStoreFailures.clear();
+	}
+
+	TEST_METHOD( ReportsARefusedPropertyWithFileAndError )
+	{
+		pxr::SdfLayerRefPtr layer = pxr::SdfLayer::CreateAnonymous( ".usda" );
+		layer->SetComment( "hello" );
+		CComPtr<IPropertyStoreCache> pStore = CreateRefusingStore( PKEY_Comment );
+
+		ReadUsdMetadata( layer, layer->GetCustomLayerData(), pStore, L"C:\\assets\\kitchen.usda" );
+
+		Assert::AreEqual( size_t( 1 ), g_capturedWarnings.size() );
+		const std::wstring &message = g_capturedWarnings[0];
+		Assert::IsTrue( message.find( L"Comment" ) != std::wstring::npos, message.c_str() );
+		Assert::IsTrue( message.find( L"C:\\assets\\kitchen.usda" ) != std::wstring::npos, message.c_str() );
+		Assert::IsTrue( message.find( L"0x8002802B" ) != std::wstring::npos, message.c_str() );
+	}
+
+	TEST_METHOD( ReportsEachPropertyOnlyOncePerProcess )
+	{
+		// A missing schema fails the same way for every file: one warning
+		// is enough, the event log must not be flooded.
+		for( int index = 0; index < 3; ++index )
+		{
+			pxr::SdfLayerRefPtr layer = pxr::SdfLayer::CreateAnonymous( ".usda" );
+			CComPtr<IPropertyStoreCache> pStore = CreateRefusingStore( PKEY_Comment );
+			ReadUsdMetadata( layer, layer->GetCustomLayerData(), pStore, L"C:\\assets\\any.usda" );
+		}
+
+		Assert::AreEqual( size_t( 1 ), g_capturedWarnings.size() );
+	}
+
+	TEST_METHOD( ReportsDifferentPropertiesSeparately )
+	{
+		pxr::SdfLayerRefPtr layer = pxr::SdfLayer::CreateAnonymous( ".usda" );
+		layer->SetFramesPerSecond( 24.0 );
+
+		CComPtr<IPropertyStoreCache> pRefuseComment = CreateRefusingStore( PKEY_Comment );
+		ReadUsdMetadata( layer, layer->GetCustomLayerData(), pRefuseComment, L"C:\\a.usda" );
+		CComPtr<IPropertyStoreCache> pRefuseRate = CreateRefusingStore( PKEY_USD_FRAMERATE );
+		ReadUsdMetadata( layer, layer->GetCustomLayerData(), pRefuseRate, L"C:\\b.usda" );
+
+		Assert::AreEqual( size_t( 2 ), g_capturedWarnings.size() );
+		Assert::IsTrue( g_capturedWarnings[1].find( L"FrameRate" ) != std::wstring::npos, g_capturedWarnings[1].c_str() );
+	}
+
+	TEST_METHOD( KeepsStoringOtherPropertiesAfterAFailure )
+	{
+		pxr::SdfLayerRefPtr layer = pxr::SdfLayer::CreateAnonymous( ".usda" );
+		layer->SetComment( "refused" );
+		layer->SetFramesPerSecond( 24.0 );
+		CComPtr<IPropertyStoreCache> pStore = CreateRefusingStore( PKEY_Comment );
+
+		HRESULT hr = ReadUsdMetadata( layer, layer->GetCustomLayerData(), pStore, L"C:\\assets\\shot.usda" );
+
+		Assert::AreEqual( S_OK, hr );
+		Assert::AreEqual( 24.0, GetDouble( pStore, PKEY_USD_FRAMERATE ) );
+	}
+
+	TEST_METHOD( StaysSilentWhenEverythingIsStored )
+	{
+		pxr::SdfLayerRefPtr layer = pxr::SdfLayer::CreateAnonymous( ".usda" );
+		layer->SetComment( "fine" );
+		layer->SetFramesPerSecond( 24.0 );
+		CComPtr<IPropertyStoreCache> pStore = CreateStore();
+
+		ReadUsdMetadata( layer, layer->GetCustomLayerData(), pStore, L"C:\\assets\\ok.usda" );
+
+		if( IsUsdPropertySchemaRegistered() )
+			Assert::AreEqual( size_t( 0 ), g_capturedWarnings.size() );
+	}
+};
+
 TEST_CLASS( WriteUsdMetadataTests )
 {
 public:
