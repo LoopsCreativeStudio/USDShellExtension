@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.10.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.9.1...v1.10.0) (2026-11-26)
+
+
+### Features
+
+* expose CreateChildProcess with separate stdin, stdout and stderr handles ([7cf244b](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/7cf244b530f290901a949ea1d276914f46740a83))
+* render thumbnails through CThumbnailWorkerPool with fallback to one python.exe per thumbnail ([ce634d7](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/ce634d70d36c6b443529208be3814a45f094b145))
+* **thumbnail:** add persistent thumbnail worker serving JSON line requests ([a8fa35a](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/a8fa35aa536c5e3fa700080238d92a9f9cded8b9))
+
+
+### Bug Fixes
+
+* exclude UsdLux lights from the framing box so assets stay centered in thumbnails ([76cc2a2](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/76cc2a2c5e267d0937f445ab8d3c7c5cf7fd5e5f))
+* format every custom layer data value instead of showing [UNKNOWN TYPE] in Explorer details and search ([f82b452](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/f82b452180a1f3be8bf83baeab7ec1514313f213))
+* include patch version in installer filename ([23422b0](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/23422b0f395a107e62df073a8dd98544305063ad))
+* log a warning once per property when Windows refuses to store a USD property ([cd5544d](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/cd5544d686223f2e37b0f357ed2ce8d19f65c846))
+* reserve a unique image per render so parallel renders cannot return the same thumbnail ([7809652](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/78096528afbb6ab48999e0ea984a0c2e68e43fe1))
+* **shared:** initialize ini lookup buffer before scanning config files ([086c99b](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/086c99b39964898aeead6001f89e49f26e6defb7))
+* **thumbnail:** frame geometry only, ignoring lights, at root bound cost ([fb9bcab](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/fb9bcabe2db455c480979598064a5abd1aa539ee))
+* **thumbnail:** isolate per-render temp files and bound every wait ([e29cb06](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e29cb06f9e9abb1a2212bae8ffc2df9fc6fc4af6))
+* **tools:** release COM objects in the thumbnail server load test ([3ffe692](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/3ffe692b07be3307d5a1f42aea04e10c3421b2ed))
+
+
+### Performance Improvements
+
+* **tools:** add performance measurement tool and record baseline ([0828a1c](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/0828a1c335db4510255bb27c7878de41aa88c2a6))
+
 ## [1.9.1](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.9.0...v1.9.1) (2026-05-29)
 
 
