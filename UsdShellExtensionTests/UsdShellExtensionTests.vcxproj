@@ -59,7 +59,8 @@
       <ConformanceMode>false</ConformanceMode>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(VCInstallDir)Auxiliary\VS\UnitTest\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- Python of the SDK and this folder: run fake_worker.py in the pool tests. -->
+      <PreprocessorDefinitions>_WINDOWS;TEST_PYTHON_HOME=LR"($(PythonHome))";TEST_SOURCE_DIR=LR"($(ProjectDir))";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -93,6 +94,11 @@
     <ClCompile Include="UsdMetadataTests.cpp" />
     <ClCompile Include="ProcessUtilTests.cpp" />
     <ClCompile Include="..\shared\ProcessUtil.cpp" />
+    <ClCompile Include="ThumbnailWorkerPoolTests.cpp" />
+    <ClCompile Include="..\shared\ThumbnailWorkerPool.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fake_worker.py" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

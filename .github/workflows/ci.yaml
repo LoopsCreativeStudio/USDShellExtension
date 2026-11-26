@@ -30,7 +30,7 @@ jobs:
         run: pip install -r tests/requirements.txt
 
       - name: Lint Python (Ruff)
-        run: ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/ tools/
+        run: ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/ tools/ UsdShellExtensionTests/fake_worker.py
 
       - name: Test Python (pytest)
         run: pytest tests/python -rs

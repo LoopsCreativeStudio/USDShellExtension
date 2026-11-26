@@ -78,6 +78,20 @@ HANDLE OpenInheritableForWrite( LPCWSTR sPath );
 HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeoutMs, DWORD &exitCode,
                            DWORD creationFlags = CREATE_NO_WINDOW );
 
+// Standard handles of a child process; nullptr leaves one unset. Each one
+// must be inheritable; they are the only handles the child inherits.
+struct ChildStdHandles
+{
+	HANDLE input = nullptr;
+	HANDLE output = nullptr;
+	HANDLE error = nullptr;
+};
+
+// Create a child process with its own standard handles. On success the
+// caller owns pi.hProcess and pi.hThread (e.g. CREATE_SUSPENDED to add it to
+// a job object before it runs).
+HRESULT CreateChildProcess( LPCWSTR sCommandLine, const ChildStdHandles &stdHandles, DWORD creationFlags, PROCESS_INFORMATION &pi );
+
 // Start a child process without waiting for it, for tools that live in their
 // own window (usdview, console tools). creationFlags is CREATE_NO_WINDOW or
 // CREATE_NEW_CONSOLE; hStdOutErr (optional) follows the same rules as for

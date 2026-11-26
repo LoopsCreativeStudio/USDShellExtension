@@ -4,6 +4,7 @@
 #include "stdafx.h"
 #include "ProcessUtil.h"
 
+#include <algorithm>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -137,9 +138,7 @@ HANDLE OpenInheritableForWrite( LPCWSTR sPath )
 	return hFile == INVALID_HANDLE_VALUE ? nullptr : hFile;
 }
 
-// Create a child process (shared by RunProcessAndWait and LaunchProcess).
-// On success the caller owns pi.hProcess and pi.hThread.
-static HRESULT CreateChildProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFlags, PROCESS_INFORMATION &pi )
+HRESULT CreateChildProcess( LPCWSTR sCommandLine, const ChildStdHandles &stdHandles, DWORD creationFlags, PROCESS_INFORMATION &pi )
 {
 	// CreateProcessW may modify the command line: work on a private copy.
 	CStringW sCommandLineCopy = sCommandLine;
@@ -149,14 +148,21 @@ static HRESULT CreateChildProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWOR
 	BOOL bInheritHandles = FALSE;
 	pi = {};
 
-	// When redirecting, restrict inheritance to the output handle only:
-	// otherwise the child would also inherit the logs of renders running in
-	// parallel threads and keep them open.
+	// Restrict inheritance to the standard handles given: otherwise the child
+	// would also inherit the handles of jobs running in parallel threads
+	// (logs, worker pipes) and keep them open. The list must not contain
+	// duplicates (stdout and stderr are often the same handle).
+	std::vector<HANDLE> handlesToInherit;
+	for( HANDLE handle : { stdHandles.input, stdHandles.output, stdHandles.error } )
+	{
+		if( handle != nullptr && std::find( handlesToInherit.begin(), handlesToInherit.end(), handle ) == handlesToInherit.end() )
+			handlesToInherit.push_back( handle );
+	}
+
 	std::vector<BYTE> attributeListBuffer;
 	LPPROC_THREAD_ATTRIBUTE_LIST pAttributeList = nullptr;
-	HANDLE handlesToInherit[] = { hStdOutErr };
 
-	if( hStdOutErr != nullptr )
+	if( !handlesToInherit.empty() )
 	{
 		SIZE_T nAttributeListSize = 0;
 		::InitializeProcThreadAttributeList( nullptr, 1, 0, &nAttributeListSize );
@@ -167,7 +173,8 @@ static HRESULT CreateChildProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWOR
 			return HRESULT_FROM_WIN32( ::GetLastError() );
 
 		if( !::UpdateProcThreadAttribute( pAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-		                                  handlesToInherit, sizeof( handlesToInherit ), nullptr, nullptr ) )
+		                                  handlesToInherit.data(), handlesToInherit.size() * sizeof( HANDLE ),
+		                                  nullptr, nullptr ) )
 		{
 			DWORD err = ::GetLastError();
 			::DeleteProcThreadAttributeList( pAttributeList );
@@ -175,9 +182,9 @@ static HRESULT CreateChildProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWOR
 		}
 
 		si.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-		si.StartupInfo.hStdInput  = nullptr;
-		si.StartupInfo.hStdOutput = hStdOutErr;
-		si.StartupInfo.hStdError  = hStdOutErr;
+		si.StartupInfo.hStdInput  = stdHandles.input;
+		si.StartupInfo.hStdOutput = stdHandles.output;
+		si.StartupInfo.hStdError  = stdHandles.error;
 		si.lpAttributeList        = pAttributeList;
 		creationFlags            |= EXTENDED_STARTUPINFO_PRESENT;
 		bInheritHandles           = TRUE;
@@ -200,7 +207,7 @@ HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeou
 	exitCode = 0;
 
 	PROCESS_INFORMATION pi;
-	HRESULT hr = CreateChildProcess( sCommandLine, hStdOutErr, creationFlags, pi );
+	HRESULT hr = CreateChildProcess( sCommandLine, ChildStdHandles{ nullptr, hStdOutErr, hStdOutErr }, creationFlags, pi );
 	if( FAILED( hr ) )
 		return hr;
 
@@ -228,7 +235,7 @@ HRESULT RunProcessAndWait( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD timeou
 HRESULT LaunchProcess( LPCWSTR sCommandLine, HANDLE hStdOutErr, DWORD creationFlags )
 {
 	PROCESS_INFORMATION pi;
-	HRESULT hr = CreateChildProcess( sCommandLine, hStdOutErr, creationFlags, pi );
+	HRESULT hr = CreateChildProcess( sCommandLine, ChildStdHandles{ nullptr, hStdOutErr, hStdOutErr }, creationFlags, pi );
 	if( FAILED( hr ) )
 		return hr;
 
