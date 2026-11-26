@@ -90,6 +90,16 @@ Invoke-Pester ./tests/powershell
 
 `uninstaller.ps1` and `usd-shell.ps1` do not import the module on purpose: they must run alone from the install directory.
 
+### Running the C++ tests
+
+Native unit tests live in the `UsdShellExtensionTests` project (Microsoft CppUnitTest, shipped with Visual Studio, no extra dependency). Build and run them with:
+
+```powershell
+.\build.ps1 -Test
+```
+
+The build stops if a test fails. The test DLL is written to `build\`, never to `bin\`, so it is neither installed nor packaged. Tests can also be run from the Visual Studio Test Explorer. These tests need the local toolchain and SDK, so they do not run in the GitHub CI.
+
 ### Manually
 The core of **USDShellExtension** focuses on staying simple and having distinct processes as much as possible. Randomly test your feature, try running something completely different during its process, play with it until you break it! If you despair of making it crash, your feature is ready to be submitted to the review process...
 

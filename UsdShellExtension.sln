@@ -38,6 +38,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Property Sheets", "Property
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EventViewerMessages", "shared\EventViewerMessages.vcxproj", "{F12E597B-B731-4F5A-BEC3-980D20159320}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UsdShellExtensionTests", "UsdShellExtensionTests\UsdShellExtensionTests.vcxproj", "{4337754E-9B2C-464E-AC82-62E7F3D21680}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -70,6 +72,10 @@ Global
 		{F12E597B-B731-4F5A-BEC3-980D20159320}.Debug|x64.Build.0 = Debug|x64
 		{F12E597B-B731-4F5A-BEC3-980D20159320}.Release|x64.ActiveCfg = Release|x64
 		{F12E597B-B731-4F5A-BEC3-980D20159320}.Release|x64.Build.0 = Release|x64
+		{4337754E-9B2C-464E-AC82-62E7F3D21680}.Debug|x64.ActiveCfg = Debug|x64
+		{4337754E-9B2C-464E-AC82-62E7F3D21680}.Debug|x64.Build.0 = Debug|x64
+		{4337754E-9B2C-464E-AC82-62E7F3D21680}.Release|x64.ActiveCfg = Release|x64
+		{4337754E-9B2C-464E-AC82-62E7F3D21680}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

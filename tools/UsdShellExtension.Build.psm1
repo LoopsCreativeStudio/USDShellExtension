@@ -153,6 +153,37 @@ function Write-Removed {
 }
 
 # ---------------------------------------------------------------------------
+# Folder copy with robocopy
+# ---------------------------------------------------------------------------
+function Invoke-Robocopy {
+    <#
+        Run robocopy quietly and check its exit code.
+        Robocopy codes 0-7 mean success (bit flags: copied, extra, mismatch);
+        8 and above mean at least one failure. On success LASTEXITCODE is
+        reset to 0 so a "files copied" code 1 never leaks to the caller's
+        exit code. On failure, throw with robocopy's output.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination,
+        [Parameter(ValueFromRemainingArguments)][string[]]$Options
+    )
+
+    # Quiet flags: no file/dir lists, no header/summary, no class/size columns.
+    $quietFlags = @('/NFL', '/NDL', '/NJH', '/NJS', '/NC', '/NS')
+    $robocopyArgs = @($Source, $Destination) + $quietFlags + @($Options | Where-Object { $_ })
+
+    $output = & robocopy @robocopyArgs 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ge 8) {
+        throw ("robocopy failed (exit code {0}) copying {1} to {2}:`n{3}" -f
+            $exitCode, $Source, $Destination, ($output -join "`n"))
+    }
+    $global:LASTEXITCODE = 0
+}
+
+# ---------------------------------------------------------------------------
 # File copy resilient to locks
 # ---------------------------------------------------------------------------
 function Copy-WithRetry {
@@ -228,5 +259,5 @@ function Copy-WithRetry {
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
-    'Copy-WithRetry'
+    'Copy-WithRetry', 'Invoke-Robocopy'
 )

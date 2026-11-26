@@ -31,7 +31,7 @@ Describe "Module exports" {
     It "exports exactly the shared helpers" {
         $exported = (Get-Module UsdShellExtension.Build).ExportedFunctions.Keys | Sort-Object
         $expected = @(
-            'Assert-Path', 'Copy-WithRetry', 'Read-DotEnv',
+            'Assert-Path', 'Copy-WithRetry', 'Invoke-Robocopy', 'Read-DotEnv',
             'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Step'
         ) | Sort-Object
         $exported | Should -Be $expected
@@ -110,6 +110,46 @@ Describe "Console helpers" {
     It "Write-Item and Write-Removed use + and - markers" {
         "$(Write-Item 'a.dll' 6>&1)"    | Should -Be "    + a.dll"
         "$(Write-Removed 'b.dll' 6>&1)" | Should -Be "    - b.dll"
+    }
+}
+
+Describe "Invoke-Robocopy" -Skip:(-not $script:onWindows) {
+    BeforeEach {
+        $src = Join-Path $TestDrive "rc-src"
+        $dst = Join-Path $TestDrive "rc-dst"
+        # Start from a missing destination so "files copied" (code 1) is real.
+        Remove-Item $dst -Recurse -Force -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force (Join-Path $src "sub") | Out-Null
+        Set-Content (Join-Path $src "a.txt") "a"
+        Set-Content (Join-Path $src "sub\b.pdb") "b"
+    }
+
+    AfterEach {
+        Remove-Item $src, $dst -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "treats 'files copied' (exit code 1) as success and resets LASTEXITCODE" {
+        Invoke-Robocopy $src $dst '/E'
+        Test-Path (Join-Path $dst "sub\b.pdb") | Should -BeTrue
+        # A leaked robocopy code 1 would make the calling script exit with 1.
+        $global:LASTEXITCODE | Should -Be 0
+    }
+
+    It "treats 'nothing to copy' (exit code 0) as success" {
+        Invoke-Robocopy $src $dst '/E'
+        { Invoke-Robocopy $src $dst '/E' } | Should -Not -Throw
+    }
+
+    It "passes extra options through (exclusions)" {
+        Invoke-Robocopy $src $dst '/E' '/XF' '*.pdb'
+        Test-Path (Join-Path $dst "a.txt")     | Should -BeTrue
+        Test-Path (Join-Path $dst "sub\b.pdb") | Should -BeFalse
+    }
+
+    It "throws with the exit code when robocopy fails (code 8 or more)" {
+        $missing = Join-Path $TestDrive "does-not-exist"
+        { Invoke-Robocopy $missing $dst '/R:0' '/W:0' } |
+            Should -Throw "*robocopy failed (exit code 16)*"
     }
 }
 

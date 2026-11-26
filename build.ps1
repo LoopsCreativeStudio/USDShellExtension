@@ -21,13 +21,21 @@
     Implies -Installer. Requires gh installed and authenticated (gh auth login).
     The release tag is read from version.txt (e.g. "1.2.0" becomes tag "v1.2.0").
 
+.PARAMETER Test
+    Also build UsdShellExtensionTests and run the native unit tests with
+    vstest.console right after compiling. The build stops if a test fails.
+
 .PARAMETER LogFile
     Path to write a transcript log. Default: build.log in the repo directory.
+
+.EXAMPLE
+    PS> .\build.ps1 -Test
 #>
 param(
     [string]$Config     = "",
     [switch]$Installer,
     [switch]$Release,
+    [switch]$Test,
     [string]$LogFile    = ""
 )
 
@@ -96,6 +104,7 @@ $allVsInstallPaths = & $vswhere -all -products * -requires Microsoft.Component.M
 
 $msbuild        = $null
 $vcToolsVersion = $null
+$vsInstallPath  = $null
 
 foreach ($vsPath in $allVsInstallPaths) {
     $msvcBase = Join-Path $vsPath "VC\Tools\MSVC"
@@ -108,6 +117,7 @@ foreach ($vsPath in $allVsInstallPaths) {
 
     if ($found) {
         $vcToolsVersion = $found.Name
+        $vsInstallPath  = $vsPath
         $msBuildExe = & $vswhere -path $vsPath -find "MSBuild\**\Bin\MSBuild.exe" 2>$null |
                       Select-Object -First 1
         if ($msBuildExe -and (Test-Path $msBuildExe)) { $msbuild = $msBuildExe }
@@ -138,13 +148,16 @@ $env:VSLANG = "1033"
 
 $PythonHome = Join-Path $USD_SDK "python\"
 
+$buildTargets = "UsdShellExtension;UsdPreviewHandlerPython;UsdPreviewLocalServer;UsdPythonToolsLocalServer;UsdSdkToolsLocalServer;EventViewerMessages"
+if ($Test) { $buildTargets += ";UsdShellExtensionTests" }
+
 $msbuildArgs = @(
     $SLN,
     "/p:Configuration=$Config",
     "/p:Platform=x64",
     "/p:VCToolsVersion=$vcToolsVersion",
     "/p:PythonHome=$PythonHome",
-    "/t:UsdShellExtension;UsdPreviewHandlerPython;UsdPreviewLocalServer;UsdPythonToolsLocalServer;UsdSdkToolsLocalServer;EventViewerMessages",
+    "/t:$buildTargets",
     "/m",
     "/nologo",
     "/verbosity:minimal",
@@ -158,6 +171,25 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Assert-Path $OUT_DIR "build output directory"
+
+# ---------------------------------------------------------------------------
+# 2b. Run the native unit tests (-Test): fail fast before packaging anything
+# ---------------------------------------------------------------------------
+if ($Test) {
+    Write-Step "Running native unit tests"
+
+    $vstest  = Join-Path $vsInstallPath "Common7\IDE\Extensions\TestPlatform\vstest.console.exe"
+    $testDll = Join-Path $REPO "build\v145\$Config\UsdShellExtensionTests\bin\UsdShellExtensionTests.dll"
+    Assert-Path $vstest  "vstest.console.exe"
+    Assert-Path $testDll "native test DLL"
+
+    # Out-Host routes the native output through the transcript (build.log).
+    & $vstest $testDll /Platform:x64 /logger:"console;verbosity=normal" | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Native unit tests failed (vstest exit code $LASTEXITCODE)"
+    }
+    Write-Item "native unit tests passed"
+}
 
 # ---------------------------------------------------------------------------
 # 3. Copy files not handled by post-build events
@@ -190,7 +222,7 @@ $rcBinArgs = @(
         '__USE_scripts_FOLDER_INSTEAD_FOR_EASY_ENTRY_POINTS',
         '*.cmd'
 )
-$null = & robocopy @rcBinArgs
+Invoke-Robocopy @rcBinArgs
 Write-Item "bin\ (USD DLLs, external libs, USD entry points)"
 
 $usdPluginSrc = Join-Path $USD_LIB "usd"
@@ -219,7 +251,7 @@ $usdLibPySrc = Join-Path $USD_SDK "lib\python"
 $usdLibPyDst = Join-Path $OUT_DIR "lib\python"
 if (Test-Path $usdLibPySrc) {
     if (Test-Path $usdLibPyDst) { Remove-Item $usdLibPyDst -Recurse -Force }
-    $null = & robocopy $usdLibPySrc $usdLibPyDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.pdb
+    Invoke-Robocopy $usdLibPySrc $usdLibPyDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.pdb
     Write-Item "lib\python\ (pxr Python bindings)"
 }
 
@@ -227,7 +259,7 @@ $usdScriptsSrc = Join-Path $USD_SDK "scripts"
 $usdScriptsDst = Join-Path $OUT_DIR "scripts"
 if (Test-Path $usdScriptsSrc) {
     if (Test-Path $usdScriptsDst) { Remove-Item $usdScriptsDst -Recurse -Force }
-    $null = & robocopy $usdScriptsSrc $usdScriptsDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.sh
+    Invoke-Robocopy $usdScriptsSrc $usdScriptsDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS /XF *.sh
     Write-Item "scripts\ (usdview, usdrecord, ...)"
 }
 
@@ -330,7 +362,7 @@ if ($Installer) {
             '/XD', 'include', 'libs', 'MaterialX', 'Tools', 'test', 'idlelib', 'ensurepip',
             '/XF', '*.pdb', '*.lib'
         )
-        $null = & robocopy @rcPythonArgs
+        Invoke-Robocopy @rcPythonArgs
         Write-Item "python\ (staged for installer)"
     } else {
         Write-Warning "python\ not found at '$USD_PY'; installer will not bundle Python."
@@ -359,7 +391,7 @@ if ($Installer) {
             'Qt6DataVisualization*.dll', 'Qt6DataVisualization*.pyd',
             '*.pdb'
         )
-        $null = & robocopy @rcPipArgs
+        Invoke-Robocopy @rcPipArgs
         Write-Item "pip-packages\ (staged for installer)"
     } else {
         Write-Warning "pip-packages\ not found at '$USD_PKGS'; installer will not bundle pip packages."
@@ -445,3 +477,7 @@ if ($Release) {
 }
 
 Stop-Transcript | Out-Null
+
+# Every failure above stops the script; reaching this point means success.
+# Exit explicitly so a leftover native exit code never reports a failure.
+exit 0
