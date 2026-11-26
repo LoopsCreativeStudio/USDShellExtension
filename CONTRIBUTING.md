@@ -79,6 +79,17 @@ uv run --no-project --python 3.12 --with-requirements tests/requirements.txt ruf
 
 Tests needing modules missing from `usd-core` (e.g. `UsdAppUtils`) are skipped. The CI runs the same commands on every push.
 
+### Running the PowerShell tests
+
+The helpers shared by `build.ps1` and `install.ps1` live in `tools/UsdShellExtension.Build.psm1` and are tested with [Pester](https://pester.dev) 6:
+
+```powershell
+Install-Module Pester -RequiredVersion 6.2.0 -Scope CurrentUser -SkipPublisherCheck   # once
+Invoke-Pester ./tests/powershell
+```
+
+`uninstaller.ps1` and `usd-shell.ps1` do not import the module on purpose: they must run alone from the install directory.
+
 ### Manually
 The core of **USDShellExtension** focuses on staying simple and having distinct processes as much as possible. Randomly test your feature, try running something completely different during its process, play with it until you break it! If you despair of making it crash, your feature is ready to be submitted to the review process...
 

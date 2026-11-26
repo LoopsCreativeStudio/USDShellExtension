@@ -41,6 +41,19 @@ jobs:
           Set-PSRepository PSGallery -InstallationPolicy Trusted
           Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
           $settings = Join-Path $env:GITHUB_WORKSPACE "PSScriptAnalyzerSettings.psd1"
-          $files = Get-ChildItem -Path . -Filter "*.ps1" -Recurse
+          $files = Get-ChildItem -Path . -Include "*.ps1","*.psm1" -Recurse -File
           $results = $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings $settings -Severity Warning,Error }
           if ($results) { $results; exit 1 }
+
+      # Locked-file tests are skipped automatically on non-Windows runners.
+      - name: Test PowerShell (Pester)
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -RequiredVersion 6.2.0 -Force -Scope CurrentUser -SkipPublisherCheck
+          Import-Module Pester -RequiredVersion 6.2.0
+          $config = New-PesterConfiguration
+          $config.Run.Path = "tests/powershell"
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = "Detailed"
+          Invoke-Pester -Configuration $config

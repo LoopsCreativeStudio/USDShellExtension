@@ -40,42 +40,9 @@ $REPO = $PSScriptRoot
 $SEP  = "  " + ("=" * 52)
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers (Read-DotEnv, Assert-Path, Write-Step/Detail/Item, ...)
 # ---------------------------------------------------------------------------
-function Read-DotEnv {
-    param([string]$Path)
-    $cfg = @{}
-    if (-not (Test-Path $Path)) { return $cfg }
-    foreach ($line in Get-Content $Path) {
-        $line = $line.Trim()
-        if (-not $line -or $line.StartsWith('#')) { continue }
-        $idx = $line.IndexOf('=')
-        if ($idx -le 0) { continue }
-        $cfg[$line.Substring(0, $idx).Trim()] = $line.Substring($idx + 1).Trim()
-    }
-    return $cfg
-}
-
-function Assert-Path {
-    param([string]$path, [string]$label)
-    if (-not (Test-Path $path)) { Write-Error "Cannot find $label at: $path" }
-}
-
-function Write-Step {
-    param([string]$msg)
-    Write-Host ""
-    Write-Host ("  >> {0}" -f $msg) -ForegroundColor Cyan
-}
-
-function Write-Detail {
-    param([string]$key, [string]$value)
-    Write-Host ("    {0,-14} {1}" -f ($key + " :"), $value) -ForegroundColor Gray
-}
-
-function Write-Item {
-    param([string]$msg)
-    Write-Host ("    + {0}" -f $msg) -ForegroundColor DarkGreen
-}
+Import-Module (Join-Path $REPO "tools\UsdShellExtension.Build.psm1") -Force
 
 # ---------------------------------------------------------------------------
 # Load .env and resolve configuration
