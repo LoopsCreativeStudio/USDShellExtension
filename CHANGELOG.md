@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.2](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.1...v1.10.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* use [IO.Path]::Combine and exact path assertions so the license check tests pass on the Linux CI runner ([6b76395](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6b76395d5c241bf694943e0d0d33183f8076bee6))
+
 ## [1.10.1](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.0...v1.10.1) (2026-11-26)
 
 
