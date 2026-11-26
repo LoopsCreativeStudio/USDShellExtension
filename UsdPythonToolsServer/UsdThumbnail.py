@@ -101,9 +101,10 @@ def _make_framing_camera(stage, time_code):
     """Create a square (1:1) perspective camera on the session layer.
 
     Frames the world bounding box of the geometry (lights excluded) with a
-    10% margin. Writes to the session layer so the authored stage is not
-    modified. Returns an invalid UsdGeom.Camera if the scene has no
-    visible geometry.
+    10% margin: front view, or an elevated three-quarter view when the scene
+    is flat (height below 20% of its width). Writes to the session layer so
+    the authored stage is not modified. Returns an invalid UsdGeom.Camera if
+    the scene has no visible geometry.
     """
     import math
     from pxr import Gf, Usd, UsdGeom, Sdf
@@ -137,13 +138,41 @@ def _make_framing_camera(stage, time_code):
         eye_dir = Gf.Vec3d(0, 0, 1)
 
     MARGIN    = 1.1
-    fit_half  = max(half_h, half_v) * MARGIN
     half_fov  = math.radians(22.5)   # 45-degree full FOV
     aperture  = 36.0                  # mm, standard 35mm frame
     focal_len = (aperture * 0.5) / math.tan(half_fov)
-    dist      = fit_half / math.tan(half_fov)
 
-    eye = Gf.Vec3d(centroid) + eye_dir * (dist + half_d)
+    # A flat scene (ground layout, terrain...) seen from the front renders
+    # as a thin line: below this height / width ratio, look from above.
+    FLAT_RATIO    = 0.2
+    ELEVATION_DEG = 45.0
+    AZIMUTH_DEG   = 30.0
+    is_flat = half_v < FLAT_RATIO * max(half_h, half_d)
+
+    if is_flat:
+        # Elevated three-quarter view: from the front direction, turned by
+        # the azimuth around the up axis, then raised by the elevation.
+        side_vec = Gf.Vec3d(1, 0, 0)
+        elevation = math.radians(ELEVATION_DEG)
+        azimuth = math.radians(AZIMUTH_DEG)
+        view_dir = (
+            (eye_dir * math.cos(azimuth) + side_vec * math.sin(azimuth)) * math.cos(elevation)
+            + up_vec * math.sin(elevation)
+        ).GetNormalized()
+
+        # Fit the bounding sphere: the whole box stays in view from any angle.
+        radius = math.sqrt(half_h * half_h + half_v * half_v + half_d * half_d) * MARGIN
+        dist = radius / math.sin(half_fov)
+        eye = Gf.Vec3d(centroid) + view_dir * dist
+        near = max(dist * 1e-3, dist - radius)
+        far = dist + radius
+    else:
+        # Front view: fit the visible face, step back by the half depth.
+        fit_half = max(half_h, half_v) * MARGIN
+        dist = fit_half / math.tan(half_fov)
+        eye = Gf.Vec3d(centroid) + eye_dir * (dist + half_d)
+        near = max(1.0, dist - half_d)
+        far = dist + half_d + fit_half * 2.0 + 1.0
 
     # Camera-to-world matrix, Gf row-vector convention:
     #   row 0 = camera +X (right) in world
@@ -161,9 +190,6 @@ def _make_framing_camera(stage, time_code):
         z_cam[0], z_cam[1], z_cam[2], 0.0,
         eye[0],   eye[1],   eye[2],   1.0,
     )
-
-    near = max(1.0, dist - half_d)
-    far  = dist + half_d + fit_half * 2.0 + 1.0
 
     with Usd.EditContext(stage, stage.GetSessionLayer()):
         cam_prim = stage.DefinePrim(Sdf.Path('/ThumbnailCamera'), 'Camera')

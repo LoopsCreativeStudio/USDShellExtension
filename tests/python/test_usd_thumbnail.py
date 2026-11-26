@@ -163,6 +163,11 @@ def _framing_eye(stage):
     return camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
 
 
+def _new_bbox_cache():
+    """BBoxCache configured like the thumbnail framing."""
+    return UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.proxy], True)
+
+
 def _expected_cube_eye():
     """Eye position framing only the 2-unit cube centered at the origin."""
     distance = 1.0 * MARGIN / math.tan(HALF_FOV_RAD)
@@ -217,11 +222,108 @@ def test_framing_includes_instanced_geometry(make_stage):
         instance.GetPrim().SetInstanceable(True)
         UsdGeom.XformCommonAPI(instance).SetTranslate(Gf.Vec3d(x_position, 0.0, 0.0))
 
-    eye = _framing_eye(stage)
+    # Both instances inside the framing box (checked on the box itself: this
+    # flat layout gets the elevated view).
+    geometry_range = UsdThumbnail._compute_geometry_range(stage, _new_bbox_cache())
+    assert Gf.IsClose(geometry_range.GetMin(), Gf.Vec3d(-11.0, -1.0, -1.0), 1e-6)
+    assert Gf.IsClose(geometry_range.GetMax(), Gf.Vec3d(11.0, 1.0, 1.0), 1e-6)
 
-    # Both instances framed: centered between them, far enough for x in [-11, 11].
-    distance = 11.0 * MARGIN / math.tan(HALF_FOV_RAD)
-    assert Gf.IsClose(eye, Gf.Vec3d(0.0, 0.0, distance + 1.0), 1e-6)
+
+# ---------------------------------------------------------------------------
+# _make_framing_camera: flat scenes get an elevated view
+# ---------------------------------------------------------------------------
+def _add_flat_grid(stage, up_axis="Y", count=10, spacing=3.0):
+    """Lay count x count 2-unit cubes on the ground plane of the stage."""
+    for row in range(count):
+        for col in range(count):
+            cube = UsdGeom.Cube.Define(stage, "/World/Cube_%d_%d" % (row, col))
+            if up_axis == "Y":
+                position = Gf.Vec3d(col * spacing, 0.0, row * spacing)
+            else:
+                position = Gf.Vec3d(col * spacing, row * spacing, 0.0)
+            UsdGeom.XformCommonAPI(cube).SetTranslate(position)
+
+
+def _world_corners(stage):
+    """Return the 8 corners of the world bounding box of the stage."""
+    cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+    box = cache.ComputeWorldBound(stage.GetPseudoRoot()).ComputeAlignedRange()
+    return [box.GetCorner(index) for index in range(8)], box
+
+
+def _assert_all_corners_visible(camera, corners):
+    """Every corner lies in the square 45 degree view and between the clip planes."""
+    cam_to_world = camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    world_to_cam = cam_to_world.GetInverse()
+    near, far = camera.GetClippingRangeAttr().Get()
+    tan_half_fov = math.tan(HALF_FOV_RAD)
+    for corner in corners:
+        local = world_to_cam.Transform(corner)
+        depth = -local[2]  # the camera looks down -Z
+        assert near <= depth <= far, "corner %s outside clip range" % (corner,)
+        assert abs(local[0]) <= depth * tan_half_fov + 1e-6, "corner %s outside view (x)" % (corner,)
+        assert abs(local[1]) <= depth * tan_half_fov + 1e-6, "corner %s outside view (y)" % (corner,)
+
+
+@pytest.mark.parametrize("up_axis, up_index", [("Y", 1), ("Z", 2)])
+def test_flat_scene_is_seen_from_above(make_stage, up_axis, up_index):
+    # Regression: a ground layout seen strictly from the front rendered as a
+    # thin line. Flat scenes switch to an elevated three-quarter view.
+    stage = make_stage(up_axis)
+    _add_flat_grid(stage, up_axis)
+    corners, box = _world_corners(stage)
+    centroid = box.GetMidpoint()
+
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+    eye = camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+
+    # Clearly above the scene, looking down at its center.
+    height = eye[up_index] - centroid[up_index]
+    distance = (eye - centroid).GetLength()
+    assert height / distance == pytest.approx(math.sin(math.radians(45.0)), abs=1e-6)
+    cam_to_world = camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    forward = cam_to_world.TransformDir(Gf.Vec3d(0.0, 0.0, -1.0)).GetNormalized()
+    assert Gf.IsClose(forward, (centroid - eye).GetNormalized(), 1e-6)
+
+    _assert_all_corners_visible(camera, corners)
+
+
+def test_flat_view_keeps_the_scene_upright(make_stage):
+    # The camera "up" must point to the stage up axis side, not roll the image.
+    stage = make_stage("Y")
+    _add_flat_grid(stage, "Y")
+
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+    cam_to_world = camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+    camera_up = cam_to_world.TransformDir(Gf.Vec3d(0.0, 1.0, 0.0)).GetNormalized()
+    camera_right = cam_to_world.TransformDir(Gf.Vec3d(1.0, 0.0, 0.0)).GetNormalized()
+
+    assert camera_up[1] > 0.5
+    assert abs(camera_right[1]) < 1e-6  # horizon stays level
+
+
+def test_moderately_low_scene_keeps_the_front_view(make_stage):
+    # Height 30% of the width: above the 20% threshold, front view as before.
+    stage = make_stage("Y")
+    box = UsdGeom.Cube.Define(stage, "/World/Box")
+    box.GetSizeAttr().Set(2.0)
+    UsdGeom.XformCommonAPI(box).SetScale(Gf.Vec3f(10.0, 3.0, 10.0))
+
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+    eye = camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+
+    assert eye[1] == pytest.approx(0.0, abs=1e-6)
+    assert eye[2] > 0.0
+    _assert_all_corners_visible(camera, _world_corners(stage)[0])
+
+
+def test_front_view_keeps_every_corner_visible(make_stage):
+    stage = make_stage("Y")
+    _add_cube(stage)
+
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+
+    _assert_all_corners_visible(camera, _world_corners(stage)[0])
 
 
 def _median_seconds(function, runs=5):
@@ -266,8 +368,7 @@ def test_framing_includes_point_instancer_instances(make_stage):
     instancer.CreateProtoIndicesAttr([0, 0])
     instancer.CreatePositionsAttr([Gf.Vec3f(0.0, 0.0, 0.0), Gf.Vec3f(10.0, 0.0, 0.0)])
 
-    eye = _framing_eye(stage)
-
-    # Instances span x in [-1, 11]: centered on x = 5, half width 6.
-    distance = 6.0 * MARGIN / math.tan(HALF_FOV_RAD)
-    assert Gf.IsClose(eye, Gf.Vec3d(5.0, 0.0, distance + 1.0), 1e-6)
+    # Instances span x in [-1, 11] (flat layout: checked on the box itself).
+    geometry_range = UsdThumbnail._compute_geometry_range(stage, _new_bbox_cache())
+    assert Gf.IsClose(geometry_range.GetMin(), Gf.Vec3d(-1.0, -1.0, -1.0), 1e-6)
+    assert Gf.IsClose(geometry_range.GetMax(), Gf.Vec3d(11.0, 1.0, 1.0), 1e-6)

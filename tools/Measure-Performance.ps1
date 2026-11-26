@@ -109,8 +109,16 @@ function Invoke-ThumbnailBurst {
             Start-Sleep -Milliseconds 20
         }
         $png = Join-Path $script:outDir ("burst_{0}.png" -f $index)
-        $running += Start-Process -FilePath $script:pythonExe -PassThru -WindowStyle Hidden `
-            -ArgumentList @("`"$script:thumbnailScript`"", "--imageWidth", "256", "`"$Scene`"", "`"$png`"")
+        # CreateProcess (UseShellExecute = false), like the COM server. Not
+        # Start-Process: ShellExecute runs the Windows attachment checks on
+        # files marked as downloaded (Mark of the Web) and can raise an
+        # "Open File - Security Warning" UAC prompt that blocks the burst.
+        $startInfo = New-Object Diagnostics.ProcessStartInfo
+        $startInfo.FileName        = $script:pythonExe
+        $startInfo.Arguments       = "`"$script:thumbnailScript`" --imageWidth 256 `"$Scene`" `"$png`""
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow  = $true
+        $running += [Diagnostics.Process]::Start($startInfo)
     }
     $running | ForEach-Object { $_.WaitForExit() }
     $watch.Stop()
