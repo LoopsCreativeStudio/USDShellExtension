@@ -50,12 +50,39 @@ def _setup_gl_context():
     return app, surface
 
 
+def _compute_geometry_range(stage, bbox_cache):
+    """Return the world-space range of the stage geometry, lights excluded.
+
+    Walks the stage including instance proxies. The first Boundable prim of
+    each branch (gprim, point instancer...) gives the bound of its whole
+    subtree. UsdLux lights are skipped with their descendants: they light
+    the asset but are not part of what the thumbnail must frame.
+    """
+    from pxr import Gf, Usd, UsdGeom, UsdLux
+
+    geometry_range = Gf.Range3d()
+    prims = iter(Usd.PrimRange(
+        stage.GetPseudoRoot(),
+        Usd.TraverseInstanceProxies(Usd.PrimDefaultPredicate),
+    ))
+    for prim in prims:
+        if prim.HasAPI(UsdLux.LightAPI):
+            prims.PruneChildren()
+            continue
+        if prim.IsA(UsdGeom.Boundable):
+            bound = bbox_cache.ComputeWorldBound(prim)
+            geometry_range.UnionWith(bound.ComputeAlignedRange())
+            prims.PruneChildren()
+    return geometry_range
+
+
 def _make_framing_camera(stage, time_code):
     """Create a square (1:1) perspective camera on the session layer.
 
-    Frames the full world bounding box with a 10% margin. Writes to the
-    session layer so the authored stage is not modified. Returns an invalid
-    UsdGeom.Camera if the scene has no visible geometry.
+    Frames the world bounding box of the geometry (lights excluded) with a
+    10% margin. Writes to the session layer so the authored stage is not
+    modified. Returns an invalid UsdGeom.Camera if the scene has no
+    visible geometry.
     """
     import math
     from pxr import Gf, Usd, UsdGeom, Sdf
@@ -65,8 +92,7 @@ def _make_framing_camera(stage, time_code):
         [UsdGeom.Tokens.default_, UsdGeom.Tokens.proxy],
         useExtentsHint=True,
     )
-    world_box = bbox_cache.ComputeWorldBound(stage.GetPseudoRoot())
-    rng = world_box.GetRange()
+    rng = _compute_geometry_range(stage, bbox_cache)
     if rng.IsEmpty():
         return UsdGeom.Camera()
 
@@ -82,7 +108,7 @@ def _make_framing_camera(stage, time_code):
         up_vec  = Gf.Vec3d(0, 0, 1)
         eye_dir = Gf.Vec3d(0, -1, 0)
     else:
-        # Height along Y, width along X, depth along Z; place camera on -Z.
+        # Height along Y, width along X, depth along Z; place camera on +Z.
         half_h = max(abs(mx[0] - centroid[0]), abs(mn[0] - centroid[0]))
         half_v = max(abs(mx[1] - centroid[1]), abs(mn[1] - centroid[1]))
         half_d = max(abs(mx[2] - centroid[2]), abs(mn[2] - centroid[2]))

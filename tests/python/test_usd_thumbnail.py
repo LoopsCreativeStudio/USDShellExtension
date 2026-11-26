@@ -151,3 +151,89 @@ def test_framing_camera_frames_cube_from_expected_side(make_stage, up_axis, eye_
     assert near == pytest.approx(max(1.0, distance - 1.0), rel=1e-5)
     assert near < distance_to_center - 1.0 + 1e-6
     assert far > distance_to_center + 1.0
+
+
+# ---------------------------------------------------------------------------
+# _make_framing_camera: what the framing box contains
+# ---------------------------------------------------------------------------
+def _framing_eye(stage):
+    """Return the framing camera position for the stage (Y-up: on +Z)."""
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+    assert camera, "expected a valid framing camera"
+    return camera.ComputeLocalToWorldTransform(Usd.TimeCode.Default()).ExtractTranslation()
+
+
+def _expected_cube_eye():
+    """Eye position framing only the 2-unit cube centered at the origin."""
+    distance = 1.0 * MARGIN / math.tan(HALF_FOV_RAD)
+    return Gf.Vec3d(0.0, 0.0, distance + 1.0)
+
+
+@pytest.mark.parametrize(
+    "light_type",
+    [UsdLux.SphereLight, UsdLux.RectLight, UsdLux.DiskLight, UsdLux.CylinderLight],
+)
+def test_framing_ignores_boundable_lights(make_stage, light_type):
+    # Regression: a light away from the asset used to enlarge the framing
+    # box, leaving the asset small and off-center in the thumbnail.
+    stage = make_stage()
+    _add_cube(stage)
+    light = light_type.Define(stage, "/World/KeyLight")
+    UsdGeom.XformCommonAPI(light).SetTranslate(Gf.Vec3d(30.0, 40.0, 30.0))
+
+    assert Gf.IsClose(_framing_eye(stage), _expected_cube_eye(), 1e-6)
+
+
+def test_framing_ignores_lights_nested_in_the_asset(make_stage):
+    stage = make_stage()
+    UsdGeom.Xform.Define(stage, "/World/Lamp")
+    UsdGeom.Cube.Define(stage, "/World/Lamp/Shade").GetSizeAttr().Set(2.0)
+    bulb = UsdLux.SphereLight.Define(stage, "/World/Lamp/Bulb")
+    UsdGeom.XformCommonAPI(bulb).SetTranslate(Gf.Vec3d(0.0, 25.0, 0.0))
+
+    assert Gf.IsClose(_framing_eye(stage), _expected_cube_eye(), 1e-6)
+
+
+def test_framing_camera_is_invalid_with_lights_only(make_stage):
+    # Nothing to look at: no camera, the recorder falls back to its default.
+    stage = make_stage()
+    UsdLux.SphereLight.Define(stage, "/World/Key")
+    UsdLux.DomeLight.Define(stage, "/World/Dome")
+
+    camera = UsdThumbnail._make_framing_camera(stage, Usd.TimeCode.Default())
+    assert not camera
+
+
+def test_framing_includes_instanced_geometry(make_stage):
+    # Instance proxies are skipped by a default traversal: they must still
+    # count, or instanced assets would be framed as empty.
+    stage = make_stage()
+    prototype = UsdGeom.Xform.Define(stage, "/Prototypes/Box")
+    UsdGeom.Cube.Define(stage, "/Prototypes/Box/Geo").GetSizeAttr().Set(2.0)
+    stage.GetPrimAtPath("/Prototypes").SetSpecifier(Sdf.SpecifierClass)
+    for index, x_position in enumerate((-10.0, 10.0)):
+        instance = UsdGeom.Xform.Define(stage, "/World/Box_%d" % index)
+        instance.GetPrim().GetReferences().AddInternalReference(prototype.GetPath())
+        instance.GetPrim().SetInstanceable(True)
+        UsdGeom.XformCommonAPI(instance).SetTranslate(Gf.Vec3d(x_position, 0.0, 0.0))
+
+    eye = _framing_eye(stage)
+
+    # Both instances framed: centered between them, far enough for x in [-11, 11].
+    distance = 11.0 * MARGIN / math.tan(HALF_FOV_RAD)
+    assert Gf.IsClose(eye, Gf.Vec3d(0.0, 0.0, distance + 1.0), 1e-6)
+
+
+def test_framing_includes_point_instancer_instances(make_stage):
+    stage = make_stage()
+    instancer = UsdGeom.PointInstancer.Define(stage, "/World/Scatter")
+    UsdGeom.Cube.Define(stage, "/World/Scatter/Prototypes/Cube").GetSizeAttr().Set(2.0)
+    instancer.CreatePrototypesRel().AddTarget("/World/Scatter/Prototypes/Cube")
+    instancer.CreateProtoIndicesAttr([0, 0])
+    instancer.CreatePositionsAttr([Gf.Vec3f(0.0, 0.0, 0.0), Gf.Vec3f(10.0, 0.0, 0.0)])
+
+    eye = _framing_eye(stage)
+
+    # Instances span x in [-1, 11]: centered on x = 5, half width 6.
+    distance = 6.0 * MARGIN / math.tan(HALF_FOV_RAD)
+    assert Gf.IsClose(eye, Gf.Vec3d(5.0, 0.0, distance + 1.0), 1e-6)
