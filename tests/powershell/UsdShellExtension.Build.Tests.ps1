@@ -31,7 +31,7 @@ Describe "Module exports" {
     It "exports exactly the shared helpers" {
         $exported = (Get-Module UsdShellExtension.Build).ExportedFunctions.Keys | Sort-Object
         $expected = @(
-            'Assert-Path', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
+            'Assert-Path', 'Copy-ThirdPartyLicense', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
             'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Step'
         ) | Sort-Object
         $exported | Should -Be $expected
@@ -156,6 +156,39 @@ Describe "Find-NonRedistributableFile" {
         $bytes = [byte[]](0, 1, 2) + [Text.Encoding]::ASCII.GetBytes("LicenseRef-NvidiaProprietary") + [byte[]](0, 255)
         [IO.File]::WriteAllBytes($tool, $bytes)
         @(Find-NonRedistributableFile $package) | Should -Be $tool
+    }
+}
+
+Describe "Copy-ThirdPartyLicense" -Skip:(-not $script:onWindows) {
+    BeforeEach {
+        # Shaped like the SDK PACKAGE-LICENSES folder.
+        $script:licenseSource = Join-Path $TestDrive "PACKAGE-LICENSES"
+        $script:licenseDestination = Join-Path $TestDrive "licenses"
+        New-Item -ItemType Directory -Force $script:licenseSource, $script:licenseDestination | Out-Null
+        Set-Content (Join-Path $script:licenseSource "usd-license.txt") "Tomorrow Open Source Technology License 1.0"
+        Set-Content (Join-Path $script:licenseSource "tbb-LICENSE") "Apache License 2.0"
+        Set-Content (Join-Path $script:licenseSource "repo_nv-LICENSE.txt") "NVIDIA proprietary, not shipped"
+        Set-Content (Join-Path $script:licenseDestination "stale-LICENSE") "from an older SDK"
+    }
+
+    AfterEach {
+        Remove-Item $script:licenseSource, $script:licenseDestination -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    It "copies the licenses of the shipped components" {
+        Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination
+        Test-Path (Join-Path $script:licenseDestination "usd-license.txt") | Should -BeTrue
+        Test-Path (Join-Path $script:licenseDestination "tbb-LICENSE")     | Should -BeTrue
+    }
+
+    It "leaves out the license of the NVIDIA repo tooling, which is not shipped" {
+        Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination
+        Test-Path (Join-Path $script:licenseDestination "repo_nv-LICENSE.txt") | Should -BeFalse
+    }
+
+    It "removes licenses that are no longer in the SDK" {
+        Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination
+        Test-Path (Join-Path $script:licenseDestination "stale-LICENSE") | Should -BeFalse
     }
 }
 

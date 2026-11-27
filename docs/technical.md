@@ -172,6 +172,8 @@ The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYT
 
 The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no NVIDIA SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
 
+Every build (with or without `-Installer`) mirrors the SDK `PACKAGE-LICENSES\` folder into `licenses\` (`Copy-ThirdPartyLicense`): the open source licenses of the bundled components require shipping their texts. `repo_nv-LICENSE.txt` is left out, since it covers the NVIDIA tooling that is not distributed. `NOTICE.txt` lists each component with its license file.
+
 ### `-Release`: publishing to GitHub
 
 ```powershell

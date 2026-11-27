@@ -265,6 +265,14 @@ if (Test-Path $staleScripts) {
     Write-Item "scripts\ removed (NVIDIA proprietary, not redistributable)"
 }
 
+# License texts of the bundled third-party components (OpenUSD, TBB, OpenEXR,
+# OpenImageIO, ...): their licenses require shipping them with the binaries.
+# NOTICE.txt points to this folder.
+$sdkLicenseSrc = Join-Path $USD_SDK "PACKAGE-LICENSES"
+Assert-Path $sdkLicenseSrc "SDK third-party licenses"
+Copy-ThirdPartyLicense $sdkLicenseSrc (Join-Path $OUT_DIR "licenses")
+Write-Item "licenses\ (third-party license texts)"
+
 # ---------------------------------------------------------------------------
 # 4. Write UsdShellExtension.ini with the correct runtime paths
 # ---------------------------------------------------------------------------

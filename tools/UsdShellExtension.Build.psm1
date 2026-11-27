@@ -285,8 +285,30 @@ function Copy-WithRetry {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Third-party license texts
+# ---------------------------------------------------------------------------
+function Copy-ThirdPartyLicense {
+    <#
+        Mirror the SDK PACKAGE-LICENSES folder to Destination, so the license
+        text of every bundled component (OpenUSD, TBB, OpenEXR, ...) ships with
+        it. Licenses of components that are not shipped are left out:
+        repo_nv-LICENSE.txt covers the NVIDIA repo tooling (scripts\, packman),
+        which is proprietary and excluded from the payload. The mirror also
+        removes texts that a newer SDK no longer provides.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Destination
+    )
+
+    $notShippedLicenses = @('repo_nv-LICENSE.txt')
+    Invoke-Robocopy $Source $Destination '/MIR' '/R:3' '/W:1' '/XF' @notShippedLicenses
+}
+
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
-    'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile'
+    'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile',
+    'Copy-ThirdPartyLicense'
 )

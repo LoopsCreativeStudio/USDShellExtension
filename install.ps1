@@ -546,6 +546,12 @@ if (Test-Path $usdLibPySrc) {
     Write-Item "lib\python\ (pxr Python bindings)"
 }
 
+# Third-party license texts staged by build.ps1, referenced by NOTICE.txt.
+$licensesSrc = Join-Path $OUT_DIR "licenses"
+Assert-Path $licensesSrc "third-party licenses (run .\build.ps1 first)"
+Invoke-Robocopy $licensesSrc (Join-Path $InstallDir "licenses") '/MIR' '/R:3' '/W:1'
+Write-Item "licenses\ (third-party license texts)"
+
 # The SDK scripts\ wrappers are under an NVIDIA proprietary license and are
 # not installed any more: remove the copy left by an older version.
 $staleScripts = Join-Path $InstallDir "scripts"

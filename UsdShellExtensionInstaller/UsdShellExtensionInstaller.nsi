@@ -279,6 +279,12 @@ File plugInfo.json
 File LICENSE.txt
 File NOTICE.txt
 
+; Third-party license texts referenced by NOTICE.txt. Mirror them: remove
+; texts of components an older version shipped.
+RMDir /r "$INSTDIR\licenses"
+SetOutPath "$INSTDIR\licenses"
+File /r .\licenses\*
+
 SetOutPath "$INSTDIR\usd"
 File /r .\usd\*
 
@@ -662,6 +668,7 @@ DeleteRegKey /ifempty HKCR "SystemFileAssociations\.usdz"
 Delete /REBOOTOK "$INSTDIR\plugInfo.json"
 Delete /REBOOTOK "$INSTDIR\LICENSE.txt"
 Delete /REBOOTOK "$INSTDIR\NOTICE.txt"
+RMDir /r /REBOOTOK "$INSTDIR\licenses"
 RMDir /r /REBOOTOK "$INSTDIR\usd"
 RMDir /r /REBOOTOK "$INSTDIR\plugin\usd"
 RMDir /REBOOTOK "$INSTDIR\plugin"

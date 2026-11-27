@@ -9,38 +9,60 @@ THIRD-PARTY NOTICES
 
 This software incorporates components from the following third-party projects.
 Each component is subject to its own license terms, reproduced or referenced
-below.
+below. The full license texts of the bundled runtime components are installed
+in the "licenses" folder next to this file.
 
 -------------------------------------------------------------------------------
 1. OpenUSD (Universal Scene Description)
 -------------------------------------------------------------------------------
 Copyright 2016 Pixar Animation Studios
 
-Licensed under the Apache License, Version 2.0 (the "Apache License") with the
-following modification: the word "large" in Section 6 of the Apache License has
-been changed to "reasonable". You may obtain a copy of the Apache License at
+The bundled OpenUSD 25.08 libraries are licensed under the Tomorrow Open Source
+Technology License 1.0, which is the Apache License 2.0 with a different
+Section 6 ("Trademarks"). The OpenUSD license also lists the third-party code
+built into OpenUSD (RapidJSON, double-conversion, LZ4, pugixml, Draco, ...).
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed
-under the Apache License with the above modification is distributed on an "AS
-IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the Apache License for the specific language governing permissions
-and limitations under the Apache License.
-
+Full text: licenses\usd-license.txt
 Source: https://github.com/PixarAnimationStudios/OpenUSD
 
 -------------------------------------------------------------------------------
-2. NVIDIA OpenUSD Pre-built Libraries
+2. Runtime Components (NVIDIA OpenUSD 25.08 Pre-built Package)
 -------------------------------------------------------------------------------
-The pre-built OpenUSD binaries distributed with this software (or required at
-runtime) are provided by NVIDIA Corporation and are subject to the NVIDIA
-Software License Agreement.
+The installer bundles the OpenUSD libraries, the Python runtime and their
+dependencies as built by NVIDIA Corporation in the "usd.py312.windows-x86_64.
+usdview.release-v25.08" package:
 
-This software links against the NVIDIA OpenUSD SDK at runtime. Redistribution
-of those binaries is subject to NVIDIA's terms:
+    https://developer.nvidia.com/openusd
 
-    https://developer.nvidia.com/openusd#section-getting-started
+Each component keeps its own open source license; the texts are in the
+"licenses" folder:
+
+  Component                     License                 File in licenses\
+  ----------------------------  ----------------------  -----------------------
+  OpenUSD                       TOST 1.0 (Apache 2.0)   usd-license.txt
+  Python 3.12 (CPython)         PSF License             python-LICENSE.txt,
+                                                        cpython-LICENSE
+  oneTBB                        Apache 2.0              tbb-LICENSE
+  MaterialX                     Apache 2.0              materialx-LICENSE
+  OpenImageIO                   Apache 2.0              openimageio-LICENSE.md
+  OpenSSL                       Apache 2.0              openssl-LICENSE.txt
+  OpenSubdiv                    Modified Apache 2.0     opensubdiv-LICENSE.txt
+  OpenEXR                       BSD 3-Clause            openexr-LICENSE.md
+  Imath                         BSD 3-Clause            imath-LICENSE.md
+  Alembic                       BSD 3-Clause            alembic-LICENSE.txt
+  libtiff                       libtiff License         libtiff-LICENSE.md
+  libpng                        libpng License          libpng-LICENSE
+  libjpeg-turbo                 IJG / BSD 3-Clause      libjpeg-turbo-LICENSE.md
+  zlib                          zlib License            zlib-LICENSE
+  Boost                         Boost Software 1.0      boost-LICENSE_1_0.txt
+  pybind11                      BSD 3-Clause            pybind11-LICENSE
+  {fmt}                         MIT                     fmt-LICENSE
+  libffi                        MIT                     libffi-LICENSE.txt
+  XZ Utils (liblzma)            0BSD                    xz-LICENSE.txt,
+                                                        PACKAGE-LICENSE.txt
+
+The NVIDIA build tooling of that package (scripts\*.bat wrappers, packman
+metadata) is under an NVIDIA proprietary license and is not distributed.
 
 -------------------------------------------------------------------------------
 3. Google Material Design Icons
@@ -89,7 +111,7 @@ The Windows logo is a trademark of Microsoft Corporation. Its use here is
 solely for identification and informational purposes.
 
 -------------------------------------------------------------------------------
-5. OpenUSD Logo
+6. OpenUSD Logo
 -------------------------------------------------------------------------------
 The OpenUSD logo used in this project's header image is provided by Pixar
 Animation Studios as part of the OpenUSD project.
