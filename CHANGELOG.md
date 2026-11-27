@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.10.4](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.3...v1.10.4) (2026-11-27)
+
+
+### Documentation
+
+* **contributing:** explain how commit bodies show up in the release notes ([04d6964](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/04d6964f5946595c2b8449f62b0ecd55e4691343))
+
+
+### Build System
+
+* **release:** show docs, build, test and refactor commits in the release notes ([2b39a4a](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/2b39a4a8e1b55a8b927c68204131473c833b4cfd))
+
 ## [1.10.3](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.2...v1.10.3) (2026-11-27)
 
 
