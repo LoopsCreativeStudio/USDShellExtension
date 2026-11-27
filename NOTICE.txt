@@ -65,7 +65,48 @@ The NVIDIA build tooling of that package (scripts\*.bat wrappers, packman
 metadata) is under an NVIDIA proprietary license and is not distributed.
 
 -------------------------------------------------------------------------------
-3. Google Material Design Icons
+3. Python Packages (pip-packages folder)
+-------------------------------------------------------------------------------
+The preview pane and usdview use the following Python packages, installed
+unmodified in the "pip-packages" folder:
+
+  Package                       License                 License text
+  ----------------------------  ----------------------  -----------------------
+  PySide6 6.7.3, shiboken6      LGPL v3                 licenses\LGPL-3.0.txt,
+  (Qt 6.7.3 libraries)                                  licenses\GPL-3.0.txt
+  PyOpenGL 3.1.5                BSD                     licenses\pyopengl-
+                                                        license.txt
+  Jinja2 3.1.6                  BSD 3-Clause            pip-packages\jinja2-3.1.6.
+                                                        dist-info\licenses\
+                                                        LICENSE.txt
+  MarkupSafe 3.0.2              BSD 3-Clause            pip-packages\MarkupSafe-
+                                                        3.0.2.dist-info\
+                                                        LICENSE.txt
+
+PySide6 and Qt
+  Copyright (C) The Qt Company Ltd. and other contributors.
+  Used under the GNU Lesser General Public License version 3 (LGPL v3), which
+  incorporates the GNU General Public License version 3 (GPL v3). Both texts
+  are in the "licenses" folder. The Qt and PySide6 libraries are separate,
+  dynamically loaded files (Qt6*.dll, PySide6\*.pyd, shiboken6\*.pyd) in the
+  "pip-packages" folder: you may replace them with a compatible version built
+  from modified sources.
+  Corresponding source code:
+    Qt 6.7.3:       https://download.qt.io/official_releases/qt/6.7/6.7.3/
+    PySide6 6.7.3:  https://download.qt.io/official_releases/QtForPython/
+                    https://code.qt.io/cgit/pyside/pyside-setup.git/ (tag v6.7.3)
+  Qt also contains third-party code under other licenses, listed at:
+    https://doc.qt.io/qt-6/licenses-used-in-qt.html
+
+PyOpenGL
+  Copyright (c) 2005-2026, Michael C. Fletcher and Contributors.
+  Released under a BSD license; it also includes BSD-style licensed code
+  from PyOpenGL 2.x, Pyglet and Chromium Regal, and MIT licensed code from
+  PyOSMesa. Full text: licenses\pyopengl-license.txt
+  Source: https://github.com/mcfletch/pyopengl
+
+-------------------------------------------------------------------------------
+4. Google Material Design Icons
 -------------------------------------------------------------------------------
 Copyright 2024 Google LLC
 
@@ -83,7 +124,7 @@ specific language governing permissions and limitations under the License.
 Source: https://github.com/google/material-design-icons
 
 -------------------------------------------------------------------------------
-4. Demo Assets
+5. Demo Assets
 -------------------------------------------------------------------------------
 The GIF animations and screenshots in the project documentation use the
 following USD sample scenes, reproduced here for illustration purposes only.
@@ -100,7 +141,7 @@ ALab (Animal Logic Lab)
   Credit: Animal Logic
 
 -------------------------------------------------------------------------------
-5. Windows Logo
+6. Windows Logo
 -------------------------------------------------------------------------------
 The Windows logo used in this project's header image is the Microsoft Windows
 logotype (2012 version), sourced from Wikimedia Commons.
@@ -111,7 +152,7 @@ The Windows logo is a trademark of Microsoft Corporation. Its use here is
 solely for identification and informational purposes.
 
 -------------------------------------------------------------------------------
-6. OpenUSD Logo
+7. OpenUSD Logo
 -------------------------------------------------------------------------------
 The OpenUSD logo used in this project's header image is provided by Pixar
 Animation Studios as part of the OpenUSD project.

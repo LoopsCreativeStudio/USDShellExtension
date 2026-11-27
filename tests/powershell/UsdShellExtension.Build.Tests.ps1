@@ -190,6 +190,38 @@ Describe "Copy-ThirdPartyLicense" -Skip:(-not $script:onWindows) {
         Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination
         Test-Path (Join-Path $script:licenseDestination "stale-LICENSE") | Should -BeFalse
     }
+
+    It "adds the licenses kept in the repository for components the SDK does not cover" {
+        $repositoryLicenses = Join-Path $TestDrive "third_party-licenses"
+        New-Item -ItemType Directory -Force $repositoryLicenses | Out-Null
+        Set-Content (Join-Path $repositoryLicenses "LGPL-3.0.txt") "GNU LESSER GENERAL PUBLIC LICENSE"
+        Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination -AdditionalSource $repositoryLicenses
+        Test-Path (Join-Path $script:licenseDestination "LGPL-3.0.txt")    | Should -BeTrue
+        Test-Path (Join-Path $script:licenseDestination "usd-license.txt") | Should -BeTrue
+    }
+}
+
+Describe "Repository third-party licenses" {
+    # PySide6 / Qt (pip-packages\) are under LGPL v3, which refers to GPL v3:
+    # both texts must ship, and the SDK PACKAGE-LICENSES does not have them.
+    It "keeps the official <File> text" -ForEach @(
+        @{ File = "LGPL-3.0.txt"; Title = "GNU LESSER GENERAL PUBLIC LICENSE" }
+        @{ File = "GPL-3.0.txt";  Title = "GNU GENERAL PUBLIC LICENSE" }
+    ) {
+        $licensePath = Join-Path $PSScriptRoot "..\..\third_party\licenses\$File"
+        $licenseHeader = (Get-Content -LiteralPath $licensePath -TotalCount 2) -join "`n"
+        $licenseHeader | Should -Match ([regex]::Escape($Title))
+        $licenseHeader | Should -Match 'Version 3, 29 June 2007'
+    }
+
+    # PyOpenGL (pip-packages\) is BSD licensed but its wheel has no license
+    # file, while the BSD terms require shipping the text with the binaries.
+    It "keeps the PyOpenGL BSD license text" {
+        $licensePath = Join-Path $PSScriptRoot "..\..\third_party\licenses\pyopengl-license.txt"
+        $licenseText = Get-Content -LiteralPath $licensePath -Raw
+        $licenseText | Should -Match 'OpenGL-ctypes License'
+        $licenseText | Should -Match 'Redistributions in binary form must reproduce'
+    }
 }
 
 Describe "Invoke-Robocopy" -Skip:(-not $script:onWindows) {

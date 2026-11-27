@@ -270,7 +270,10 @@ if (Test-Path $staleScripts) {
 # NOTICE.txt points to this folder.
 $sdkLicenseSrc = Join-Path $USD_SDK "PACKAGE-LICENSES"
 Assert-Path $sdkLicenseSrc "SDK third-party licenses"
-Copy-ThirdPartyLicense $sdkLicenseSrc (Join-Path $OUT_DIR "licenses")
+# third_party\licenses holds the texts the SDK lacks (LGPL / GPL v3 for the
+# PySide6 and Qt libraries in pip-packages\).
+Copy-ThirdPartyLicense $sdkLicenseSrc (Join-Path $OUT_DIR "licenses") `
+    -AdditionalSource (Join-Path $REPO "third_party\licenses")
 Write-Item "licenses\ (third-party license texts)"
 
 # ---------------------------------------------------------------------------

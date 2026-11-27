@@ -296,14 +296,22 @@ function Copy-ThirdPartyLicense {
         repo_nv-LICENSE.txt covers the NVIDIA repo tooling (scripts\, packman),
         which is proprietary and excluded from the payload. The mirror also
         removes texts that a newer SDK no longer provides.
+        AdditionalSource adds the texts kept in the repository for bundled
+        components the SDK does not cover (LGPL / GPL v3 for PySide6 and Qt);
+        they are copied after the mirror so it does not remove them.
     #>
     param(
         [Parameter(Mandatory)][string]$Source,
-        [Parameter(Mandatory)][string]$Destination
+        [Parameter(Mandatory)][string]$Destination,
+        [string]$AdditionalSource
     )
 
     $notShippedLicenses = @('repo_nv-LICENSE.txt')
     Invoke-Robocopy $Source $Destination '/MIR' '/R:3' '/W:1' '/XF' @notShippedLicenses
+
+    if ($AdditionalSource) {
+        Invoke-Robocopy $AdditionalSource $Destination '/R:3' '/W:1'
+    }
 }
 
 Export-ModuleMember -Function @(
