@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.10.3](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.2...v1.10.3) (2026-11-27)
+
+
+### Bug Fixes
+
+* copy usd, plugin\usd, lib\python and python with robocopy /MIR so a locked unchanged file no longer aborts the install ([6cd228b](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6cd228bd69712fc6d8fa30a79f5913e088d00320))
+* elide long prim paths in the preview label so a selection no longer widens and crops the view ([81264ba](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/81264ba9a1445ff950c2e01d812f9135243b3065))
+* **installer:** drop the nvidia sdk path page since the runtime is bundled ([c7aeeb6](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/c7aeeb61fc4c922552b159d8338b6a7df59bdb75))
+* **install:** mirror runtime folders in place instead of deleting them first ([6cd228b](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6cd228bd69712fc6d8fa30a79f5913e088d00320))
+* **install:** stop the preview host before replacing the python runtime ([609f5c3](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/609f5c3bc44f6ef8df72dee34270e821f69d3abb))
+* **license:** ship the lgpl and gpl texts for the bundled pyside6 and qt ([3881b40](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/3881b40d5595fbfc47eb4e9a1e4d3dffad7ae564))
+* **license:** ship the third-party license texts of the bundled runtime ([4bbadb7](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/4bbadb76a9115d2b8880d5bbc09d35d53e0bc787))
+* **preview:** keep the preview pane drawn after a click ([b0077c3](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/b0077c31e47dd6e0714f5a79bf7d7c8dfa7d5bc2))
+* **shell:** skip build output ini without paths in usd-shell.ps1 ([4ee7302](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/4ee73025d6cde2ce3f287b3a16891a36d9420af3))
+
 ## [1.10.2](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.1...v1.10.2) (2026-11-26)
 
 
