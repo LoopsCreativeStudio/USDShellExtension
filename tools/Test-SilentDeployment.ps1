@@ -93,8 +93,13 @@ function Invoke-AsSystem {
         "exit /b %ERRORLEVEL%"
     )
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
+    # PsExec writes its progress to stderr. Windows PowerShell 5.1 turns each
+    # stderr line into an error record, which "Stop" would make terminating
+    # (and kill PsExec): use Continue for this call only (function scope).
+    $ErrorActionPreference = "Continue"
     & psexec -accepteula -nobanner -s cmd /c $commandFile 2>&1 | Out-Null
     $exitCode = $LASTEXITCODE
+    $ErrorActionPreference = "Stop"
     $stopwatch.Stop()
     Remove-Item -LiteralPath $commandFile -Force -ErrorAction SilentlyContinue
     [pscustomobject]@{ ExitCode = $exitCode; Seconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1) }
