@@ -224,7 +224,11 @@ C:\Program Files\UsdShellExtension\
 ├── register.bat / unregister.bat
 ├── uninstaller.ps1          ← standalone uninstaller
 ├── UsdShellExtension.ini
+├── LICENSE.txt / NOTICE.txt ← project license, third-party notices
 ├── usd_*.dll
+├── licenses\                ← full license texts of the bundled components
+├── lib\python\              ← pxr Python bindings
+├── pip-packages\            ← PySide6, PyOpenGL
 ├── python\
 ├── usd\
 └── plugin\

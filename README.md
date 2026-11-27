@@ -6,14 +6,33 @@
 <h4 align="center">Windows Explorer integration for  <a href="https://openusd.org/">Pixar USD</a> files - thumbnails, 3D preview, context menus, and metadata search.</h4>
 
 <p align="center">
+  <a href="https://github.com/LoopsCreativeStudio/USDShellExtension/releases/latest">
+    <img src="https://img.shields.io/github/v/release/LoopsCreativeStudio/USDShellExtension" alt="Latest release">
+  </a>
+  <a href="https://github.com/LoopsCreativeStudio/USDShellExtension/releases">
+    <img src="https://img.shields.io/github/downloads/LoopsCreativeStudio/USDShellExtension/total" alt="Downloads">
+  </a>
+  <a href="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/ci.yaml">
+    <img src="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/ci.yaml/badge.svg?branch=main" alt="CI">
+  </a>
   <a href="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/release.yaml">
     <img src="https://github.com/LoopsCreativeStudio/USDShellExtension/actions/workflows/release.yaml/badge.svg?branch=main" alt="Release">
   </a>
   <a href="https://github.com/googleapis/release-please">
     <img src="https://img.shields.io/badge/release--please-conventional--commits-brightgreen?logo=github" alt="release-please">
   </a>
-  <a href="">
-    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT">
+  <br>
+  <a href="docs/runbook.md">
+    <img src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20x64-0078D4" alt="Platform: Windows 10 | 11 x64">
+  </a>
+  <a href="https://developer.nvidia.com/openusd">
+    <img src="https://img.shields.io/badge/OpenUSD-25.08-blue" alt="OpenUSD 25.08">
+  </a>
+  <a href="https://www.python.org/">
+    <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+  </a>
+  <a href="LICENSE.txt">
+    <img src="https://img.shields.io/github/license/LoopsCreativeStudio/USDShellExtension" alt="License">
   </a>
 </p>
 
@@ -88,6 +107,16 @@ By participating in this project, you agree to abide by the [Code of Conduct](CO
 
 ## License
 
-MIT - Copyright (C) 2025 Loops Creative Studio. See [LICENSE.txt](LICENSE.txt).
+The source code of this project is released under the MIT License - Copyright (C) 2025 Loops Creative Studio. See [LICENSE.txt](LICENSE.txt).
 
-Third-party component notices, including logo attributions, are in [NOTICE.txt](NOTICE.txt).
+The setup `.exe` also bundles third-party open source components, each under its own license:
+
+| Component | License |
+|-----------|---------|
+| OpenUSD 25.08 (pre-built by NVIDIA) | Tomorrow Open Source Technology License 1.0 (Apache 2.0 with a different trademark section) |
+| Python 3.12 | PSF License |
+| PySide6 / Qt 6.7.3 | LGPL v3 |
+| oneTBB, MaterialX, OpenImageIO, OpenSSL | Apache 2.0 |
+| OpenEXR, Imath, Alembic, libtiff, libpng, libjpeg-turbo, zlib, Boost, ... | Permissive (BSD, MIT, zlib, Boost) |
+
+Their full license texts are installed in the `licenses\` folder of the install directory. [NOTICE.txt](NOTICE.txt) lists every component with its license file, along with the logo and demo asset attributions. No proprietary NVIDIA component is distributed.
