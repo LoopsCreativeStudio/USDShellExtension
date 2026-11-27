@@ -16,19 +16,19 @@
 -->
 
 <!--
-   Points to the NVIDIA pre-built USD 25.08 (Python 3.12, PySide6).
-   Download from https://developer.nvidia.com/usd#section-getting-started
-   and extract to D:\usd.py312.windows-x86_64.usdview.release-v25.08\
+   Points to the OpenUSD 26.11 SDK built from the upstream sources by
+   build-openusd.ps1 (Python 3.12, PySide6), installed in
+   D:\OpenUSD\install\v26.11.1-py312\ (keep aligned with USD_SDK in .env).
 
    All USD libs use the "usd_" prefix (e.g. usd_tf.lib, usd_sdf.lib).
-   TBB ships as tbb.dll (not tbb12.dll) in this build.
+   TBB is oneTBB: tbb12.dll and tbbmalloc.dll.
 -->
 
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <USDBUILD>shared</USDBUILD>
-    <USDVERSION>25.08</USDVERSION>
-    <USD_SDK>D:\usd.py312.windows-x86_64.usdview.release-v25.08</USD_SDK>
+    <USDVERSION>26.11</USDVERSION>
+    <USD_SDK>D:\OpenUSD\install\v26.11.1-py312</USD_SDK>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -48,7 +48,7 @@
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalIncludeDirectories>$(USDINCLUDEPATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <!-- USD 25.08 headers require C++17 -->
+      <!-- USD 26.11 headers require C++17 -->
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -59,7 +59,7 @@
     <PostBuildEvent>
       <Command>
         xcopy "$(USDLIBPATH)usd_*.dll"  "$(TargetDir)" /I /Y /F /R
-        xcopy "$(USDBINPATH)tbb.dll"    "$(TargetDir)" /I /Y /F /R
+        xcopy "$(USDBINPATH)tbb12.dll"  "$(TargetDir)" /I /Y /F /R
         xcopy "$(USDBINPATH)tbbmalloc.dll" "$(TargetDir)" /I /Y /F /R
         xcopy "$(PXR_PLUGINPATH_NAME)"  "$(TargetDir)\usd" /I /Y /F /R /S
 

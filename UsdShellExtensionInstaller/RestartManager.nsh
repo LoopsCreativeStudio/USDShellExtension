@@ -225,7 +225,7 @@ System::Free $0
 StrCpy $RmApplicationSession $R1
 
 StrCpy $0 "$INSTDIR\UsdShellExtension.dll"
-StrCpy $1 "$INSTDIR\tbb.dll"
+StrCpy $1 "$INSTDIR\tbb12.dll"
 StrCpy $2 "$INSTDIR\tbbmalloc.dll"
 StrCpy $3 "$INSTDIR\${BOOSTDLL}"
 StrCpy $4 "$INSTDIR\${PYTHONDLL}"

@@ -60,7 +60,7 @@ Import-Module (Join-Path $REPO "tools\UsdShellExtension.Build.psm1") -Force
 # ---------------------------------------------------------------------------
 $cfg = Read-DotEnv (Join-Path $REPO ".env")
 
-$USD_SDK = if ($cfg['USD_SDK']) { $cfg['USD_SDK'] } else { "D:\usd.py312.windows-x86_64.usdview.release-v25.08" }
+$USD_SDK = if ($cfg['USD_SDK']) { $cfg['USD_SDK'] } else { "D:\OpenUSD\install\v26.11.1-py312" }
 if (-not $Config) { $Config = if ($cfg['CONFIG']) { $cfg['CONFIG'] } else { "Release" } }
 if ($Config -notin @('Release', 'Debug')) {
     Write-Error "CONFIG must be 'Release' or 'Debug' (got: '$Config'). Check .env or use -Config."
@@ -96,7 +96,7 @@ Write-Detail "Log" $LogFile
 # ---------------------------------------------------------------------------
 Write-Step "Checking prerequisites"
 
-Assert-Path $USD_SDK "NVIDIA USD SDK"
+Assert-Path $USD_SDK "USD SDK (build-openusd.ps1 output)"
 Assert-Path $SLN     "Solution file"
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -221,12 +221,20 @@ $rcBinArgs = @(
         'exrmetrics.exe', 'exrmultipart.exe', 'exrmultiview.exe', 'exrstdattr.exe',
         'iconvert.exe', 'idiff.exe', 'igrep.exe', 'iinfo.exe',
         'maketx.exe', 'oiiotool.exe',
+        'pngfix.exe', 'png-fix-itxt.exe', 'ptxinfo.exe', 'hdGenSchema',
         'testusdview', 'testusdview.cmd',
         '__USE_scripts_FOLDER_INSTEAD_FOR_EASY_ENTRY_POINTS',
         '*.cmd'
 )
 Invoke-Robocopy @rcBinArgs
 Write-Item "bin\ (USD DLLs, external libs, USD entry points)"
+
+# Third-party DLLs installed in lib\ instead of bin\ (Ptex.dll); the usd_*.dll
+# libraries there are copied by the post-build events.
+Get-ChildItem $USD_LIB -Filter "*.dll" | Where-Object { $_.Name -notlike "usd_*" } | ForEach-Object {
+    Copy-Item $_.FullName $OUT_DIR -Force
+    Write-Item ("{0} (from lib\)" -f $_.Name)
+}
 
 $usdPluginSrc = Join-Path $USD_LIB "usd"
 $usdPluginDst = Join-Path $OUT_DIR "usd"
@@ -250,7 +258,9 @@ if (Test-Path $icoSrc) {
     Write-Item "usd.ico"
 }
 
-$usdLibPySrc = Join-Path $USD_SDK "lib\python"
+# The source build installs the pxr package in lib\site-packages; the product
+# keeps it in lib\python (UsdShellExtension.ini, installer, environment.cpp).
+$usdLibPySrc = Join-Path $USD_SDK "lib\site-packages"
 $usdLibPyDst = Join-Path $OUT_DIR "lib\python"
 if (Test-Path $usdLibPySrc) {
     if (Test-Path $usdLibPyDst) { Remove-Item $usdLibPyDst -Recurse -Force }

@@ -46,7 +46,11 @@ def main():
 
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("usddiff", usddiff_path)
+        from importlib.machinery import SourceFileLoader
+        # usddiff has no .py extension, so spec_from_file_location cannot
+        # pick a loader: name the source loader explicitly. The module runs
+        # as __main__ so the script's command line entry point executes.
+        spec = importlib.util.spec_from_loader("__main__", SourceFileLoader("__main__", usddiff_path))
         mod = importlib.util.module_from_spec(spec)
         sys.argv = ["usddiff", file1, file2]
         spec.loader.exec_module(mod)

@@ -26,7 +26,7 @@
     </dependency>
 
     <!-- USD SDK shared TBB runtime — load from this DLL's directory -->
-    <file name="tbb.dll"/>
+    <file name="tbb12.dll"/>
     <file name="tbbmalloc.dll"/>
     <file name="tbbmalloc_proxy.dll"/>
 

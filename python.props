@@ -20,9 +20,9 @@
     <!-- PY_VERSION_HEX encoding -->
     <PythonVersionHex>0x030C0000</PythonVersionHex>
     <PythonFileName>python312</PythonFileName>
-    <!-- Python bundled with the NVIDIA USD pre-build — no separate install required.
-         Override by setting PythonHome as an environment variable or installing Python 3.12 system-wide. -->
-    <PythonHome Condition="$(PythonHome) == ''">D:\usd.py312.windows-x86_64.usdview.release-v25.08\python\</PythonHome>
+    <!-- Python runtime assembled in the OpenUSD SDK by build-openusd.ps1; no separate install required.
+         Override by setting PythonHome as an environment variable (build.ps1 passes it from USD_SDK). -->
+    <PythonHome Condition="$(PythonHome) == ''">D:\OpenUSD\install\v26.11.1-py312\python\</PythonHome>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

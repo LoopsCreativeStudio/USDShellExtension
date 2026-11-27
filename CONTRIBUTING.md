@@ -12,7 +12,7 @@ Please note that we have a code of conduct. Kindly follow it in all your interac
 > The project is built with PowerShell and MSBuild (Visual Studio 2026, v145 toolset, x64 only).
 
 1. Clone the repository.
-2. Extract the [NVIDIA USD 25.08 pre-built package](https://developer.nvidia.com/usd) to `D:\usd.py312.windows-x86_64.usdview.release-v25.08` (or update `$USD_SDK` in `build.ps1` if your path differs).
+2. Build OpenUSD once with `build-openusd.ps1` (needs CMake 4.2 or later; one to two hours, result in `D:\OpenUSD\install\v26.11.1-py312`). Set `OPENUSD_DIR` and `USD_SDK` in `.env` if your paths differ; see the [Quick Start](docs/quickstart.md).
 3. Build the project.
 4. Install (requires Administrator).
 
@@ -20,6 +20,9 @@ Please note that we have a code of conduct. Kindly follow it in all your interac
 ```powershell
 git clone https://github.com/LoopsCreativeStudio/USDShellExtension.git
 cd USDShellExtension
+
+# Build OpenUSD and its Python runtime (first time only)
+.\build-openusd.ps1
 
 # Build all projects (Release|x64)
 .\build.ps1
@@ -70,7 +73,7 @@ The development of **USDShellExtension** is very demanding in terms of stability
 
 ### Running the Python tests
 
-The Python scripts are tested with [pytest](https://pytest.org) against `usd-core`, pinned to the same USD version as the NVIDIA SDK. With [uv](https://docs.astral.sh/uv/) installed, from the repository root:
+The Python scripts are tested with [pytest](https://pytest.org) against `usd-core`, pinned to the same OpenUSD version as the SDK built by `build-openusd.ps1`. With [uv](https://docs.astral.sh/uv/) installed, from the repository root:
 
 ```powershell
 uv run --no-project --python 3.12 --with-requirements tests/requirements.txt pytest tests/python

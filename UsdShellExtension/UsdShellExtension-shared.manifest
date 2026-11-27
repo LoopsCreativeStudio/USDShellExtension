@@ -15,14 +15,16 @@
    limitations under the License.
 -->
 <!--
-   Activation Context manifest for the NVIDIA USD 25.08 shared build.
+   Activation Context manifest for the OpenUSD 26.11 shared build.
    Lists all USD DLLs so Windows loads them from the extension's own
    directory rather than any system-wide copy, preventing version conflicts
    with other shell extensions that may also load USD.
 -->
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
 
-  <!-- Core USD DLLs (usd_ prefix, NVIDIA 25.08 naming) -->
+  <!-- Core USD DLLs (usd_ prefix): the libraries the extension links and
+       everything they load in OpenUSD 26.11 (usdUtils now pulls in gf, sdr,
+       usdGeom and usdShade) -->
   <file name="usd_tf.dll"/>
   <file name="usd_arch.dll"/>
   <file name="usd_plug.dll"/>
@@ -38,13 +40,17 @@
   <file name="usd_kind.dll"/>
   <file name="usd_ts.dll"/>
   <file name="usd_pegtl.dll"/>
+  <file name="usd_gf.dll"/>
+  <file name="usd_sdr.dll"/>
+  <file name="usd_usdGeom.dll"/>
+  <file name="usd_usdShade.dll"/>
 
   <!-- pxr_boost Python bridge and Python runtime -->
   <file name="usd_boost.dll"/>
   <file name="usd_python.dll"/>
 
   <!-- Threading (TBB) -->
-  <file name="tbb.dll"/>
+  <file name="tbb12.dll"/>
   <file name="tbbmalloc.dll"/>
 
 </assembly>

@@ -61,13 +61,13 @@ This project is a complete rewrite inspired by [Activision/USDShellExtension](ht
 
 | Aspect | Activision | This repo |
 |--------|-----------|-----------|
-| USD SDK for Explorer DLL | Bare-bones monolithic build, compiled from source, with `--no-python --no-imaging` | NVIDIA USD 25.08 pre-built (full), isolated via Windows Activation Context |
-| USD SDK for Python tools | Full shared build, compiled from source | Same NVIDIA USD 25.08 pre-built |
+| USD SDK for Explorer DLL | Bare-bones monolithic build, compiled from source, with `--no-python --no-imaging` | OpenUSD 26.11 full shared build (`build-openusd.ps1`), isolated via Windows Activation Context |
+| USD SDK for Python tools | Full shared build, compiled from source | Same OpenUSD 26.11 build |
 | How "no Python in Explorer" is enforced | Python excluded at the SDK level: the DLL's USD build has no Python support at all | Python excluded at the process level: all Python work goes to COM Local Server EXEs; the DLL itself never calls into Python |
-| Boost | Separate build, matched to MSVC and Python version | `usd_boost.lib` / `usd_boost.dll` bundled in the NVIDIA SDK |
-| Python version | 2.7, 3.6, 3.7 | 3.12 (bundled in the NVIDIA SDK) |
-| USD library naming | Bare names: `tf.lib`, `sdf.lib` | `usd_`-prefixed: `usd_tf.lib`, `usd_sdf.lib` (NVIDIA convention) |
-| Build USD from source | Required | Not required |
+| Boost | Separate build, matched to MSVC and Python version | None: OpenUSD ships its own `pxr_boost::python` (`usd_boost.lib` / `usd_boost.dll`) |
+| Python version | 2.7, 3.6, 3.7 | 3.12 (NuGet `python` package, bundled in the SDK folder) |
+| USD library naming | Bare names: `tf.lib`, `sdf.lib` | `usd_`-prefixed: `usd_tf.lib`, `usd_sdf.lib` (OpenUSD default prefix) |
+| Build USD from source | Required, two builds, manual | One build, scripted (`build-openusd.ps1`) |
 | Build process | Manual Visual Studio setup, two USD builds | `build.ps1` one-command build |
 | Visual Studio version | 2017+ | 2026 Community (v145) |
 
@@ -79,13 +79,13 @@ The Activision repo kept Python entirely out of the Explorer process by using a 
 
 This repo relies on COM Local Servers instead of SDK isolation. The DLL loaded into Explorer delegates every Python-dependent operation (preview, thumbnails, format conversion) to a separate EXE via out-of-process COM. If a COM server crashes, Explorer is unaffected. The DLL itself only uses the C++ USD SDK directly for fast, synchronous operations such as reading metadata via `IPropertyStore`.
 
-A single NVIDIA pre-built SDK covers both the DLL's C++ USD usage and the Python tools, which eliminates the need to compile USD from source or maintain multiple SDK configurations.
+A single OpenUSD build covers both the DLL's C++ USD usage and the Python tools, which removes the need to maintain multiple SDK configurations.
 
 ### Trade-offs
 
 The Activision approach is stricter: even a bug in the USD C++ code inside the Explorer DLL cannot accidentally invoke Python because Python is absent from the SDK. This repo's approach is safe in practice (Python is never called from the DLL), but requires discipline to maintain that invariant as the codebase evolves.
 
-The NVIDIA pre-built approach trades flexibility (fixed release cadence, `usd_`-prefixed lib names) for zero build infrastructure. See [Why the NVIDIA pre-built bundle instead of a self-compiled USD](#why-the-nvidia-pre-built-bundle-instead-of-a-self-compiled-usd) for the full rationale.
+Building OpenUSD from source costs a scripted build of one to two hours per OpenUSD or Python version, in exchange for following upstream releases. See [Why OpenUSD is built from source](#why-openusd-is-built-from-source) for the full rationale.
 
 ## Build system
 
@@ -116,8 +116,8 @@ $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PS
 
 | File | Purpose |
 |------|---------|
-| `usd-shared.props` | NVIDIA USD 25.08 include/lib paths, `usd_`-prefixed lib names |
-| `boost.props` | `usd_boost.lib` / `usd_boost.dll` from the NVIDIA SDK |
+| `usd-shared.props` | OpenUSD 26.11 SDK include/lib paths, `usd_`-prefixed lib names |
+| `boost.props` | `usd_boost.lib` / `usd_boost.dll` from the OpenUSD SDK; SDK headers treated as external (no warnings) |
 | `python.props` | Python 3.12 bundled in the SDK (`python\` subfolder) |
 | `version.props` | Version numbers and product/company strings for all RC files |
 
@@ -132,7 +132,7 @@ bin\v145\3.12\Release\
 ├── UsdSdkToolsLocalServer.exe
 ├── usd_*.dll              (USD runtime DLLs)
 ├── python312.dll, python3.dll
-├── tbb.dll, tbbmalloc.dll, tbbmalloc_proxy.dll
+├── tbb12.dll, tbbmalloc.dll, tbbmalloc_proxy.dll
 ├── usd\                   (USD plugin manifests)
 ├── register.bat / unregister.bat
 └── UsdShellExtension.ini
@@ -146,7 +146,7 @@ bin\v145\3.12\Release\
 
 | Switch | Prerequisite | Output |
 |--------|-------------|--------|
-| _(none)_ | MSBuild, NVIDIA USD SDK | `bin\v145\3.12\Release\` binaries |
+| _(none)_ | MSBuild, OpenUSD SDK (`build-openusd.ps1`) | `bin\v145\3.12\Release\` binaries |
 | `-Installer` | NSIS installed, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.12\Release\` |
 | `-Release` | `gh` CLI authenticated, `version.txt` non-empty | GitHub release created with the installer as asset |
 
@@ -168,11 +168,11 @@ After the normal build completes, this step:
 3. Runs MSBuild on the `UsdShellExtensionInstaller` project, which invokes `makensis.exe` on `UsdShellExtensionInstaller\UsdShellExtensionInstaller.nsi`.
 4. Reports the path of the produced installer.
 
-The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u2508-p312-setup.exe`). The version is read from `version.props`.
+The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u26.11-p3.12-setup.exe`). The version is read from `version.props`.
 
-The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no NVIDIA SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
+The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no USD SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
 
-Every build (with or without `-Installer`) mirrors the SDK `PACKAGE-LICENSES\` folder into `licenses\` (`Copy-ThirdPartyLicense`): the open source licenses of the bundled components require shipping their texts. `repo_nv-LICENSE.txt` is left out, since it covers the NVIDIA tooling that is not distributed. Texts the SDK does not provide are kept in `third_party\licenses\` and added to the same folder: LGPL v3 and GPL v3 for PySide6 and Qt, and the PyOpenGL BSD license, whose wheel ships no license file (`pip-packages\`). `NOTICE.txt` lists each component with its license file and, for Qt and PySide6, where to get the corresponding source code.
+Every build (with or without `-Installer`) mirrors the SDK `PACKAGE-LICENSES\` folder into `licenses\` (`Copy-ThirdPartyLicense`): the open source licenses of the bundled components require shipping their texts. `build-openusd.ps1` fills `PACKAGE-LICENSES\` from the OpenUSD sources, every dependency source folder, the libraries the dependencies fetch themselves (Imath, libdeflate, yaml-cpp, expat, pystring, minizip-ng) and the Python runtime (`Copy-OpenUsdLicense`). Texts the SDK does not provide are kept in `third_party\licenses\` and added to the same folder: LGPL v3 and GPL v3 for PySide6 and Qt, and the PyOpenGL BSD license, whose wheel ships no license file (`pip-packages\`). `NOTICE.txt` lists each component with its license file and, for Qt and PySide6, where to get the corresponding source code.
 
 ### `-Release`: publishing to GitHub
 
@@ -293,23 +293,26 @@ The USD DLLs and their dependencies are isolated via a Windows Activation Contex
 - ProgIDs `OpenUSD.USD`, `OpenUSD.USDA`, `OpenUSD.USDC`, `OpenUSD.USDZ` with shell verbs
 - Extensions `.usd`, `.usda`, `.usdc`, `.usdz` with their default ProgID set, which makes the verbs appear in the Explorer context menu (not just `OpenWithProgids`)
 
-### Why the NVIDIA pre-built bundle instead of a self-compiled USD
+### Why OpenUSD is built from source
 
-The NVIDIA OpenUSD bundle was chosen over compiling USD from source for the following reasons:
+Up to version 1.11 the extension bundled the NVIDIA OpenUSD 25.08 pre-built package. It is now built from the upstream sources by `build-openusd.ps1`:
 
-- **Zero build infrastructure**: compiling USD on Windows requires CMake, Boost, TBB, OpenSubdiv, MaterialX, GLEW and a full Visual Studio toolchain configured for each dependency, a multi-hour build with a large surface for version conflicts.
-- **Pre-tested with usdview and usdrecord**: the bundle ships a known-good Python 3.12 + PySide6 + PyOpenGL combination that runs usdview and usdrecord without additional setup.
-- **Maintenance cost**: every USD or Python update would require a full rebuild and re-validation. The NVIDIA release cadence (one or two drops per year) is sufficient for a shell extension.
-- **Scope fit**: this project consumes USD in read-only mode (metadata, preview, thumbnail). The small differences a custom build could offer, such as stripped plugins, a different Python version, or custom patches, do not justify the overhead.
+- **Follow upstream releases**: a new OpenUSD release can ship without waiting for a pre-built package.
+- **No external package**: the whole runtime comes from public sources (GitHub, NuGet, PyPI), and every license text is collected automatically.
+- **Python under control**: the project chooses the Python runtime and PySide6 versions (`PYTHON_VERSION`, packages pinned in the script).
 
-The main trade-off is coupling to NVIDIA's release schedule and their `usd_`-prefixed library naming (see `usd-shared.props`). If a critical USD fix or a specific Python version is ever required, switching to a self-built USD is feasible: update `usd-shared.props`, `boost.props`, and `python.props` to point at the new SDK.
+The cost is a build of one to two hours per OpenUSD or Python version. Each step of the script is skipped when its result is already on disk.
+
+`build-openusd.ps1` assembles its install folder in the layout `build.ps1` expects (`python\`, `pip-packages\`, `PACKAGE-LICENSES\`), and `USD_SDK` in `.env` points to it. The product layout does not change: `build.ps1` copies the `pxr` package from `lib\site-packages` to `lib\python`.
 
 ### Dependency notes
 
 - **pxr_boost**: `usd_boost.lib` / `usd_boost.dll`. Use `#include <pxr/external/boost/python.hpp>` and `namespace pxr_boost::python`.
-- **TBB**: `tbb.dll` / `tbbmalloc.dll` (NVIDIA 25.08 naming, not `tbb12.dll`).
-- **USD libs**: all prefixed `usd_` (e.g. `usd_tf.lib`, `usd_sdf.lib`).
-- **Python**: bundled in the SDK at `python\`. No separate Python installation needed.
+- **TBB**: oneTBB, `tbb12.dll` / `tbbmalloc.dll`, referenced by the manifests and post-build events.
+- **USD libs**: all prefixed `usd_` (e.g. `usd_tf.lib`, `usd_sdf.lib`). `usd_usdUtils.dll` also loads `usd_gf`, `usd_sdr`, `usd_usdGeom` and `usd_usdShade`; they are listed in `UsdShellExtension-shared.manifest`.
+- **Ptex**: `Ptex.dll` is installed in the SDK `lib\`; `build.ps1` copies every non-USD DLL of `lib\` with the runtime.
+- **Python**: Python 3.12 from the NuGet `python` package in the SDK `python\`; PySide6, PyOpenGL, Jinja2 and MarkupSafe in `pip-packages\`.
+- **Validation**: `UsdUtils.ComplianceChecker` was removed in OpenUSD 26.08; `UsdValidate.py` uses the `UsdValidation` framework with the usdchecker validators.
 
 ## Adding a new context menu verb
 

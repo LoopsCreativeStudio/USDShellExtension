@@ -188,7 +188,7 @@ function Stop-FileLockingProcess {
 # ---------------------------------------------------------------------------
 $cfg = Read-DotEnv (Join-Path $REPO ".env")
 
-$USD_SDK    = if ($cfg['USD_SDK'])      { $cfg['USD_SDK'] }      else { "D:\usd.py312.windows-x86_64.usdview.release-v25.08" }
+$USD_SDK    = if ($cfg['USD_SDK'])      { $cfg['USD_SDK'] }      else { "D:\OpenUSD\install\v26.11.1-py312" }
 if (-not $Config)     { $Config     = if ($cfg['CONFIG'])      { $cfg['CONFIG'] }      else { "Release" } }
 if (-not $InstallDir) { $InstallDir = if ($cfg['INSTALL_DIR']) { $cfg['INSTALL_DIR'] } else { "C:\Program Files\UsdShellExtension" } }
 if ($Config -notin @('Release', 'Debug')) {

@@ -336,9 +336,166 @@ function Write-Sha256File {
     [pscustomobject]@{ Path = $checksumPath; Hash = $fileHash }
 }
 
+# ---------------------------------------------------------------------------
+# OpenUSD source build (build-openusd.ps1)
+# ---------------------------------------------------------------------------
+function Get-OpenUsdLayout {
+    <#
+        Return the folders used to build OpenUSD under one root folder.
+        Sources are shared per OpenUSD version and the Python runtime per
+        Python version. Dependencies, build files and the install folder also
+        carry the Python minor version (e.g. "v26.11.1-py312"), because the
+        Python bindings only load in the Python they were built against.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][string]$OpenUsdVersion,
+        [Parameter(Mandatory)][string]$PythonVersion
+    )
+
+    # "3.12.10" gives "py312".
+    $pythonParts = $PythonVersion.Split('.')
+    $buildName   = "{0}-py{1}{2}" -f $OpenUsdVersion, $pythonParts[0], $pythonParts[1]
+
+    $installDir = Join-Path $Root "install\$buildName"
+
+    [pscustomobject]@{
+        Root         = $Root
+        Downloads    = Join-Path $Root "downloads"
+        Python       = Join-Path $Root "python\$PythonVersion"
+        Source       = Join-Path $Root "src\$OpenUsdVersion"
+        Dependencies = Join-Path $Root "deps\$buildName"
+        Build        = Join-Path $Root "build\$buildName"
+        Install      = $installDir
+        # Folders that make the install folder a drop-in replacement for the
+        # NVIDIA package (USD_SDK in .env): build.ps1 reads them there.
+        SdkPython    = Join-Path $installDir "python"
+        PipPackages  = Join-Path $installDir "pip-packages"
+        Licenses     = Join-Path $installDir "PACKAGE-LICENSES"
+    }
+}
+
+function Get-LicenseComponentName {
+    <#
+        Return the component name used to prefix its license files: the
+        folder name without its version suffix, in lower case
+        ("OpenImageIO-3.1.8.0" gives "openimageio", "libtiff-v4.7.1" gives
+        "libtiff", "OpenSubdiv-3_6_1" gives "opensubdiv").
+    #>
+    param([Parameter(Mandatory)][string]$FolderName)
+
+    $nameWithoutVersion = $FolderName -replace '-v?\d[\d._]*$', ''
+    return $nameWithoutVersion.ToLowerInvariant()
+}
+
+function Copy-OpenUsdLicense {
+    <#
+        Collect the license texts of everything the OpenUSD build ships into
+        Layout.Licenses, replacing its previous content. Each file is renamed
+        "<component>-<file name>" (e.g. "openexr-LICENSE.md"), the layout of
+        the NVIDIA PACKAGE-LICENSES folder that build.ps1 mirrors:
+          - OpenUSD: LICENSE.txt and NOTICE.txt of the sources;
+          - each dependency folder build_usd.py extracted (TBB, OpenEXR, ...);
+          - libraries a dependency fetches itself during its own build:
+            CMake FetchContent ("<build>\*\_deps\<name>-src", e.g. Imath) and
+            OpenColorIO external projects ("<build>\*\ext\build\*\src\<name>_install");
+          - the Python runtime.
+    #>
+    param([Parameter(Mandatory)][pscustomobject]$Layout)
+
+    # License, copying, notice and third-party files, top level only.
+    $licenseFilePattern = '^(LICEN[CS]E|COPYING|NOTICE|THIRD-PARTY)'
+
+    function Copy-LicenseFileFrom([string]$folder, [string]$componentName) {
+        Get-ChildItem -LiteralPath $folder -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match $licenseFilePattern } |
+            ForEach-Object {
+                Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $Layout.Licenses ("{0}-{1}" -f $componentName, $_.Name))
+            }
+    }
+
+    if (Test-Path $Layout.Licenses) { Remove-Item $Layout.Licenses -Recurse -Force }
+    New-Item -ItemType Directory -Force $Layout.Licenses | Out-Null
+
+    Copy-LicenseFileFrom $Layout.Source "openusd"
+
+    foreach ($dependencyFolder in Get-ChildItem -LiteralPath $Layout.Dependencies -Directory -ErrorAction SilentlyContinue) {
+        Copy-LicenseFileFrom $dependencyFolder.FullName (Get-LicenseComponentName $dependencyFolder.Name)
+    }
+
+    foreach ($fetchedFolder in Get-ChildItem -Path (Join-Path $Layout.Build "*\_deps\*-src") -Directory -ErrorAction SilentlyContinue) {
+        Copy-LicenseFileFrom $fetchedFolder.FullName ($fetchedFolder.Name -replace '-src$', '')
+    }
+    foreach ($externalFolder in Get-ChildItem -Path (Join-Path $Layout.Build "*\ext\build\*\src\*_install") -Directory -ErrorAction SilentlyContinue) {
+        Copy-LicenseFileFrom $externalFolder.FullName ($externalFolder.Name -replace '_install$', '')
+    }
+
+    Copy-LicenseFileFrom $Layout.Python "python"
+}
+
+function Get-OpenUsdBuildArgument {
+    <#
+        Return the arguments for "python build_usd.py": a release build with
+        the features the extension uses (Storm imaging with OpenSubdiv,
+        usdview, Python bindings, MaterialX, OpenImageIO with OpenEXR,
+        OpenColorIO, Ptex, Alembic), without Embree, tests, examples,
+        tutorials or documentation. OpenSubdiv and OpenEXR have no option of
+        their own: build_usd.py adds them with imaging and OpenImageIO.
+    #>
+    param([Parameter(Mandatory)][pscustomobject]$Layout)
+
+    @(
+        (Join-Path $Layout.Source "build_scripts\build_usd.py"),
+        $Layout.Install,
+        '--src',           $Layout.Dependencies,
+        '--build',         $Layout.Build,
+        '--build-variant', 'release',
+        '--onetbb',
+        '--python',
+        # "--imaging" builds Hydra only; usdview needs usdImaging as well.
+        '--usd-imaging',
+        '--usdview',
+        '--materialx',
+        '--openimageio',
+        '--opencolorio',
+        '--ptex',
+        '--alembic',
+        '--no-embree',
+        '--no-tests',
+        '--no-examples',
+        '--no-tutorials',
+        '--no-docs',
+        '--no-python-docs'
+    )
+}
+
+function Get-PathWithoutEntry {
+    <#
+        Return a PATH string without the entries that match one of the
+        regular expressions (case-insensitive) and without empty entries.
+        The order of the remaining entries is kept.
+    #>
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Path,
+        [Parameter(Mandatory)][string[]]$Pattern
+    )
+
+    $keptEntries = foreach ($entry in $Path.Split(';')) {
+        if (-not $entry) { continue }
+        $isExcluded = $false
+        foreach ($excludedPattern in $Pattern) {
+            if ($entry -match $excludedPattern) { $isExcluded = $true; break }
+        }
+        if (-not $isExcluded) { $entry }
+    }
+    return ($keptEntries -join ';')
+}
+
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
     'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile',
-    'Copy-ThirdPartyLicense', 'Write-Sha256File'
+    'Copy-ThirdPartyLicense', 'Write-Sha256File',
+    'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
+    'Get-LicenseComponentName', 'Copy-OpenUsdLicense'
 )

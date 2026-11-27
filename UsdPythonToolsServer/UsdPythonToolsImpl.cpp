@@ -444,7 +444,7 @@ static HRESULT RunScriptInConsole( UINT resourceId, LPCWSTR sScriptName, LPCWSTR
 }
 
 // ---------------------------------------------------------------------------
-// Validate — runs UsdValidate.py (pxr.UsdUtils.ComplianceChecker) in a console
+// Validate — runs UsdValidate.py (pxr.UsdValidation, usdchecker validators) in a console
 // ---------------------------------------------------------------------------
 
 STDMETHODIMP CUsdPythonToolsImpl::Validate( IN BSTR usdStagePath )

@@ -28,7 +28,7 @@
 #include <pxr/base/plug/registry.h>
 #include <pxr/usd/usdUtils/introspection.h>
 #include <pxr/usd/sdf/fileFormat.h>
-#include <pxr/usd/usd/usdFileFormat.h>
+#include <pxr/usd/sdf/usdFileFormat.h>
 #include <pxr/usd/ar/defaultResolver.h>
 #include <pxr/usd/ar/defaultResolverContext.h>
 #include <pxr/usd/ar/defineResolver.h>

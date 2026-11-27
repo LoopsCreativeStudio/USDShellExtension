@@ -360,7 +360,7 @@ RMDir /r "$INSTDIR\scripts"
 
 SetOutPath "$INSTDIR"
 
-!insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED tbb.dll "$INSTDIR\tbb.dll" $INSTDIR
+!insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED tbb12.dll "$INSTDIR\tbb12.dll" $INSTDIR
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED tbbmalloc.dll "$INSTDIR\tbbmalloc.dll" $INSTDIR
 !insertmacro InstallLib DLL NOTSHARED REBOOT_NOTPROTECTED ${BOOSTDLL} "$INSTDIR\${BOOSTDLL}" $INSTDIR
 !if /FileExists "${PYTHONDLL}"
@@ -372,23 +372,33 @@ SetDetailsPrint textonly
 DetailPrint "Installing USD runtime libraries..."
 SetDetailsPrint listonly
 File vcruntime140.dll
+File vcruntime140_1.dll
+File msvcp140.dll
+File msvcp140_1.dll
+File msvcp140_2.dll
+File msvcp140_atomic_wait.dll
+File msvcp140_codecvt_ids.dll
+File concrt140.dll
 File tbbmalloc_proxy.dll
 File python3.dll
 File usd_*.dll
 
-; Image format and MaterialX runtime libraries
+; Image format, color management, Alembic, Ptex and MaterialX runtime libraries
+File Alembic.dll
 File Iex-3_3.dll
 File IlmThread-3_3.dll
 File Imath-3_1.dll
-File jpeg8.dll
+File jpeg62.dll
 File libpng16.dll
 File MaterialXCore.dll
 File MaterialXFormat.dll
 File MaterialXGenGlsl.dll
+File MaterialXGenHw.dll
 File MaterialXGenMdl.dll
 File MaterialXGenMsl.dll
 File MaterialXGenOsl.dll
 File MaterialXGenShader.dll
+File MaterialXGenSlang.dll
 File MaterialXRender.dll
 File MaterialXRenderGlsl.dll
 File MaterialXRenderHw.dll
@@ -398,9 +408,17 @@ File OpenEXRCore-3_3.dll
 File OpenEXRUtil-3_3.dll
 File OpenImageIO.dll
 File OpenImageIO_Util.dll
+File OpenColorIO_2_4.dll
+File Ptex.dll
 File tiff.dll
 File turbojpeg.dll
-File zlib1.dll
+File z.dll
+
+; Libraries of the NVIDIA OpenUSD 25.08 package replaced by the source build
+; (tbb12.dll, jpeg62.dll, z.dll): remove them on upgrade.
+Delete /REBOOTOK "$INSTDIR\tbb.dll"
+Delete /REBOOTOK "$INSTDIR\jpeg8.dll"
+Delete /REBOOTOK "$INSTDIR\zlib1.dll"
 
 ; USD tools and entry points
 File sdfdump.exe
@@ -422,6 +440,7 @@ File usdresolve
 File usdstitch
 File usdstitchclips
 File usdzip
+File usdupdatecrate
 File usdBakeMaterialX
 
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR
@@ -664,7 +683,7 @@ ExecWait '"$SYSDIR\regsvr32.exe" /s /u "$INSTDIR\UsdShellExtension.dll"'
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPreviewLocalServer.exe"
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdPythonToolsLocalServer.exe"
 !insertmacro UnInstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\UsdSdkToolsLocalServer.exe"
-!insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\tbb.dll"
+!insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\tbb12.dll"
 !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\tbbmalloc.dll"
 !insertmacro UnInstallLib DLL NOTSHARED REBOOT_NOTPROTECTED "$INSTDIR\${BOOSTDLL}"
 !if /FileExists "${PYTHONDLL}"

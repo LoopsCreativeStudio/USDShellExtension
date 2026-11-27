@@ -150,7 +150,7 @@ The installer checks for the bundled Python at `%ProgramFiles%\UsdShellExtension
 
 This means `install.ps1` didn't copy the Python folder from the SDK, or the SDK path was wrong.
 
-Check that `D:\usd.py312.windows-x86_64.usdview.release-v25.08\python\` exists before running `install.ps1`.
+Check that the `python\` folder of the SDK (`USD_SDK`, by default `D:\OpenUSD\install\v26.11.1-py312\python\`) exists before running `install.ps1`; `build-openusd.ps1` creates it.
 
 ---
 

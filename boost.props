@@ -15,19 +15,19 @@
    limitations under the License.
 -->
 <!--
-   Uses usd_boost from the NVIDIA pre-built USD 25.08 SDK.
+   Uses usd_boost from the OpenUSD 26.11 SDK built by build-openusd.ps1.
    usd_boost is a shared DLL wrapping pxr_boost::python.
    Headers live at $(BOOSTINCLUDEPATH)\pxr\external\boost\
 -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <BOOSTLIBPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\lib\</BOOSTLIBPATH>
-    <BOOSTINCLUDEPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\include\</BOOSTINCLUDEPATH>
+    <BOOSTLIBPATH>D:\OpenUSD\install\v26.11.1-py312\lib\</BOOSTLIBPATH>
+    <BOOSTINCLUDEPATH>D:\OpenUSD\install\v26.11.1-py312\include\</BOOSTINCLUDEPATH>
     <BOOSTDLL>usd_boost.dll</BOOSTDLL>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <BOOSTLIBPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\lib\</BOOSTLIBPATH>
-    <BOOSTINCLUDEPATH>D:\usd.py312.windows-x86_64.usdview.release-v25.08\include\</BOOSTINCLUDEPATH>
+    <BOOSTLIBPATH>D:\OpenUSD\install\v26.11.1-py312\lib\</BOOSTLIBPATH>
+    <BOOSTINCLUDEPATH>D:\OpenUSD\install\v26.11.1-py312\include\</BOOSTINCLUDEPATH>
     <BOOSTDLL>usd_boost.dll</BOOSTDLL>
   </PropertyGroup>
 
@@ -36,6 +36,11 @@
       <AdditionalIncludeDirectories>$(BOOSTINCLUDEPATH);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <!-- pxr_boost headers require C++17 (nested namespace definitions) -->
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <!-- SDK headers (#include <pxr/...>) are third-party code: OpenUSD 26.11
+           pxr_boost triggers C4456 at Level4; keep the zero-warning rule for
+           the project's own code only. -->
+      <TreatAngleIncludeAsExternal>true</TreatAngleIncludeAsExternal>
+      <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(BOOSTLIBPATH);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

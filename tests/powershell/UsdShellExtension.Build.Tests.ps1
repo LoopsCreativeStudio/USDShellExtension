@@ -32,7 +32,9 @@ Describe "Module exports" {
         $exported = (Get-Module UsdShellExtension.Build).ExportedFunctions.Keys | Sort-Object
         $expected = @(
             'Assert-Path', 'Copy-ThirdPartyLicense', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
-            'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Sha256File', 'Write-Step'
+            'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Sha256File', 'Write-Step',
+            'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
+            'Get-LicenseComponentName', 'Copy-OpenUsdLicense'
         ) | Sort-Object
         $exported | Should -Be $expected
     }
@@ -346,5 +348,164 @@ Describe "Copy-WithRetry" {
         }
         Get-Content $dstFile | Should -Be "old"
         Test-Path ($dstFile + ".new") | Should -BeFalse
+    }
+}
+
+Describe "Get-OpenUsdLayout" {
+    BeforeAll {
+        $script:layout = Get-OpenUsdLayout -Root 'D:\OpenUSD' -OpenUsdVersion 'v26.11.1' -PythonVersion '3.12.10'
+    }
+
+    It "keeps one source tree per OpenUSD version" {
+        $layout.Source | Should -Be 'D:\OpenUSD\src\v26.11.1'
+    }
+
+    It "keeps one Python runtime per Python version" {
+        $layout.Python | Should -Be 'D:\OpenUSD\python\3.12.10'
+    }
+
+    It "names build, dependency and install folders after OpenUSD and the Python minor version" {
+        # The Python bindings only load in the Python minor version they were built against.
+        $layout.Dependencies | Should -Be 'D:\OpenUSD\deps\v26.11.1-py312'
+        $layout.Build        | Should -Be 'D:\OpenUSD\build\v26.11.1-py312'
+        $layout.Install      | Should -Be 'D:\OpenUSD\install\v26.11.1-py312'
+    }
+
+    It "keeps downloads in one shared folder" {
+        $layout.Downloads | Should -Be 'D:\OpenUSD\downloads'
+    }
+
+    It "assembles the SDK folders build.ps1 expects inside the install folder" {
+        # Same layout as the NVIDIA package: python\, pip-packages\, PACKAGE-LICENSES\.
+        $layout.SdkPython      | Should -Be 'D:\OpenUSD\install\v26.11.1-py312\python'
+        $layout.PipPackages    | Should -Be 'D:\OpenUSD\install\v26.11.1-py312\pip-packages'
+        $layout.Licenses       | Should -Be 'D:\OpenUSD\install\v26.11.1-py312\PACKAGE-LICENSES'
+    }
+}
+
+Describe "Get-LicenseComponentName" {
+    It "drops the version from a dependency folder name and lowers the case" -ForEach @(
+        @{ Folder = 'OpenImageIO-3.1.8.0';    Expected = 'openimageio' }
+        @{ Folder = 'libtiff-v4.7.1';         Expected = 'libtiff' }
+        @{ Folder = 'OpenSubdiv-3_6_1';       Expected = 'opensubdiv' }
+        @{ Folder = 'libjpeg-turbo-3.1.4.1';  Expected = 'libjpeg-turbo' }
+        @{ Folder = 'oneTBB-2021.12.0';       Expected = 'onetbb' }
+        @{ Folder = 'yaml-cpp';               Expected = 'yaml-cpp' }
+    ) {
+        Get-LicenseComponentName -FolderName $Folder | Should -Be $Expected
+    }
+}
+
+Describe "Copy-OpenUsdLicense" {
+    BeforeAll {
+        # Shaped like an OpenUSD source build: sources, dependency sources,
+        # nested dependencies in the build folder, and the Python runtime.
+        $script:licenseLayout = Get-OpenUsdLayout -Root (Join-Path $TestDrive 'OpenUSD') -OpenUsdVersion 'v26.11.1' -PythonVersion '3.12.10'
+        $files = @{
+            "$($licenseLayout.Source)\LICENSE.txt"                                                         = 'usd'
+            "$($licenseLayout.Source)\NOTICE.txt"                                                          = 'usd notice'
+            "$($licenseLayout.Source)\README.md"                                                           = 'not a license'
+            "$($licenseLayout.Dependencies)\OpenImageIO-3.1.8.0\LICENSE.md"                                = 'oiio'
+            "$($licenseLayout.Dependencies)\OpenImageIO-3.1.8.0\THIRD-PARTY.md"                            = 'oiio third party'
+            "$($licenseLayout.Dependencies)\OpenImageIO-3.1.8.0\CMakeLists.txt"                            = 'not a license'
+            "$($licenseLayout.Dependencies)\expat-src\COPYING"                                             = 'dependency folder without version'
+            "$($licenseLayout.Build)\openexr-3.3.6\_deps\imath-src\LICENSE.md"                             = 'imath'
+            "$($licenseLayout.Build)\OpenColorIO-2.4.2\ext\build\yaml-cpp\src\yaml-cpp_install\LICENSE"    = 'yaml'
+            "$($licenseLayout.Build)\OpenColorIO-2.4.2\ext\build\libexpat\src\expat_install\COPYING"       = 'expat'
+            "$($licenseLayout.Python)\LICENSE.txt"                                                         = 'python'
+        }
+        foreach ($path in $files.Keys) {
+            New-Item -ItemType Directory -Force (Split-Path $path -Parent) | Out-Null
+            Set-Content -Path $path -Value $files[$path]
+        }
+        # A zip archive next to the folders must be ignored.
+        Set-Content -Path "$($licenseLayout.Dependencies)\v3.1.8.0.zip" -Value 'zip'
+
+        Copy-OpenUsdLicense -Layout $licenseLayout
+        $script:copied = Get-ChildItem $licenseLayout.Licenses | Sort-Object Name | ForEach-Object Name
+    }
+
+    It "copies the OpenUSD license and notice" {
+        Get-Content (Join-Path $licenseLayout.Licenses 'openusd-LICENSE.txt') | Should -Be 'usd'
+        $copied | Should -Contain 'openusd-NOTICE.txt'
+    }
+
+    It "copies the license and third-party files of each dependency, prefixed with its name" {
+        Get-Content (Join-Path $licenseLayout.Licenses 'openimageio-LICENSE.md') | Should -Be 'oiio'
+        $copied | Should -Contain 'openimageio-THIRD-PARTY.md'
+    }
+
+    It "copies the licenses of the libraries the dependencies fetch themselves" {
+        Get-Content (Join-Path $licenseLayout.Licenses 'imath-LICENSE.md') | Should -Be 'imath'
+        Get-Content (Join-Path $licenseLayout.Licenses 'yaml-cpp-LICENSE')  | Should -Be 'yaml'
+        Get-Content (Join-Path $licenseLayout.Licenses 'expat-COPYING')     | Should -Be 'expat'
+    }
+
+    It "copies the Python license" {
+        Get-Content (Join-Path $licenseLayout.Licenses 'python-LICENSE.txt') | Should -Be 'python'
+    }
+
+    It "copies nothing else" {
+        $copied | Should -Be (@(
+            'expat-COPYING', 'expat-src-COPYING', 'imath-LICENSE.md', 'openimageio-LICENSE.md', 'openimageio-THIRD-PARTY.md',
+            'openusd-LICENSE.txt', 'openusd-NOTICE.txt', 'python-LICENSE.txt', 'yaml-cpp-LICENSE'
+        ) | Sort-Object)
+    }
+
+    It "replaces the previous copy" {
+        Set-Content -Path (Join-Path $licenseLayout.Licenses 'stale-LICENSE') -Value 'old'
+        Copy-OpenUsdLicense -Layout $licenseLayout
+        Test-Path (Join-Path $licenseLayout.Licenses 'stale-LICENSE') | Should -BeFalse
+    }
+}
+
+Describe "Get-OpenUsdBuildArgument" {
+    BeforeAll {
+        $layout = Get-OpenUsdLayout -Root 'D:\OpenUSD' -OpenUsdVersion 'v26.11.1' -PythonVersion '3.12.10'
+        $script:arguments = Get-OpenUsdBuildArgument -Layout $layout
+    }
+
+    It "starts with build_usd.py from the source tree, then the install folder" {
+        $arguments[0] | Should -Be 'D:\OpenUSD\src\v26.11.1\build_scripts\build_usd.py'
+        $arguments[1] | Should -Be 'D:\OpenUSD\install\v26.11.1-py312'
+    }
+
+    It "puts dependency sources and build files in their own folders" {
+        $arguments | Should -Contain '--src'
+        $arguments[$arguments.IndexOf('--src') + 1]   | Should -Be 'D:\OpenUSD\deps\v26.11.1-py312'
+        $arguments[$arguments.IndexOf('--build') + 1] | Should -Be 'D:\OpenUSD\build\v26.11.1-py312'
+    }
+
+    It "builds a release with every feature the extension uses" {
+        $arguments[$arguments.IndexOf('--build-variant') + 1] | Should -Be 'release'
+        foreach ($feature in '--onetbb', '--python', '--usd-imaging', '--usdview', '--materialx', '--openimageio', '--opencolorio', '--ptex', '--alembic') {
+            $arguments | Should -Contain $feature
+        }
+    }
+
+    It "does not ask for Hydra alone, which would disable usdImaging and usdview" {
+        $arguments | Should -Not -Contain '--imaging'
+    }
+
+    It "leaves out what the extension does not ship" {
+        foreach ($feature in '--no-embree', '--no-tests', '--no-examples', '--no-tutorials', '--no-docs', '--no-python-docs') {
+            $arguments | Should -Contain $feature
+        }
+    }
+}
+
+Describe "Get-PathWithoutEntry" {
+    It "drops the entries that match a pattern and keeps the order of the others" {
+        $path = 'C:\Windows;C:\Strawberry\c\bin;C:\Program Files\CMake\bin;C:\Python311'
+        $result = Get-PathWithoutEntry -Path $path -Pattern '\\Strawberry\\', '\\Python\d+$'
+        $result | Should -Be 'C:\Windows;C:\Program Files\CMake\bin'
+    }
+
+    It "matches without regard to case" {
+        Get-PathWithoutEntry -Path 'C:\A;c:\strawberry\perl\bin' -Pattern '\\Strawberry\\' | Should -Be 'C:\A'
+    }
+
+    It "drops empty entries" {
+        Get-PathWithoutEntry -Path 'C:\A;;C:\B;' -Pattern 'unused' | Should -Be 'C:\A;C:\B'
     }
 }

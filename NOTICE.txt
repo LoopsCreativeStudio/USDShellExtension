@@ -17,52 +17,64 @@ in the "licenses" folder next to this file.
 -------------------------------------------------------------------------------
 Copyright 2016 Pixar Animation Studios
 
-The bundled OpenUSD 25.08 libraries are licensed under the Tomorrow Open Source
+The bundled OpenUSD 26.11 libraries are licensed under the Tomorrow Open Source
 Technology License 1.0, which is the Apache License 2.0 with a different
-Section 6 ("Trademarks"). The OpenUSD license also lists the third-party code
-built into OpenUSD (RapidJSON, double-conversion, LZ4, pugixml, Draco, ...).
+Section 6 ("Trademarks"). The OpenUSD license and notice also list the
+third-party code built into OpenUSD (RapidJSON, double-conversion, LZ4,
+pugixml, ...).
 
-Full text: licenses\usd-license.txt
-Source: https://github.com/PixarAnimationStudios/OpenUSD
+Full text: licenses\openusd-LICENSE.txt, licenses\openusd-NOTICE.txt
+Source: https://github.com/PixarAnimationStudios/OpenUSD (tag v26.11.1)
 
 -------------------------------------------------------------------------------
-2. Runtime Components (NVIDIA OpenUSD 25.08 Pre-built Package)
+2. Runtime Components (OpenUSD 26.11 built from source)
 -------------------------------------------------------------------------------
 The installer bundles the OpenUSD libraries, the Python runtime and their
-dependencies as built by NVIDIA Corporation in the "usd.py312.windows-x86_64.
-usdview.release-v25.08" package:
-
-    https://developer.nvidia.com/openusd
+dependencies, built unmodified from their upstream sources by
+build-openusd.ps1 (OpenUSD build_scripts\build_usd.py) and the Python runtime
+of the NuGet "python" package.
 
 Each component keeps its own open source license; the texts are in the
 "licenses" folder:
 
   Component                     License                 File in licenses\
   ----------------------------  ----------------------  -----------------------
-  OpenUSD                       TOST 1.0 (Apache 2.0)   usd-license.txt
-  Python 3.12 (CPython)         PSF License             python-LICENSE.txt,
-                                                        cpython-LICENSE
-  oneTBB                        Apache 2.0              tbb-LICENSE
-  MaterialX                     Apache 2.0              materialx-LICENSE
-  OpenImageIO                   Apache 2.0              openimageio-LICENSE.md
-  OpenSSL                       Apache 2.0              openssl-LICENSE.txt
-  OpenSubdiv                    Modified Apache 2.0     opensubdiv-LICENSE.txt
-  OpenEXR                       BSD 3-Clause            openexr-LICENSE.md
-  Imath                         BSD 3-Clause            imath-LICENSE.md
-  Alembic                       BSD 3-Clause            alembic-LICENSE.txt
-  libtiff                       libtiff License         libtiff-LICENSE.md
-  libpng                        libpng License          libpng-LICENSE
-  libjpeg-turbo                 IJG / BSD 3-Clause      libjpeg-turbo-LICENSE.md
-  zlib                          zlib License            zlib-LICENSE
-  Boost                         Boost Software 1.0      boost-LICENSE_1_0.txt
-  pybind11                      BSD 3-Clause            pybind11-LICENSE
-  {fmt}                         MIT                     fmt-LICENSE
-  libffi                        MIT                     libffi-LICENSE.txt
-  XZ Utils (liblzma)            0BSD                    xz-LICENSE.txt,
-                                                        PACKAGE-LICENSE.txt
+  OpenUSD 26.11.1               TOST 1.0 (Apache 2.0)   openusd-LICENSE.txt,
+                                                        openusd-NOTICE.txt
+  Python 3.12.10 (CPython)      PSF License             python-LICENSE.txt
+  (with OpenSSL, libffi, SQLite, bzip2, ... listed in its license file)
+  oneTBB 2021.12.0              Apache 2.0              onetbb-LICENSE.txt,
+                                                        onetbb-third-party-
+                                                        programs.txt
+  MaterialX 1.39.5              Apache 2.0              materialx-LICENSE,
+                                                        materialx-THIRD-PARTY.md
+  OpenImageIO 3.1.8.0           Apache 2.0              openimageio-LICENSE.md,
+                                                        openimageio-THIRD-
+                                                        PARTY.md
+  OpenColorIO 2.4.2             BSD 3-Clause            opencolorio-LICENSE,
+                                                        opencolorio-THIRD-
+                                                        PARTY.md
+  OpenSubdiv 3.6.1              Modified Apache 2.0     opensubdiv-LICENSE.txt,
+                                                        opensubdiv-NOTICE.txt
+  OpenEXR 3.3.6                 BSD 3-Clause            openexr-LICENSE.md
+  Imath 3.1.12                  BSD 3-Clause            imath-LICENSE.md
+  libdeflate                    MIT                     deflate-COPYING
+  Alembic 1.8.10                BSD 3-Clause            alembic-LICENSE.txt,
+                                                        alembic-THIRD-PARTY.txt
+  Ptex 2.4.2                    BSD 3-Clause            ptex-LICENSE
+  libtiff 4.7.1                 libtiff License         libtiff-LICENSE.md
+  libpng 1.6.47                 libpng License          libpng-LICENSE
+  libjpeg-turbo 3.1.4.1         IJG / BSD 3-Clause      libjpeg-turbo-LICENSE.md
+  zlib 1.3.2                    zlib License            zlib-LICENSE
+  yaml-cpp (in OpenColorIO)     MIT                     yaml-cpp-LICENSE
+  Expat (in OpenColorIO)        MIT                     expat-COPYING
+  pystring (in OpenColorIO)     BSD 3-Clause            pystring-LICENSE
+  minizip-ng (in OpenColorIO)   zlib License            minizip-ng-LICENSE
 
-The NVIDIA build tooling of that package (scripts\*.bat wrappers, packman
-metadata) is under an NVIDIA proprietary license and is not distributed.
+Microsoft Visual C++ runtime
+  msvcp140*.dll, vcruntime140*.dll and concrt140.dll are the Visual C++
+  Redistributable files, distributed under the "Distributable Code" terms of
+  the Microsoft Visual Studio license.
 
 -------------------------------------------------------------------------------
 3. Python Packages (pip-packages folder)
@@ -79,9 +91,9 @@ unmodified in the "pip-packages" folder:
   Jinja2 3.1.6                  BSD 3-Clause            pip-packages\jinja2-3.1.6.
                                                         dist-info\licenses\
                                                         LICENSE.txt
-  MarkupSafe 3.0.2              BSD 3-Clause            pip-packages\MarkupSafe-
-                                                        3.0.2.dist-info\
-                                                        LICENSE.txt
+  MarkupSafe 3.0.4              BSD 3-Clause            pip-packages\markupsafe-
+                                                        3.0.4.dist-info\
+                                                        licenses\LICENSE.txt
 
 PySide6 and Qt
   Copyright (C) The Qt Company Ltd. and other contributors.
