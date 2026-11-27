@@ -11,7 +11,7 @@ from pxr.UsdAppUtils.complexityArgs import RefinementComplexities
 import UsdPreviewHandler
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtGui import QAction, QActionGroup, QWindow
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMenu, QLabel, QSlider, QPushButton, QStyle
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
@@ -466,10 +466,40 @@ class Widget(QWidget):
             self.buildContextMenu()
             self.contextMenu.exec(self.mapToGlobal(event.pos()))
 
+    def _embedInPreviewPane(self):
+        """Make the preview a Qt child of the Explorer preview pane.
+
+        The pane belongs to another process. Embedding through Qt
+        (QWindow.fromWinId) tells Qt the window is a child: Qt sets WS_CHILD
+        itself and keeps coordinates relative to the pane. A native SetParent
+        behind Qt's back left Qt believing it owned a top-level window: on
+        activation (a click) it moved it back to its own screen position,
+        doubled at 200% scaling, and the pane showed white until a resize.
+        Errors are ignored: the native reparenting in LoadComplete remains
+        the fallback.
+        """
+        loadScreen = getattr(self, "_loadScreenHwnd", 0)
+        if not loadScreen:
+            return
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            user32.GetParent.argtypes = [ctypes.c_void_p]
+            user32.GetParent.restype = ctypes.c_void_p
+            pane = user32.GetParent(loadScreen)
+            if not pane:
+                return
+            self.windowHandle().setParent(QWindow.fromWinId(pane))
+        except Exception as exception:
+            print("Preview: Qt embedding failed, native fallback: %s" % exception, file=sys.stderr)
+
     def timerEvent(self, event):
 
         if (not self.isLoadComplete) and (not self.view._isFirstImage):
             self.isLoadComplete = True
+            # Embed through Qt first; LoadComplete then places and shows the
+            # window and hides the load screen.
+            self._embedInPreviewPane()
             self.previewApp.LoadComplete()
 
         eventData = self.previewApp.PeekEvent()
@@ -536,11 +566,20 @@ def main():
     previewApp = UsdPreviewHandler.UsdPreviewApp()
 
     app = QApplication([])
+    # The preview lives until Explorer sends the Quit event (timerEvent).
+    # Closing a window must never end it: otherwise the pane turns white.
+    app.setQuitOnLastWindowClosed(False)
 
     setStyleSheetUsingState(app, args.usdviewqDir)
 
     window = Widget(None, app, previewApp)
-    window.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.Tool)
+    # Load screen shown by the shell extension; its parent is the preview pane.
+    window._loadScreenHwnd = args.hwnd
+    # Frameless tool window, then made a native child of the preview pane
+    # (UsdPreviewHandlerMgr::SetParent). Not Qt.Popup: a popup closes when it
+    # loses activation, so a click in the preview followed by a click back
+    # in Explorer closed it and left the pane white.
+    window.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool)
     window.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen)
     window.show()
 

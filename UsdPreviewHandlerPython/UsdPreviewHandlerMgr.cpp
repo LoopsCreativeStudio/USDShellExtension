@@ -69,9 +69,19 @@ void CUsdPreviewHandlerMgr::SetParent(HWND hWndParent, HWND hWndChild, HWND hWnd
 		::GetClientRect( hWndLoadScreen, &rcClient );
 
 		HWND hWndPreviewParent = ::GetParent( hWndLoadScreen );
-		::SetParent( hWndChild, hWndPreviewParent );
 
-		::SetWindowLong( hWndChild, GWL_STYLE, WS_POPUP|WS_CLIPCHILDREN );
+		// The Python side embeds the window through Qt (QWindow::fromWinId),
+		// which makes it a real Qt child (WS_CHILD) of the preview pane: Qt
+		// then never moves it on activation. Only if that did not happen,
+		// fall back to the former native reparenting behind Qt's back.
+		bool bEmbeddedByQt = ( ::GetParent( hWndChild ) == hWndPreviewParent ) &&
+		                     ( ::GetWindowLong( hWndChild, GWL_STYLE ) & WS_CHILD );
+		if ( !bEmbeddedByQt )
+		{
+			::SetParent( hWndChild, hWndPreviewParent );
+			::SetWindowLong( hWndChild, GWL_STYLE, WS_POPUP|WS_CLIPCHILDREN );
+		}
+
 		::SetWindowPos( hWndChild, HWND_TOP, 0, 0, rcClient.right - rcClient.left, rcClient.bottom - rcClient.top, SWP_FRAMECHANGED );
 		::ShowWindow( hWndChild, SW_SHOW );
 
