@@ -30,6 +30,10 @@ class ElidedLabel(QLabel):
     the end of the path (the prim name) stays visible.
     """
 
+    # Horizontal padding set by the style sheets of the prim label
+    # ("padding: 0px 6px"), not part of contentsRect().
+    HORIZONTAL_PADDING = 2 * 6
+
     def __init__(self, text=""):
         super().__init__()
         self._fullText = ""
@@ -47,7 +51,7 @@ class ElidedLabel(QLabel):
         self._showElidedText()
 
     def _showElidedText(self):
-        available = max(0, self.contentsRect().width())
+        available = max(0, self.contentsRect().width() - self.HORIZONTAL_PADDING)
         elided = self.fontMetrics().elidedText(self._fullText, Qt.TextElideMode.ElideLeft, available)
         QLabel.setText(self, elided)
 

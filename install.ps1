@@ -511,15 +511,17 @@ if (Test-Path $uninstallerSrc) {
     Write-Item "uninstaller.ps1"
 }
 
+# The runtime folders below hold files a running process may keep loaded
+# (plugin DLLs, .pyd, the Python runtime), even after the stop phase (e.g. a
+# preview server stuck in termination). They are mirrored in place with
+# robocopy /MIR instead of deleted then copied: identical files are skipped,
+# so a locked but unchanged file no longer fails the whole install; files
+# that no longer exist in the build are removed.
 $usdPluginSrc = Join-Path $OUT_DIR "usd"
 if (Test-Path $usdPluginSrc) {
     $usdPluginDst = Join-Path $InstallDir "usd"
-    if (Test-Path $usdPluginDst) {
-        Remove-Item $usdPluginDst -Recurse -Force
-        Write-Removed "usd\ (old plugin folder)"
-    }
     Write-Host "    Copying usd\ ..." -ForegroundColor Gray
-    $rcOut = & robocopy $usdPluginSrc $usdPluginDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS 2>&1
+    $rcOut = & robocopy $usdPluginSrc $usdPluginDst /MIR /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS 2>&1
     if ($LASTEXITCODE -ge 8) {
         Write-Error ("robocopy failed copying usd\ (exit $LASTEXITCODE):`n" + ($rcOut -join "`n"))
     }
@@ -529,9 +531,8 @@ if (Test-Path $usdPluginSrc) {
 $usdExtPluginSrc = Join-Path $OUT_DIR "plugin\usd"
 if (Test-Path $usdExtPluginSrc) {
     $usdExtPluginDst = Join-Path $InstallDir "plugin\usd"
-    if (Test-Path $usdExtPluginDst) { Remove-Item $usdExtPluginDst -Recurse -Force }
     Write-Host "    Copying plugin\usd\ ..." -ForegroundColor Gray
-    & robocopy $usdExtPluginSrc $usdExtPluginDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+    & robocopy $usdExtPluginSrc $usdExtPluginDst /MIR /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying plugin\usd\ (exit $LASTEXITCODE)" }
     Write-Item "plugin\usd\ (hdStorm, usdAbc, ...)"
 }
@@ -539,9 +540,8 @@ if (Test-Path $usdExtPluginSrc) {
 $usdLibPySrc = Join-Path $OUT_DIR "lib\python"
 if (Test-Path $usdLibPySrc) {
     $usdLibPyDst = Join-Path $InstallDir "lib\python"
-    if (Test-Path $usdLibPyDst) { Remove-Item $usdLibPyDst -Recurse -Force }
     Write-Host "    Copying lib\python\ ..." -ForegroundColor Gray
-    & robocopy $usdLibPySrc $usdLibPyDst /E /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
+    & robocopy $usdLibPySrc $usdLibPyDst /MIR /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying lib\python\ (exit $LASTEXITCODE)" }
     Write-Item "lib\python\ (pxr Python bindings)"
 }
@@ -561,10 +561,11 @@ $pythonSrc = Join-Path $USD_SDK "python"
 $pythonDst = Join-Path $InstallDir "python"
 if (Test-Path $pythonSrc) {
     Write-Step "Copying Python from SDK"
-    if (Test-Path $pythonDst) { Remove-Item $pythonDst -Recurse -Force }
+    # Mirrored in place (see the runtime folders above); excluded folders and
+    # files are neither copied nor purged.
     $rcArgs = @(
         $pythonSrc, $pythonDst,
-        "/E", "/R:3", "/W:1",
+        "/MIR", "/R:3", "/W:1",
         "/NFL", "/NDL", "/NJH", "/NJS",
         "/XD", "include", "libs", "MaterialX", "Tools", "test", "idlelib", "ensurepip",
         "/XF", "*.pdb", "*.lib", ".packman*"
