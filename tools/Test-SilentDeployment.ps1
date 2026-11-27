@@ -188,7 +188,10 @@ function Test-InstalledState {
     # The files of the build output must be the installed ones: a file still
     # in use that setup could not overwrite would stay at its old version.
     $buildOutput = Split-Path $SetupPath -Parent
-    $staleFiles = @(Get-ChildItem $buildOutput -File -Include *.dll, *.exe, *.pyd -Recurse -Depth 0 |
+    # Top-level files only: "-Include" with "-Recurse -Depth 0" still walks
+    # sub folders in Windows PowerShell 5.1 (pip-packages has other DLLs
+    # with the same names, e.g. vcruntime140.dll from PySide6).
+    $staleFiles = @(Get-ChildItem -Path (Join-Path $buildOutput '*') -File -Include *.dll, *.exe, *.pyd |
         Where-Object { $_.Name -notlike '*-setup.exe' } |
         Where-Object {
             $installedFile = Join-Path $InstallDir $_.Name
