@@ -162,7 +162,7 @@ UsdShellExtension-vX.Y.Z-u25.08-p3.12-setup.exe /S
 | `/D=C:\Path\To\Folder` | Install folder. Must be the **last** argument, without quotes, even with spaces. Default: `C:\Program Files\UsdShellExtension`. |
 | `/RENDERER_PREVIEW=GL` (and `/RENDERER_THUMBNAIL=`, `/RENDERER_VIEW=`) | Hydra renderer written to the INI files. |
 
-An existing installation is uninstalled first (in its own folder, waiting for the end), then replaced. A deployment made by copying files, without an *Installed apps* entry, is simply overwritten.
+An existing installation is uninstalled first (in its own folder, waiting for the end), then replaced. A deployment made by copying files, without an *Installed apps* entry, is simply overwritten. Files that an uninstall could not delete (still in use) are scheduled for deletion at the next reboot; the install cancels those scheduled deletions in its folder, so the reboot does not remove the new files.
 
 The installer stops Windows Explorer and restarts it at the end. With nobody logged in (startup or shutdown script) nothing is visible; with a user logged in, the taskbar and Explorer windows close and come back. No antivirus setting is changed.
 

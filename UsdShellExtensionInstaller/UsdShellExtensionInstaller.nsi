@@ -129,7 +129,7 @@ Function LogWrite
     Push $1
     FileOpen $1 $LogFilePath a
     ${If} $1 != ""
-        FileWrite $1 "$0$\r$\n"
+        FileWriteUTF16LE $1 "$0$\r$\n"
         FileClose $1
     ${EndIf}
     Pop $1
@@ -161,7 +161,7 @@ Function un.LogWrite
     Push $1
     FileOpen $1 $LogFilePath a
     ${If} $1 != ""
-        FileWrite $1 "$0$\r$\n"
+        FileWriteUTF16LE $1 "$0$\r$\n"
         FileClose $1
     ${EndIf}
     Pop $1
@@ -184,7 +184,7 @@ FileOpen $0 $LogFilePath w
 ${If} $0 != ""
     FileWriteByte $0 255
     FileWriteByte $0 254
-    FileWrite $0 "USD Shell Extension Setup Log$\r$\n"
+    FileWriteUTF16LE $0 "USD Shell Extension Setup Log$\r$\n"
     FileClose $0
 ${EndIf}
 
@@ -204,7 +204,7 @@ FileOpen $0 $LogFilePath w
 ${If} $0 != ""
     FileWriteByte $0 255
     FileWriteByte $0 254
-    FileWrite $0 "USD Shell Extension Uninstall Log$\r$\n"
+    FileWriteUTF16LE $0 "USD Shell Extension Uninstall Log$\r$\n"
     FileClose $0
 ${EndIf}
 
@@ -473,6 +473,18 @@ Section "-RestartProcesses"
 
 ${DisableX64FSRedirection}
 SetRegView 64
+
+; An uninstall (the previous version's, run above, or an earlier one) may
+; have scheduled files still in use for deletion at the next reboot. The
+; same files were just written again: cancel those deletions, or the reboot
+; would remove the new files.
+InitPluginsDir
+File "/oname=$PLUGINSDIR\Clear-PendingDelete.ps1" "${__FILEDIR__}\Clear-PendingDelete.ps1"
+nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$PLUGINSDIR\Clear-PendingDelete.ps1" -InstallDir "$INSTDIR"'
+Pop $0
+Pop $1
+Push "Pending deletions check (exit $0): $1"
+Call LogWrite
 
 Push "Restarting processes"
 Call LogWrite

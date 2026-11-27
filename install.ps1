@@ -208,6 +208,19 @@ if ($LogFile -eq "") { $LogFile = Join-Path $REPO "install.log" }
 try { Stop-Transcript | Out-Null } catch { $null = $_ }
 Start-Transcript -Path $LogFile -Force | Out-Null
 
+# Explorer auto-restart (Winlogon AutoRestartShell) is turned off while files
+# are replaced. If the script stops on an error in between, restore it here:
+# a trap covers the whole script scope. Left at 0, Windows would never
+# restart Explorer again after it stops.
+$script:autoRestartToRestore = $null
+trap {
+    if ($null -ne $script:autoRestartToRestore) {
+        Set-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" "AutoRestartShell" `
+            $script:autoRestartToRestore -Type DWord -ErrorAction SilentlyContinue
+    }
+    break
+}
+
 # ---------------------------------------------------------------------------
 # Banner
 # ---------------------------------------------------------------------------
@@ -255,6 +268,10 @@ if ($Uninstall) {
     $prevAutoRestart = 1
     try {
         $prevAutoRestart = [int](Get-ItemPropertyValue $winlogonKey "AutoRestartShell" -ErrorAction Stop)
+        # 0 is what this script sets while it works: a 0 found here was left
+        # by an interrupted run. Restore the Windows default instead.
+        if ($prevAutoRestart -eq 0) { $prevAutoRestart = 1 }
+        $script:autoRestartToRestore = $prevAutoRestart
         Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
     } catch { $null = $_ }
 
@@ -318,6 +335,7 @@ if ($Uninstall) {
     try {
         Set-ItemProperty $winlogonKey "AutoRestartShell" $prevAutoRestart -Type DWord -ErrorAction SilentlyContinue
     } catch { $null = $_ }
+    $script:autoRestartToRestore = $null
 
     Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
 
@@ -410,6 +428,10 @@ $winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 $prevAutoRestart = 1
 try {
     $prevAutoRestart = [int](Get-ItemPropertyValue $winlogonKey "AutoRestartShell" -ErrorAction Stop)
+    # 0 is what this script sets while it works: a 0 found here was left by
+    # an interrupted run. Restore the Windows default instead.
+    if ($prevAutoRestart -eq 0) { $prevAutoRestart = 1 }
+    $script:autoRestartToRestore = $prevAutoRestart
     Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
 } catch { $null = $_ }
 
@@ -461,6 +483,7 @@ if (Test-Path $lockedFile) {
 try {
     Set-ItemProperty $winlogonKey "AutoRestartShell" $prevAutoRestart -Type DWord -ErrorAction SilentlyContinue
 } catch { $null = $_ }
+$script:autoRestartToRestore = $null
 
 # ---------------------------------------------------------------------------
 # Copy files
@@ -609,6 +632,13 @@ if (Test-Path $pipSrc) {
     elseif ($LASTEXITCODE -ge 8) { Write-Warning "pip-packages\: some locked files skipped (exit $LASTEXITCODE) - harmless if version unchanged." }
     Write-Item "pip-packages\ (PySide6, PyOpenGL, trimmed)"
 }
+
+# An earlier uninstall (install.ps1 -Uninstall, uninstaller.ps1, NSIS) may
+# have scheduled files still in use for deletion at the next reboot. The
+# same files were just written again: cancel those deletions, or the reboot
+# would remove them (same script as the NSIS installer).
+$pendingDeleteResult = & (Join-Path $REPO "UsdShellExtensionInstaller\Clear-PendingDelete.ps1") -InstallDir $InstallDir
+Write-Item $pendingDeleteResult
 
 # ---------------------------------------------------------------------------
 # Write system INI with correct absolute paths.
