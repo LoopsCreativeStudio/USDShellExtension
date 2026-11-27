@@ -25,24 +25,6 @@
 #>
 
 # ---------------------------------------------------------------------------
-# Locate UsdShellExtension.ini
-# ---------------------------------------------------------------------------
-$_candidates = @(
-    (Join-Path $PSScriptRoot   "UsdShellExtension.ini"),
-    (Join-Path $PSScriptRoot   "bin\v145\3.12\Release\UsdShellExtension.ini"),
-    "C:\Program Files\UsdShellExtension\UsdShellExtension.ini",
-    (Join-Path $env:LOCALAPPDATA "UsdShellExtension\UsdShellExtension.ini"),
-    (Join-Path $env:PROGRAMDATA  "UsdShellExtension\UsdShellExtension.ini")
-)
-$_ini = $_candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-
-if (-not $_ini) {
-    Write-Error ("UsdShellExtension.ini not found. " +
-                 "Run .\build.ps1 (and .\install.ps1 as Administrator) first.")
-    return
-}
-
-# ---------------------------------------------------------------------------
 # Parse helpers
 # ---------------------------------------------------------------------------
 function _USD_ReadIni {
@@ -58,16 +40,46 @@ function _USD_ReadIni {
     return ""
 }
 
+function _USD_FindIni {
+    <#
+    Return the first candidate ini that exists and sets [USD] PATH or
+    [PYTHON] PATH, or nothing. The ini written in the build output leaves
+    them empty (the binaries fall back to their own folder), so from the
+    repository it is skipped and the installed ini is used instead.
+    #>
+    param([string[]]$Candidates)
+    foreach ($candidate in $Candidates) {
+        if (-not (Test-Path -LiteralPath $candidate)) { continue }
+        if ((_USD_ReadIni $candidate "USD" "PATH") -or (_USD_ReadIni $candidate "PYTHON" "PATH")) {
+            return $candidate
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Locate UsdShellExtension.ini
+# ---------------------------------------------------------------------------
+$_candidates = @(
+    (Join-Path $PSScriptRoot   "UsdShellExtension.ini"),
+    (Join-Path $PSScriptRoot   "bin\v145\3.12\Release\UsdShellExtension.ini"),
+    "C:\Program Files\UsdShellExtension\UsdShellExtension.ini",
+    (Join-Path $env:LOCALAPPDATA "UsdShellExtension\UsdShellExtension.ini"),
+    (Join-Path $env:PROGRAMDATA  "UsdShellExtension\UsdShellExtension.ini")
+)
+$_ini = _USD_FindIni $_candidates
+
+if (-not $_ini) {
+    Write-Error ("No UsdShellExtension.ini with [USD] PATH or [PYTHON] PATH set. " +
+                 "Tried: " + ($_candidates -join ", ") + ". " +
+                 "Run .\build.ps1 and .\install.ps1 (as Administrator) first.")
+    return
+}
+
 $_usdBin    = _USD_ReadIni $_ini "USD"    "PATH"
 $_pyHome    = _USD_ReadIni $_ini "PYTHON" "PATH"
 $_pythonPath = _USD_ReadIni $_ini "USD"    "PYTHONPATH"
 # Strip trailing separators from PYTHONHOME
 $_pyHomeClean = $_pyHome.TrimEnd('\', ';', '/')
-
-if (-not $_usdBin -and -not $_pyHome) {
-    Write-Error "Could not read [USD] PATH from $_ini"
-    return
-}
 
 # ---------------------------------------------------------------------------
 # Command wrappers for the USD Python tools
@@ -140,4 +152,4 @@ Remove-Variable _candidates, _ini, _usdBin, _pyHome, _pyHomeClean, `
                 _pythonPath, _dotSourced, _pythonExe, _tools, _tool, _dir, `
                 _toolDefinitions `
                 -ErrorAction SilentlyContinue
-Remove-Item Function:_USD_ReadIni -ErrorAction SilentlyContinue
+Remove-Item Function:_USD_ReadIni, Function:_USD_FindIni -ErrorAction SilentlyContinue
