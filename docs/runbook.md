@@ -148,6 +148,17 @@ Set `.usd`, `.usda`, `.usdc`, `.usdz` to **USD Shell Extension**.
 
 Use the setup `.exe` from the [releases](https://github.com/LoopsCreativeStudio/USDShellExtension/releases): it is self-contained (USD and Python runtime included), installs silently, registers an entry in *Installed apps*, and replaces files that Explorer keeps loaded during an update.
 
+### Verifying a download
+
+The setup `.exe` is not code-signed (Windows shows *Unknown publisher*). Each release also has a `<setup>.exe.sha256` file holding its SHA256; check that it matches before deploying:
+
+```powershell
+(Get-FileHash .\UsdShellExtension-vX.Y.Z-u25.08-p3.12-setup.exe -Algorithm SHA256).Hash
+Get-Content .\UsdShellExtension-vX.Y.Z-u25.08-p3.12-setup.exe.sha256
+```
+
+The same value can be given to Chocolatey (`-Checksum64 <hash> -ChecksumType64 sha256`) when the package downloads the setup from the release.
+
 ### Silent install
 
 Run as Administrator or SYSTEM (Intune, SCCM / ConfigMgr, a GPO startup script, Chocolatey):

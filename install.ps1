@@ -514,7 +514,8 @@ Get-ChildItem $InstallDir -Filter "*.old" -ErrorAction SilentlyContinue | ForEac
 
 Get-ChildItem $OUT_DIR -File | Where-Object {
     $_.Extension -notin @('.exp', '.lib') -and
-    $_.Name -notlike 'UsdShellExtension-*-setup.exe'
+    # Installer and its .sha256 (build -Installer) are not part of the install.
+    $_.Name -notlike 'UsdShellExtension-*-setup.exe*'
 } | ForEach-Object {
     Copy-WithRetry $_.FullName $InstallDir
     Write-Item $_.Name

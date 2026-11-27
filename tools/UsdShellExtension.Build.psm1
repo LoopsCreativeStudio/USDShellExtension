@@ -314,9 +314,31 @@ function Copy-ThirdPartyLicense {
     }
 }
 
+# ---------------------------------------------------------------------------
+# Release checksum
+# ---------------------------------------------------------------------------
+function Write-Sha256File {
+    <#
+        Write "<Path>.sha256" next to a release file, in the sha256sum format
+        (lower-case hash, two spaces, file name), and return its path and the
+        hash. Published with the installer so anyone can check the download
+        (Get-FileHash, sha256sum -c, Chocolatey -Checksum64) while the setup
+        is not code-signed. An existing checksum file is replaced.
+    #>
+    param([Parameter(Mandatory)][string]$Path)
+
+    $fileHash = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+    $checksumPath = "$Path.sha256"
+    $checksumLine = "{0}  {1}`n" -f $fileHash, (Split-Path $Path -Leaf)
+    # ASCII, LF line ending: readable by sha256sum on any platform.
+    [System.IO.File]::WriteAllText($checksumPath, $checksumLine, [System.Text.Encoding]::ASCII)
+
+    [pscustomobject]@{ Path = $checksumPath; Hash = $fileHash }
+}
+
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
     'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile',
-    'Copy-ThirdPartyLicense'
+    'Copy-ThirdPartyLicense', 'Write-Sha256File'
 )

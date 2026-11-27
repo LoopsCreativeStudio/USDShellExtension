@@ -184,7 +184,9 @@ This implies `-Installer`. After the installer exe is produced, this step:
 
 1. Reads the version from `version.txt` in the repo root and constructs the tag `v<version>` (e.g. `version.txt` containing `1.2.0` produces tag `v1.2.0`).
 2. Checks that `gh` CLI is installed and authenticated (`gh auth login` must have been run).
-3. Runs `gh release create v<version> <installer.exe> --title v<version> --generate-notes`, which creates the GitHub release and attaches the installer as a downloadable asset. Release notes are auto-generated from commits since the previous tag.
+3. Attaches the installer `.exe` and its `.exe.sha256` (written by `-Installer`, sha256sum format) to the release `v<version>`. release-please normally creates that release when its pull request is merged, so the files are added with `gh release upload`; when the release does not exist yet, `gh release create ... --generate-notes` creates it. An asset already published is never replaced: a published installer may already be validated by its SHA256, so a new build needs a new version.
+
+The setup is not code-signed. The `.sha256` file lets anyone check a download (see *Verifying a download* in the runbook).
 
 Prerequisites:
 

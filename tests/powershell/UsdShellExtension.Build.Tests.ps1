@@ -32,7 +32,7 @@ Describe "Module exports" {
         $exported = (Get-Module UsdShellExtension.Build).ExportedFunctions.Keys | Sort-Object
         $expected = @(
             'Assert-Path', 'Copy-ThirdPartyLicense', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
-            'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Step'
+            'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Sha256File', 'Write-Step'
         ) | Sort-Object
         $exported | Should -Be $expected
     }
@@ -198,6 +198,37 @@ Describe "Copy-ThirdPartyLicense" -Skip:(-not $script:onWindows) {
         Copy-ThirdPartyLicense $script:licenseSource $script:licenseDestination -AdditionalSource $repositoryLicenses
         Test-Path (Join-Path $script:licenseDestination "LGPL-3.0.txt")    | Should -BeTrue
         Test-Path (Join-Path $script:licenseDestination "usd-license.txt") | Should -BeTrue
+    }
+}
+
+Describe "Write-Sha256File" {
+    BeforeEach {
+        $script:setupFile = Join-Path $TestDrive "UsdShellExtension-v1.2.3-setup.exe"
+        Set-Content -LiteralPath $script:setupFile -Value "installer bytes" -NoNewline
+        $script:expectedHash = (Get-FileHash -LiteralPath $script:setupFile -Algorithm SHA256).Hash.ToLowerInvariant()
+    }
+
+    It "writes a .sha256 file next to the file" {
+        Write-Sha256File $script:setupFile | Out-Null
+        Test-Path "$script:setupFile.sha256" | Should -BeTrue
+    }
+
+    It "uses the sha256sum format: lower-case hash, two spaces, file name" {
+        Write-Sha256File $script:setupFile | Out-Null
+        $checksumLine = (Get-Content -LiteralPath "$script:setupFile.sha256" -Raw).TrimEnd("`r", "`n")
+        $checksumLine | Should -BeExactly "$script:expectedHash  UsdShellExtension-v1.2.3-setup.exe"
+    }
+
+    It "returns the checksum file path and the hash" {
+        $checksum = Write-Sha256File $script:setupFile
+        $checksum.Path | Should -Be "$script:setupFile.sha256"
+        $checksum.Hash | Should -BeExactly $script:expectedHash
+    }
+
+    It "replaces a checksum file left by an earlier build" {
+        Set-Content -LiteralPath "$script:setupFile.sha256" -Value "stale  UsdShellExtension-v1.2.3-setup.exe"
+        Write-Sha256File $script:setupFile | Out-Null
+        Get-Content -LiteralPath "$script:setupFile.sha256" -Raw | Should -Match "^$script:expectedHash  "
     }
 }
 

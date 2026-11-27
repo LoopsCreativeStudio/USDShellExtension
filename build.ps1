@@ -13,13 +13,16 @@
     Overrides CONFIG in .env. Default: Release.
 
 .PARAMETER Installer
-    After building, stage LICENSE.txt and run NSIS to produce the setup .exe.
+    After building, stage LICENSE.txt and run NSIS to produce the setup .exe,
+    with its SHA256 in <setup>.exe.sha256 (sha256sum format).
     Requires NSIS installed at C:\Program Files\NSIS\makensis.exe.
 
 .PARAMETER Release
-    After building the installer, publish a GitHub release via the gh CLI.
+    After building the installer, attach the setup .exe and its .sha256 to
+    the GitHub release of version.txt (e.g. "1.2.0" gives tag "v1.2.0") via
+    the gh CLI: added to the release created by release-please, or a new
+    release when none exists. An asset already published is never replaced.
     Implies -Installer. Requires gh installed and authenticated (gh auth login).
-    The release tag is read from version.txt (e.g. "1.2.0" becomes tag "v1.2.0").
 
 .PARAMETER Test
     Also build UsdShellExtensionTests and run the native unit tests with
@@ -448,12 +451,20 @@ if ($Installer) {
                     Sort-Object LastWriteTime -Descending |
                     Select-Object -First 1
 
+    # The setup is not code-signed: publish its SHA256 next to it so a
+    # download can be checked (Get-FileHash, sha256sum -c, Chocolatey).
+    $installerChecksum = $null
+    if ($installerExe) {
+        $installerChecksum = Write-Sha256File $installerExe.FullName
+    }
+
     Write-Host ""
     Write-Host $SEP -ForegroundColor DarkGray
     Write-Host "    Installer ready" -ForegroundColor Green
     Write-Host $SEP -ForegroundColor DarkGray
     if ($installerExe) {
         Write-Detail "Installer" $installerExe.FullName
+        Write-Detail "SHA256"    $installerChecksum.Hash
     }
     Write-Host ""
 }
@@ -483,13 +494,27 @@ if ($Release) {
         Write-Error "gh is not authenticated. Run 'gh auth login' first."
     }
 
-    Write-Detail "Tag"   $tag
-    Write-Detail "Asset" $installerExe.Name
+    $releaseAssets = @($installerExe.FullName, $installerChecksum.Path)
+    Write-Detail "Tag"    $tag
+    Write-Detail "Assets" (($releaseAssets | ForEach-Object { Split-Path $_ -Leaf }) -join ", ")
+    Write-Detail "SHA256" $installerChecksum.Hash
 
-    & gh release create $tag $installerExe.FullName --title $tag --generate-notes
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "gh release create failed with exit code $LASTEXITCODE"
+    # release-please usually creates the release (and its tag) when its pull
+    # request is merged: add the assets to it. Create the release only when
+    # it does not exist yet. An asset already published is never replaced
+    # (no --clobber): a published installer may already be validated by its
+    # SHA256, a new build must get a new version.
+    & gh release view $tag 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        & gh release upload $tag @releaseAssets
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "gh release upload failed with exit code $LASTEXITCODE (an asset with the same name may already be published)"
+        }
+    } else {
+        & gh release create $tag @releaseAssets --title $tag --generate-notes
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "gh release create failed with exit code $LASTEXITCODE"
+        }
     }
 
     Write-Host ""
