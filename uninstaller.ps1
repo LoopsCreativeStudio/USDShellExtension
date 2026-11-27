@@ -43,6 +43,19 @@ if ($LogFile -eq "") {
 try { Stop-Transcript | Out-Null } catch { $null = $_ }
 Start-Transcript -Path $LogFile -Force | Out-Null
 
+# Explorer auto-restart (Winlogon AutoRestartShell) is turned off while files
+# are removed. If the script stops on an error in between, restore it here:
+# a trap covers the whole script scope. Left at 0, Windows would never
+# restart Explorer again after it stops.
+$script:autoRestartToRestore = $null
+trap {
+    if ($null -ne $script:autoRestartToRestore) {
+        Set-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" "AutoRestartShell" `
+            $script:autoRestartToRestore -Type DWord -ErrorAction SilentlyContinue
+    }
+    break
+}
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -178,6 +191,10 @@ $winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 $prevAutoRestart = 1
 try {
     $prevAutoRestart = [int](Get-ItemPropertyValue $winlogonKey "AutoRestartShell" -ErrorAction Stop)
+    # 0 is what this script sets while it works: a 0 found here was left by
+    # an interrupted run. Restore the Windows default instead.
+    if ($prevAutoRestart -eq 0) { $prevAutoRestart = 1 }
+    $script:autoRestartToRestore = $prevAutoRestart
     Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
 } catch { $null = $_ }
 
@@ -323,6 +340,7 @@ public static class PendingDelete {
 try {
     Set-ItemProperty $winlogonKey "AutoRestartShell" $prevAutoRestart -Type DWord -ErrorAction SilentlyContinue
 } catch { $null = $_ }
+$script:autoRestartToRestore = $null
 
 Start-Service -Name "WSearch" -ErrorAction SilentlyContinue
 Write-Item "Windows Search service restarted"
