@@ -29,7 +29,7 @@
     <img src="https://img.shields.io/badge/OpenUSD-26.11-blue" alt="OpenUSD 26.11">
   </a>
   <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python 3.12">
+    <img src="https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white" alt="Python 3.14">
   </a>
   <a href="LICENSE.txt">
     <img src="https://img.shields.io/github/license/LoopsCreativeStudio/USDShellExtension" alt="License">
@@ -91,7 +91,7 @@ Demo scenes: [KitchenSet and UsdSkel](https://openusd.org/release/dl_downloads.h
 
 This project is a complete rewrite, heavily inspired by [Activision/USDShellExtension](https://github.com/Activision/USDShellExtension).
 
-The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, OpenUSD 26.11 built from source, Python 3.12), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
+The original Activision project laid the foundation for integrating USD into Windows Explorer. This version rethinks the architecture from the ground up: updated build toolchain (VS 2026, OpenUSD 26.11 built from source, Python 3.14), a process isolation model that keeps Python out of the Explorer process, modern Windows 11 context menu support via `IExplorerCommand`, and a streamlined install workflow.
 
 The two main architectural differences from the Activision repo: the Activision version required two separate USD builds compiled from source (a bare-bones monolithic build with no Python for the Explorer DLL, and a full build for the Python tools), whereas this version uses a single OpenUSD build (`build-openusd.ps1`) for everything. The Activision version enforced the "no Python in Explorer" rule by excluding Python from the SDK used by the DLL; this version enforces the same rule structurally, by routing all Python work through isolated COM Local Server executables. See the [Technical Guide](docs/technical.md) for a full comparison.
 
@@ -114,8 +114,8 @@ The setup `.exe` also bundles third-party open source components, each under its
 | Component | License |
 |-----------|---------|
 | OpenUSD 26.11 (built from source) | Tomorrow Open Source Technology License 1.0 (Apache 2.0 with a different trademark section) |
-| Python 3.12 | PSF License |
-| PySide6 / Qt 6.7.3 | LGPL v3 |
+| Python 3.14 | PSF License |
+| PySide6 / Qt 6.12.0 | LGPL v3 |
 | oneTBB, MaterialX, OpenImageIO, OpenSubdiv | Apache 2.0 |
 | OpenColorIO, OpenEXR, Imath, Alembic, Ptex, libtiff, libpng, libjpeg-turbo, zlib, ... | Permissive (BSD, MIT, zlib) |
 | Microsoft Visual C++ runtime | Visual Studio redistributable code |

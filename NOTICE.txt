@@ -41,7 +41,7 @@ Each component keeps its own open source license; the texts are in the
   ----------------------------  ----------------------  -----------------------
   OpenUSD 26.11.1               TOST 1.0 (Apache 2.0)   openusd-LICENSE.txt,
                                                         openusd-NOTICE.txt
-  Python 3.12.10 (CPython)      PSF License             python-LICENSE.txt
+  Python 3.14.10 (CPython)      PSF License             python-LICENSE.txt
   (with OpenSSL, libffi, SQLite, bzip2, ... listed in its license file)
   oneTBB 2021.12.0              Apache 2.0              onetbb-LICENSE.txt,
                                                         onetbb-third-party-
@@ -84,9 +84,10 @@ unmodified in the "pip-packages" folder:
 
   Package                       License                 License text
   ----------------------------  ----------------------  -----------------------
-  PySide6 6.7.3, shiboken6      LGPL v3                 licenses\LGPL-3.0.txt,
-  (Qt 6.7.3 libraries)                                  licenses\GPL-3.0.txt
-  PyOpenGL 3.1.5                BSD                     licenses\pyopengl-
+  PySide6-Essentials 6.12.0,    LGPL v3                 licenses\LGPL-3.0.txt,
+  shiboken6 6.12.0                                      licenses\GPL-3.0.txt
+  (Qt 6.12.0 libraries)
+  PyOpenGL 3.1.10               BSD                     licenses\pyopengl-
                                                         license.txt
   Jinja2 3.1.6                  BSD 3-Clause            pip-packages\jinja2-3.1.6.
                                                         dist-info\licenses\
@@ -104,9 +105,9 @@ PySide6 and Qt
   "pip-packages" folder: you may replace them with a compatible version built
   from modified sources.
   Corresponding source code:
-    Qt 6.7.3:       https://download.qt.io/official_releases/qt/6.7/6.7.3/
-    PySide6 6.7.3:  https://download.qt.io/official_releases/QtForPython/
-                    https://code.qt.io/cgit/pyside/pyside-setup.git/ (tag v6.7.3)
+    Qt 6.12.0:      https://download.qt.io/official_releases/qt/6.12/6.12.0/
+    PySide6 6.12.0: https://download.qt.io/official_releases/QtForPython/
+                    https://code.qt.io/cgit/pyside/pyside-setup.git/ (tag v6.12.0)
   Qt also contains third-party code under other licenses, listed at:
     https://doc.qt.io/qt-6/licenses-used-in-qt.html
 

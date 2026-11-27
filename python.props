@@ -16,13 +16,13 @@
 -->
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
-    <PythonVersion>3.12</PythonVersion>
+    <PythonVersion>3.14</PythonVersion>
     <!-- PY_VERSION_HEX encoding -->
-    <PythonVersionHex>0x030C0000</PythonVersionHex>
-    <PythonFileName>python312</PythonFileName>
+    <PythonVersionHex>0x030E0000</PythonVersionHex>
+    <PythonFileName>python314</PythonFileName>
     <!-- Python runtime assembled in the OpenUSD SDK by build-openusd.ps1; no separate install required.
          Override by setting PythonHome as an environment variable (build.ps1 passes it from USD_SDK). -->
-    <PythonHome Condition="$(PythonHome) == ''">D:\OpenUSD\install\v26.11.1-py312\python\</PythonHome>
+    <PythonHome Condition="$(PythonHome) == ''">D:\OpenUSD\install\v26.11.1-py314\python\</PythonHome>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

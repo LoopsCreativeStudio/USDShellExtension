@@ -339,12 +339,17 @@ File /r .\plugin\usd\*
 SetDetailsPrint textonly
 DetailPrint "Installing Python runtime..."
 SetDetailsPrint listonly
+; Start from empty folders: an upgrade across Python or PySide6 versions must
+; not mix old modules and Qt DLLs with the new ones. No /REBOOTOK, which
+; would delete the freshly installed files at the next reboot.
+RMDir /r "$INSTDIR\python"
 SetOutPath "$INSTDIR\python"
 File /r .\python\*
 
 SetDetailsPrint textonly
 DetailPrint "Installing Python packages..."
 SetDetailsPrint listonly
+RMDir /r "$INSTDIR\pip-packages"
 SetOutPath "$INSTDIR\pip-packages"
 File /r .\pip-packages\*
 
@@ -419,6 +424,10 @@ File z.dll
 Delete /REBOOTOK "$INSTDIR\tbb.dll"
 Delete /REBOOTOK "$INSTDIR\jpeg8.dll"
 Delete /REBOOTOK "$INSTDIR\zlib1.dll"
+; Python 3.12 runtime DLL of version 1.11, next to the binaries.
+!if "${PYTHONDLL}" != "python312.dll"
+    Delete /REBOOTOK "$INSTDIR\python312.dll"
+!endif
 
 ; USD tools and entry points
 File sdfdump.exe
@@ -439,8 +448,10 @@ File usdmeasureperformance
 File usdresolve
 File usdstitch
 File usdstitchclips
-File usdzip
+File usdzip.exe
 File usdupdatecrate
+; usdzip was a Python script up to OpenUSD 26.05 (version 1.11): remove it on upgrade.
+Delete /REBOOTOK "$INSTDIR\usdzip"
 File usdBakeMaterialX
 
 !insertmacro InstallLib REGEXE NOTSHARED REBOOT_NOTPROTECTED UsdPreviewLocalServer.exe "$INSTDIR\UsdPreviewLocalServer.exe" $INSTDIR

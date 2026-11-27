@@ -5,7 +5,7 @@
 # Note: usd-core does not ship UsdAppUtils; tests needing it are skipped.
 #
 # Usage:
-#   uv run --no-project --python 3.12 --with-requirements tests/requirements.txt pytest tests/python
+#   uv run --no-project --python 3.14 --with-requirements tests/requirements.txt pytest tests/python
 pytest==9.2.0
 ruff==0.17.6
 usd-core==26.11

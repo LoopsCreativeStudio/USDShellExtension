@@ -144,13 +144,13 @@ The install script automatically stops COM servers and restarts Explorer before 
 
 ---
 
-### "Python 3.12 is not installed" error during registration
+### "Python 3.14 is not installed" error during registration
 
-The installer checks for the bundled Python at `%ProgramFiles%\UsdShellExtension\python\python312.dll`.
+The installer checks for the bundled Python at `%ProgramFiles%\UsdShellExtension\python\python314.dll`.
 
 This means `install.ps1` didn't copy the Python folder from the SDK, or the SDK path was wrong.
 
-Check that the `python\` folder of the SDK (`USD_SDK`, by default `D:\OpenUSD\install\v26.11.1-py312\python\`) exists before running `install.ps1`; `build-openusd.ps1` creates it.
+Check that the `python\` folder of the SDK (`USD_SDK`, by default `D:\OpenUSD\install\v26.11.1-py314\python\`) exists before running `install.ps1`; `build-openusd.ps1` creates it.
 
 ---
 

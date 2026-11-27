@@ -34,7 +34,7 @@ Describe "Module exports" {
             'Assert-Path', 'Copy-ThirdPartyLicense', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
             'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Sha256File', 'Write-Step',
             'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
-            'Get-LicenseComponentName', 'Copy-OpenUsdLicense'
+            'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion'
         ) | Sort-Object
         $exported | Should -Be $expected
     }
@@ -507,5 +507,32 @@ Describe "Get-PathWithoutEntry" {
 
     It "drops empty entries" {
         Get-PathWithoutEntry -Path 'C:\A;;C:\B;' -Pattern 'unused' | Should -Be 'C:\A;C:\B'
+    }
+}
+
+Describe "Get-ProjectPythonVersion" {
+    It "reads the Python version and DLL name from a property sheet" {
+        $propsPath = Join-Path $TestDrive "python.props"
+        Set-Content $propsPath @(
+            '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">',
+            '  <PropertyGroup Label="Globals">',
+            '    <PythonVersion>3.14</PythonVersion>',
+            '  </PropertyGroup>',
+            '</Project>'
+        )
+        $python = Get-ProjectPythonVersion -PropsPath $propsPath
+        $python.Version | Should -Be '3.14'
+        $python.DllName | Should -Be 'python314.dll'
+    }
+
+    It "matches the property sheet of the repository" {
+        $repositoryProps = Join-Path $PSScriptRoot "..\..\python.props"
+        (Get-ProjectPythonVersion -PropsPath $repositoryProps).Version | Should -Match '^3\.\d+$'
+    }
+
+    It "fails when the property sheet has no PythonVersion" {
+        $propsPath = Join-Path $TestDrive "empty.props"
+        Set-Content $propsPath '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"/>'
+        { Get-ProjectPythonVersion -PropsPath $propsPath } | Should -Throw
     }
 }

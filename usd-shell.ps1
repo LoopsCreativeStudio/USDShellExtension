@@ -16,7 +16,7 @@
         usdcat            scene.usd
         usdfixbrokenpixarschemas scene.usd
         usdrecord         --imageWidth 512 scene.usd thumb.png
-        usdzip  / usdunzip
+        usdzip            package.usdz scene.usd
         usdgenschemafromsdr
         sdfdump
 
@@ -49,7 +49,7 @@ function _USD_FindIni {
     #>
     param([string[]]$Candidates)
     foreach ($candidate in $Candidates) {
-        if (-not (Test-Path -LiteralPath $candidate)) { continue }
+        if (-not $candidate -or -not (Test-Path -LiteralPath $candidate)) { continue }
         if ((_USD_ReadIni $candidate "USD" "PATH") -or (_USD_ReadIni $candidate "PYTHON" "PATH")) {
             return $candidate
         }
@@ -59,9 +59,13 @@ function _USD_FindIni {
 # ---------------------------------------------------------------------------
 # Locate UsdShellExtension.ini
 # ---------------------------------------------------------------------------
+# Build outputs are named after the Python version (bin\v145\<3.x>\Release):
+# take the most recent one.
+$_buildIni = Get-ChildItem -Path (Join-Path $PSScriptRoot "bin\v145\*\Release\UsdShellExtension.ini") -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
 $_candidates = @(
     (Join-Path $PSScriptRoot   "UsdShellExtension.ini"),
-    (Join-Path $PSScriptRoot   "bin\v145\3.12\Release\UsdShellExtension.ini"),
+    $_buildIni,
     "C:\Program Files\UsdShellExtension\UsdShellExtension.ini",
     (Join-Path $env:LOCALAPPDATA "UsdShellExtension\UsdShellExtension.ini"),
     (Join-Path $env:PROGRAMDATA  "UsdShellExtension\UsdShellExtension.ini")

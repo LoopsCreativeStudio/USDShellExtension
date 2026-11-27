@@ -228,7 +228,8 @@ function Show-LogTail {
 # Setup .exe to test
 # ---------------------------------------------------------------------------
 if (-not $SetupPath) {
-    $SetupPath = Get-ChildItem (Join-Path $repositoryRoot "bin\v145\3.12\Release") -Filter "*-setup.exe" |
+    # Build outputs are named after the Python version (bin\v145\<3.x>\Release).
+    $SetupPath = Get-ChildItem -Path (Join-Path $repositoryRoot "bin\v145\*\Release\*-setup.exe") |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
 }
 if (-not $SetupPath -or -not (Test-Path $SetupPath)) { throw "Setup .exe not found. Run .\build.ps1 -Installer first." }

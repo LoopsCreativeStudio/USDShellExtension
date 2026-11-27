@@ -230,10 +230,14 @@ StrCpy $2 "$INSTDIR\tbbmalloc.dll"
 StrCpy $3 "$INSTDIR\${BOOSTDLL}"
 StrCpy $4 "$INSTDIR\${PYTHONDLL}"
 StrCpy $5 "$INSTDIR\UsdPreviewHandler.pyd"
-System::Call '*(w r0, w r1, w r2, w r3, w r4, w r5)p.R1 ?2'
+; Files of version 1.11 and older (NVIDIA package, Python 3.12) that the
+; running processes of an upgraded install still hold.
+StrCpy $6 "$INSTDIR\tbb.dll"
+StrCpy $7 "$INSTDIR\python312.dll"
+System::Call '*(w r0, w r1, w r2, w r3, w r4, w r5, w r6, w r7)p.R1 ?2'
 ; Files only: no process, no service (a service count of 1 with an unset
 ; pointer made Restart Manager read a random address and crash setup).
-System::Call 'Rstrtmgr::RmRegisterResources(i $RmApplicationSession, i 6, p R1, i 0, p n, i 0, p n) i.R0'
+System::Call 'Rstrtmgr::RmRegisterResources(i $RmApplicationSession, i 8, p R1, i 0, p n, i 0, p n) i.R0'
 
 DetailPrint "Shutting down applications using the USD Shell Extension"
 

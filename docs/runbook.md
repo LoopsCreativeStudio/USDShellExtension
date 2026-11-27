@@ -153,8 +153,8 @@ Use the setup `.exe` from the [releases](https://github.com/LoopsCreativeStudio/
 The setup `.exe` is not code-signed (Windows shows *Unknown publisher*). Each release also has a `<setup>.exe.sha256` file holding its SHA256; check that it matches before deploying:
 
 ```powershell
-(Get-FileHash .\UsdShellExtension-vX.Y.Z-u26.11-p3.12-setup.exe -Algorithm SHA256).Hash
-Get-Content .\UsdShellExtension-vX.Y.Z-u26.11-p3.12-setup.exe.sha256
+(Get-FileHash .\UsdShellExtension-vX.Y.Z-u26.11-p3.14-setup.exe -Algorithm SHA256).Hash
+Get-Content .\UsdShellExtension-vX.Y.Z-u26.11-p3.14-setup.exe.sha256
 ```
 
 The same value can be given to Chocolatey (`-Checksum64 <hash> -ChecksumType64 sha256`) when the package downloads the setup from the release.
@@ -164,7 +164,7 @@ The same value can be given to Chocolatey (`-Checksum64 <hash> -ChecksumType64 s
 Run as Administrator or SYSTEM (Intune, SCCM / ConfigMgr, a GPO startup script, Chocolatey):
 
 ```bat
-UsdShellExtension-vX.Y.Z-u26.11-p3.12-setup.exe /S
+UsdShellExtension-vX.Y.Z-u26.11-p3.14-setup.exe /S
 ```
 
 | Option | Effect |
@@ -205,13 +205,13 @@ The same command is stored in the `QuietUninstallString` value of the Uninstall 
 
 ### Examples
 
-- **Intune (Win32 app)**: package the `.exe` with the Win32 Content Prep Tool. Install command `UsdShellExtension-vX.Y.Z-u26.11-p3.12-setup.exe /S`, uninstall command as above, install behavior *System*, return code `3010` = *Soft reboot*, detection rule on the registry `DisplayVersion` or on the file.
+- **Intune (Win32 app)**: package the `.exe` with the Win32 Content Prep Tool. Install command `UsdShellExtension-vX.Y.Z-u26.11-p3.14-setup.exe /S`, uninstall command as above, install behavior *System*, return code `3010` = *Soft reboot*, detection rule on the registry `DisplayVersion` or on the file.
 - **SCCM / ConfigMgr (application, script installer)**: same commands and detection rule; `3010` is a soft reboot by default.
 - **Chocolatey**: `Install-ChocolateyInstallPackage` with `silentArgs = '/S'` and `validExitCodes = @(0, 3010)`; in `chocolateyUninstall.ps1`, run `uninstall.exe /S _?=<install folder>` (folder from `InstallLocation`).
 
 ### Manual deployment (no installer)
 
-Copying `bin\v145\3.12\Release\` and running `register.bat` as Administrator also works, but gives no *Installed apps* entry, no version detection and no clean uninstall, and an update fails while Explorer keeps the DLLs loaded. Prefer the setup `.exe`.
+Copying `bin\v145\3.14\Release\` and running `register.bat` as Administrator also works, but gives no *Installed apps* entry, no version detection and no clean uninstall, and an update fails while Explorer keeps the DLLs loaded. Prefer the setup `.exe`.
 
 ---
 

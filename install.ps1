@@ -188,14 +188,23 @@ function Stop-FileLockingProcess {
 # ---------------------------------------------------------------------------
 $cfg = Read-DotEnv (Join-Path $REPO ".env")
 
-$USD_SDK    = if ($cfg['USD_SDK'])      { $cfg['USD_SDK'] }      else { "D:\OpenUSD\install\v26.11.1-py312" }
+$USD_SDK    = if ($cfg['USD_SDK'])      { $cfg['USD_SDK'] }      else { "D:\OpenUSD\install\v26.11.1-py314" }
 if (-not $Config)     { $Config     = if ($cfg['CONFIG'])      { $cfg['CONFIG'] }      else { "Release" } }
 if (-not $InstallDir) { $InstallDir = if ($cfg['INSTALL_DIR']) { $cfg['INSTALL_DIR'] } else { "C:\Program Files\UsdShellExtension" } }
 if ($Config -notin @('Release', 'Debug')) {
     Write-Error "CONFIG must be 'Release' or 'Debug' (got: '$Config'). Check .env or use -Config."
 }
 
-$OUT_DIR = Join-Path $REPO "bin\v145\3.12\$Config"
+# MSBuild names the output folder after <PythonVersion> in python.props.
+$projectPython = Get-ProjectPythonVersion -PropsPath (Join-Path $REPO "python.props")
+$OUT_DIR = Join-Path $REPO "bin\v145\$($projectPython.Version)\$Config"
+
+# The Python DLL that running processes keep locked is the one already
+# installed (python312.dll when upgrading from a Python 3.12 build), not
+# necessarily the one about to be copied.
+$installedPythonDll = Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty Name
+if (-not $installedPythonDll) { $installedPythonDll = $projectPython.DllName }
 
 $version = if (Test-Path (Join-Path $REPO "version.txt")) {
     (Get-Content (Join-Path $REPO "version.txt")).Trim()
@@ -259,7 +268,7 @@ if ($Uninstall) {
     Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer" `
         -Force -ErrorAction SilentlyContinue
     Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
-    Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue |
+    Get-Process -Name "python*" -ErrorAction SilentlyContinue |
         Where-Object { $_.Path -like "$InstallDir*" } |
         Stop-Process -Force -ErrorAction SilentlyContinue
     Write-Item "COM servers stopped"
@@ -280,7 +289,7 @@ if ($Uninstall) {
         ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
     Write-Item "Shell processes stopped"
 
-    $lockedFile = Join-Path $InstallDir "python312.dll"
+    $lockedFile = Join-Path $InstallDir $installedPythonDll
     Stop-FileLockingProcess $lockedFile
     if (Test-Path $lockedFile) {
         $waited  = 0
@@ -294,7 +303,7 @@ if ($Uninstall) {
                 break
             } catch {
                 if ($waited -eq 0) {
-                    Write-Host "    python312.dll still locked, waiting..." -ForegroundColor DarkYellow
+                    Write-Host "    $installedPythonDll still locked, waiting..." -ForegroundColor DarkYellow
                 }
                 @("dllhost","explorer","SearchIndexer","SearchProtocolHost","SearchFilterHost") |
                     ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
@@ -303,7 +312,7 @@ if ($Uninstall) {
             }
         }
         if ($waited -ge $maxWait) {
-            Write-Warning "python312.dll may still be locked after ${maxWait}s."
+            Write-Warning "$installedPythonDll may still be locked after ${maxWait}s."
         } else {
             Write-Item ("File locks released (waited {0}s)" -f $waited)
         }
@@ -412,7 +421,7 @@ Stop-Service -Name "WSearch" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer" `
     -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
-Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue |
+Get-Process -Name "python*" -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like "$InstallDir*" } |
     Stop-Process -Force -ErrorAction SilentlyContinue
 Write-Item "COM servers stopped"
@@ -423,7 +432,7 @@ Write-Item "COM servers stopped"
 
 # Disable Explorer auto-restart so Win11 does not respawn it during the
 # lock-wait loop.  A restarted Explorer reloads UsdShellExtension.dll via
-# its activation context and immediately re-locks python312.dll.
+# its activation context and immediately re-locks the Python DLL.
 $winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 $prevAutoRestart = 1
 try {
@@ -443,10 +452,10 @@ try {
 Stop-Process -Name "UsdPreviewLocalServer" -Force -ErrorAction SilentlyContinue
 Write-Item "Shell processes stopped"
 
-# Wait for python312.dll to be released.  Re-kill dllhost and Explorer on
+# Wait for the installed Python DLL to be released.  Re-kill dllhost and Explorer on
 # every iteration; with AutoRestartShell=0 Explorer will not respawn by
 # itself, so only COM-triggered dllhost instances need chasing.
-$lockedFile = Join-Path $InstallDir "python312.dll"
+$lockedFile = Join-Path $InstallDir $installedPythonDll
 Stop-FileLockingProcess $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
@@ -460,7 +469,7 @@ if (Test-Path $lockedFile) {
             break
         } catch {
             if ($waited -eq 0) {
-                Write-Host "    python312.dll still locked, waiting for handles to release..." `
+                Write-Host "    $installedPythonDll still locked, waiting for handles to release..." `
                     -ForegroundColor DarkYellow
             }
             @("dllhost", "explorer", "prevhost", "UsdPreviewLocalServer",
@@ -471,7 +480,7 @@ if (Test-Path $lockedFile) {
         }
     }
     if ($waited -ge $maxWait) {
-        Write-Warning "python312.dll may still be locked after ${maxWait}s. Copy-WithRetry will keep retrying."
+        Write-Warning "$installedPythonDll may still be locked after ${maxWait}s. Copy-WithRetry will keep retrying."
     } else {
         Write-Item ("File locks released (waited {0}s)" -f $waited)
     }
@@ -520,6 +529,15 @@ Get-ChildItem $OUT_DIR -File | Where-Object {
     Copy-WithRetry $_.FullName $InstallDir
     Write-Item $_.Name
 }
+
+# A Python version change leaves the previous Python DLL (e.g. python312.dll)
+# in the install folder: remove it, so the next install waits on the right one.
+Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -ne $projectPython.DllName } | ForEach-Object {
+        Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+        if (Test-Path $_.FullName) { Write-Warning "$($_.Name) is still locked; it is removed at the next install." }
+        else                      { Write-Removed $_.Name }
+    }
 
 $uninstallerSrc = Join-Path $REPO "uninstaller.ps1"
 if (Test-Path $uninstallerSrc) {
@@ -594,7 +612,7 @@ if (Test-Path $pythonSrc) {
     )
     & robocopy @rcArgs | Out-Null
     if ($LASTEXITCODE -ge 8) { Write-Error "robocopy failed copying python\ (exit $LASTEXITCODE)" }
-    Write-Item "python\ (bundled Python 3.12, trimmed)"
+    Write-Item "python\ (bundled Python $($projectPython.Version), trimmed)"
 } else {
     Write-Warning "Python folder not found at $pythonSrc - skipping."
 }

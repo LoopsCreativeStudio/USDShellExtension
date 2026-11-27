@@ -17,8 +17,8 @@
 
 <!--
    Points to the OpenUSD 26.11 SDK built from the upstream sources by
-   build-openusd.ps1 (Python 3.12, PySide6), installed in
-   D:\OpenUSD\install\v26.11.1-py312\ (keep aligned with USD_SDK in .env).
+   build-openusd.ps1 (Python 3.14, PySide6), installed in
+   D:\OpenUSD\install\v26.11.1-py314\ (keep aligned with USD_SDK in .env).
 
    All USD libs use the "usd_" prefix (e.g. usd_tf.lib, usd_sdf.lib).
    TBB is oneTBB: tbb12.dll and tbbmalloc.dll.
@@ -28,7 +28,7 @@
   <PropertyGroup>
     <USDBUILD>shared</USDBUILD>
     <USDVERSION>26.11</USDVERSION>
-    <USD_SDK>D:\OpenUSD\install\v26.11.1-py312</USD_SDK>
+    <USD_SDK>D:\OpenUSD\install\v26.11.1-py314</USD_SDK>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

@@ -41,8 +41,8 @@
     Overrides OPENUSD_VERSION in .env. Default: v26.11.1.
 
 .PARAMETER PythonVersion
-    Python version of the NuGet "python" package (e.g. "3.12.10").
-    Overrides PYTHON_VERSION in .env. Default: 3.12.10.
+    Python version of the NuGet "python" package (e.g. "3.14.10").
+    Overrides PYTHON_VERSION in .env. Default: 3.14.10.
 
 .PARAMETER OpenUsdDir
     Root folder for sources, build files and the install folder.
@@ -67,9 +67,12 @@ $ErrorActionPreference = "Stop"
 $REPO = $PSScriptRoot
 $SEP  = "  " + ("=" * 52)
 
-# Python packages usdview needs; same versions as the NVIDIA 25.08 SDK
-# (pip-packages\requirements.txt) so that OpenUSD is the only change (#19).
-$PYTHON_PACKAGES = @('PySide6==6.7.3', 'PyOpenGL==3.1.5', 'Jinja2', 'MarkupSafe')
+# Python packages usdview needs, pinned to their latest versions (#20).
+# Only PySide6-Essentials (with shiboken6): usdview and the preview use
+# QtCore, QtGui, QtWidgets, QtOpenGL and QtOpenGLWidgets, and Essentials
+# provides pyside6-uic. The PySide6 meta package would add Addons, WebEngine
+# and Pdf (about 300 MB) that nothing loads.
+$PYTHON_PACKAGES = @('PySide6-Essentials==6.12.0', 'PyOpenGL==3.1.10', 'Jinja2==3.1.6', 'MarkupSafe==3.0.4')
 
 # PATH entries removed for the build: Strawberry Perl ships its own CMake,
 # compilers and libraries, and any other Python (including the WindowsApps
@@ -89,7 +92,7 @@ Import-Module (Join-Path $REPO "tools\UsdShellExtension.Build.psm1") -Force
 $cfg = Read-DotEnv (Join-Path $REPO ".env")
 
 if (-not $OpenUsdVersion) { $OpenUsdVersion = if ($cfg['OPENUSD_VERSION']) { $cfg['OPENUSD_VERSION'] } else { "v26.11.1" } }
-if (-not $PythonVersion)  { $PythonVersion  = if ($cfg['PYTHON_VERSION'])  { $cfg['PYTHON_VERSION'] }  else { "3.12.10" } }
+if (-not $PythonVersion)  { $PythonVersion  = if ($cfg['PYTHON_VERSION'])  { $cfg['PYTHON_VERSION'] }  else { "3.14.10" } }
 if (-not $OpenUsdDir)     { $OpenUsdDir     = if ($cfg['OPENUSD_DIR'])     { $cfg['OPENUSD_DIR'] }     else { "D:\OpenUSD" } }
 
 $layout = Get-OpenUsdLayout -Root $OpenUsdDir -OpenUsdVersion $OpenUsdVersion -PythonVersion $PythonVersion

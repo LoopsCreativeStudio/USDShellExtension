@@ -252,6 +252,11 @@ public:
 		// each time (PATH has a 32767 character limit).
 		std::wstring pathBefore = GetCrtEnv( L"PATH" );
 		std::wstring pythonPathBefore = GetCrtEnv( L"PYTHONPATH" );
+		// SetupPythonEnvironment also sets PYTHONHOME from the machine's
+		// UsdShellExtension.ini: left set, it points the python.exe started by
+		// later tests (ThumbnailWorkerPoolTests) at another Python's standard
+		// library, which kills them at startup.
+		std::wstring pythonHomeBefore = GetCrtEnv( L"PYTHONHOME" );
 
 		SetupPythonEnvironment( nullptr );
 		std::wstring pathAfterFirst = GetCrtEnv( L"PATH" );
@@ -266,6 +271,7 @@ public:
 		// Leave the test host as it was.
 		_wputenv_s( L"PATH", pathBefore.c_str() );
 		_wputenv_s( L"PYTHONPATH", pythonPathBefore.c_str() );
+		_wputenv_s( L"PYTHONHOME", pythonHomeBefore.c_str() );
 	}
 };
 

@@ -12,7 +12,7 @@ Please note that we have a code of conduct. Kindly follow it in all your interac
 > The project is built with PowerShell and MSBuild (Visual Studio 2026, v145 toolset, x64 only).
 
 1. Clone the repository.
-2. Build OpenUSD once with `build-openusd.ps1` (needs CMake 4.2 or later; one to two hours, result in `D:\OpenUSD\install\v26.11.1-py312`). Set `OPENUSD_DIR` and `USD_SDK` in `.env` if your paths differ; see the [Quick Start](docs/quickstart.md).
+2. Build OpenUSD once with `build-openusd.ps1` (needs CMake 4.2 or later; one to two hours, result in `D:\OpenUSD\install\v26.11.1-py314`). Set `OPENUSD_DIR` and `USD_SDK` in `.env` if your paths differ; see the [Quick Start](docs/quickstart.md).
 3. Build the project.
 4. Install (requires Administrator).
 
@@ -76,8 +76,8 @@ The development of **USDShellExtension** is very demanding in terms of stability
 The Python scripts are tested with [pytest](https://pytest.org) against `usd-core`, pinned to the same OpenUSD version as the SDK built by `build-openusd.ps1`. With [uv](https://docs.astral.sh/uv/) installed, from the repository root:
 
 ```powershell
-uv run --no-project --python 3.12 --with-requirements tests/requirements.txt pytest tests/python
-uv run --no-project --python 3.12 --with-requirements tests/requirements.txt ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/
+uv run --no-project --python 3.14 --with-requirements tests/requirements.txt pytest tests/python
+uv run --no-project --python 3.14 --with-requirements tests/requirements.txt ruff check UsdPreviewHandlerServer/ UsdPythonToolsServer/ tests/python/
 ```
 
 Tests needing modules missing from `usd-core` (e.g. `UsdAppUtils`) are skipped. The CI runs the same commands on every push.

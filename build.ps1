@@ -60,14 +60,16 @@ Import-Module (Join-Path $REPO "tools\UsdShellExtension.Build.psm1") -Force
 # ---------------------------------------------------------------------------
 $cfg = Read-DotEnv (Join-Path $REPO ".env")
 
-$USD_SDK = if ($cfg['USD_SDK']) { $cfg['USD_SDK'] } else { "D:\OpenUSD\install\v26.11.1-py312" }
+$USD_SDK = if ($cfg['USD_SDK']) { $cfg['USD_SDK'] } else { "D:\OpenUSD\install\v26.11.1-py314" }
 if (-not $Config) { $Config = if ($cfg['CONFIG']) { $cfg['CONFIG'] } else { "Release" } }
 if ($Config -notin @('Release', 'Debug')) {
     Write-Error "CONFIG must be 'Release' or 'Debug' (got: '$Config'). Check .env or use -Config."
 }
 
 $SLN     = Join-Path $REPO "UsdShellExtension.sln"
-$OUT_DIR = Join-Path $REPO "bin\v145\3.12\$Config"
+# MSBuild names the output folder after <PythonVersion> in python.props.
+$projectPython = Get-ProjectPythonVersion -PropsPath (Join-Path $REPO "python.props")
+$OUT_DIR = Join-Path $REPO "bin\v145\$($projectPython.Version)\$Config"
 
 $version = if (Test-Path (Join-Path $REPO "version.txt")) {
     (Get-Content (Join-Path $REPO "version.txt")).Trim()

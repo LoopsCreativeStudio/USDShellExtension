@@ -206,7 +206,12 @@ try {
 Stop-Process -Name "UsdPreviewLocalServer" -Force -ErrorAction SilentlyContinue
 Write-Item "Shell processes stopped"
 
-$lockedFile = Join-Path $InstallDir "python312.dll"
+# The bundled Python DLL (python312.dll, python314.dll, ...) is the file the
+# COM servers and Explorer keep loaded the longest.
+$installedPythonDll = Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty Name
+if (-not $installedPythonDll) { $installedPythonDll = "python3.dll" }
+$lockedFile = Join-Path $InstallDir $installedPythonDll
 Stop-FileLockingProcess $lockedFile
 if (Test-Path $lockedFile) {
     $waited  = 0
@@ -220,7 +225,7 @@ if (Test-Path $lockedFile) {
             break
         } catch {
             if ($waited -eq 0) {
-                Write-Host "    python312.dll still locked, waiting..." -ForegroundColor DarkYellow
+                Write-Host "    $installedPythonDll still locked, waiting..." -ForegroundColor DarkYellow
             }
             @("dllhost","explorer","prevhost","UsdPreviewLocalServer",
               "SearchIndexer","SearchProtocolHost","SearchFilterHost") |
@@ -230,7 +235,7 @@ if (Test-Path $lockedFile) {
         }
     }
     if ($waited -ge $maxWait) {
-        Write-Warning "python312.dll may still be locked after ${maxWait}s."
+        Write-Warning "$installedPythonDll may still be locked after ${maxWait}s."
     } else {
         Write-Item ("File locks released (waited {0}s)" -f $waited)
     }

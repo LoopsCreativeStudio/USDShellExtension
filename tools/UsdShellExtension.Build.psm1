@@ -491,11 +491,35 @@ function Get-PathWithoutEntry {
     return ($keptEntries -join ';')
 }
 
+# ---------------------------------------------------------------------------
+# Python version of the projects
+# ---------------------------------------------------------------------------
+function Get-ProjectPythonVersion {
+    <#
+        Read <PythonVersion> (e.g. "3.14") from python.props, the single
+        source of the Python version for MSBuild: the output folder
+        (bin\v145\<version>\<Config>) and the bundled DLL name
+        (python314.dll) both follow it.
+    #>
+    param([Parameter(Mandatory)][string]$PropsPath)
+
+    [xml]$propertySheet = Get-Content -LiteralPath $PropsPath -Raw
+    $namespace = @{ msb = 'http://schemas.microsoft.com/developer/msbuild/2003' }
+    $versionNode = Select-Xml -Xml $propertySheet -XPath '//msb:PythonVersion' -Namespace $namespace | Select-Object -First 1
+    if (-not $versionNode) { throw "No <PythonVersion> found in $PropsPath" }
+
+    $version = $versionNode.Node.InnerText.Trim()
+    [pscustomobject]@{
+        Version = $version
+        DllName = "python{0}.dll" -f ($version -replace '\.', '')
+    }
+}
+
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
     'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile',
     'Copy-ThirdPartyLicense', 'Write-Sha256File',
     'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
-    'Get-LicenseComponentName', 'Copy-OpenUsdLicense'
+    'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion'
 )

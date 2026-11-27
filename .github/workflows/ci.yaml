@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: '3.14'
 
       # Pinned test and lint tools (usd-core matches the runtime SDK version).
       - name: Install Python test dependencies

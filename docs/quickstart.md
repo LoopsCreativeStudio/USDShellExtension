@@ -36,11 +36,11 @@ notepad .env
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `USD_SDK` | `D:\OpenUSD\install\v26.11.1-py312` | OpenUSD SDK built by `build-openusd.ps1` |
+| `USD_SDK` | `D:\OpenUSD\install\v26.11.1-py314` | OpenUSD SDK built by `build-openusd.ps1` |
 | `CONFIG` | `Release` | Build configuration: `Release` or `Debug` |
 | `INSTALL_DIR` | `C:\Program Files\UsdShellExtension` | Installation directory |
 | `OPENUSD_VERSION` | `v26.11.1` | OpenUSD release tag built by `build-openusd.ps1` |
-| `PYTHON_VERSION` | `3.12.10` | Python runtime (NuGet `python` package) |
+| `PYTHON_VERSION` | `3.14.10` | Python runtime (NuGet `python` package) |
 | `OPENUSD_DIR` | `D:\OpenUSD` | Root folder for the OpenUSD sources, build and SDK |
 
 ## Step 3: Build OpenUSD
@@ -49,7 +49,7 @@ notepad .env
 .\build-openusd.ps1
 ```
 
-The script downloads Python 3.12 and its packages (PySide6, PyOpenGL), clones the OpenUSD release tag and builds it with its dependencies (TBB, OpenEXR, OpenImageIO, OpenColorIO, MaterialX, OpenSubdiv, Ptex, Alembic). The result is the SDK folder `D:\OpenUSD\install\v26.11.1-py312`, with the Python runtime and the license texts. Each step already done is skipped, so the script can be run again after a failure. Transcript in `build-openusd.log`.
+The script downloads Python 3.14 and its packages (PySide6, PyOpenGL), clones the OpenUSD release tag and builds it with its dependencies (TBB, OpenEXR, OpenImageIO, OpenColorIO, MaterialX, OpenSubdiv, Ptex, Alembic). The result is the SDK folder `D:\OpenUSD\install\v26.11.1-py314`, with the Python runtime and the license texts. Each step already done is skipped, so the script can be run again after a failure. Transcript in `build-openusd.log`.
 
 ## Step 4: Build
 
@@ -59,7 +59,7 @@ Open PowerShell in the repository root and run:
 .\build.ps1
 ```
 
-This finds MSBuild automatically, compiles all projects, and assembles the output in `bin\v145\3.12\Release\`.
+This finds MSBuild automatically, compiles all projects, and assembles the output in `bin\v145\3.14\Release\`.
 
 To also produce the setup `.exe`, run `.\build.ps1 -Installer` (needs [NSIS](https://nsis.sourceforge.io/) installed in `C:\Program Files\NSIS\`).
 
@@ -68,7 +68,7 @@ Expected duration for a first build from a fresh clone (no `bin\` folder yet, Op
 | Command | Duration | What takes the time |
 |---------|----------|---------------------|
 | `.\build.ps1` | about 25 s | Compiling the projects and copying the USD and Python runtime (about 640 MB) from the SDK |
-| `.\build.ps1 -Installer` (after the build above) | about 3 min | NSIS compressing the runtime into a setup `.exe` of about 120 MB |
+| `.\build.ps1 -Installer` (after the build above) | about 3 min | NSIS compressing the runtime into a setup `.exe` of about 90 MB |
 
 OpenUSD is built once by Step 3, so nothing from USD itself is compiled here. Later builds are incremental and faster. A slower disk or antivirus scanning of the copied files can lengthen the copy step.
 

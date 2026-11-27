@@ -65,7 +65,7 @@ This project is a complete rewrite inspired by [Activision/USDShellExtension](ht
 | USD SDK for Python tools | Full shared build, compiled from source | Same OpenUSD 26.11 build |
 | How "no Python in Explorer" is enforced | Python excluded at the SDK level: the DLL's USD build has no Python support at all | Python excluded at the process level: all Python work goes to COM Local Server EXEs; the DLL itself never calls into Python |
 | Boost | Separate build, matched to MSVC and Python version | None: OpenUSD ships its own `pxr_boost::python` (`usd_boost.lib` / `usd_boost.dll`) |
-| Python version | 2.7, 3.6, 3.7 | 3.12 (NuGet `python` package, bundled in the SDK folder) |
+| Python version | 2.7, 3.6, 3.7 | 3.14 (NuGet `python` package, bundled in the SDK folder) |
 | USD library naming | Bare names: `tf.lib`, `sdf.lib` | `usd_`-prefixed: `usd_tf.lib`, `usd_sdf.lib` (OpenUSD default prefix) |
 | Build USD from source | Required, two builds, manual | One build, scripted (`build-openusd.ps1`) |
 | Build process | Manual Visual Studio setup, two USD builds | `build.ps1` one-command build |
@@ -118,20 +118,20 @@ $files | ForEach-Object { Invoke-ScriptAnalyzer -Path $_.FullName -Settings .\PS
 |------|---------|
 | `usd-shared.props` | OpenUSD 26.11 SDK include/lib paths, `usd_`-prefixed lib names |
 | `boost.props` | `usd_boost.lib` / `usd_boost.dll` from the OpenUSD SDK; SDK headers treated as external (no warnings) |
-| `python.props` | Python 3.12 bundled in the SDK (`python\` subfolder) |
+| `python.props` | Python 3.14 bundled in the SDK (`python\` subfolder) |
 | `version.props` | Version numbers and product/company strings for all RC files |
 
 ### Build output
 
 ```
-bin\v145\3.12\Release\
+bin\v145\3.14\Release\
 ├── UsdShellExtension.dll
 ├── UsdPreviewLocalServer.exe
 ├── UsdPreviewHandlerPython.pyd (.UsdPreviewHandler Python module)
 ├── UsdPythonToolsLocalServer.exe
 ├── UsdSdkToolsLocalServer.exe
 ├── usd_*.dll              (USD runtime DLLs)
-├── python312.dll, python3.dll
+├── python314.dll, python3.dll
 ├── tbb12.dll, tbbmalloc.dll, tbbmalloc_proxy.dll
 ├── usd\                   (USD plugin manifests)
 ├── register.bat / unregister.bat
@@ -146,8 +146,8 @@ bin\v145\3.12\Release\
 
 | Switch | Prerequisite | Output |
 |--------|-------------|--------|
-| _(none)_ | MSBuild, OpenUSD SDK (`build-openusd.ps1`) | `bin\v145\3.12\Release\` binaries |
-| `-Installer` | NSIS installed, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.12\Release\` |
+| _(none)_ | MSBuild, OpenUSD SDK (`build-openusd.ps1`) | `bin\v145\3.14\Release\` binaries |
+| `-Installer` | NSIS installed, `LICENSE.txt` in repo root | `UsdShellExtension-vX.Y-uZ-pW-setup.exe` in `bin\v145\3.14\Release\` |
 | `-Release` | `gh` CLI authenticated, `version.txt` non-empty | GitHub release created with the installer as asset |
 
 ### `-Installer`: building the NSIS setup exe
@@ -168,9 +168,9 @@ After the normal build completes, this step:
 3. Runs MSBuild on the `UsdShellExtensionInstaller` project, which invokes `makensis.exe` on `UsdShellExtensionInstaller\UsdShellExtensionInstaller.nsi`.
 4. Reports the path of the produced installer.
 
-The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u26.11-p3.12-setup.exe`). The version is read from `version.props`.
+The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u26.11-p3.14-setup.exe`). The version is read from `version.props`.
 
-The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no USD SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
+The NSIS script bundles the entire `bin\v145\3.14\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no USD SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
 
 Every build (with or without `-Installer`) mirrors the SDK `PACKAGE-LICENSES\` folder into `licenses\` (`Copy-ThirdPartyLicense`): the open source licenses of the bundled components require shipping their texts. `build-openusd.ps1` fills `PACKAGE-LICENSES\` from the OpenUSD sources, every dependency source folder, the libraries the dependencies fetch themselves (Imath, libdeflate, yaml-cpp, expat, pystring, minizip-ng) and the Python runtime (`Copy-OpenUsdLicense`). Texts the SDK does not provide are kept in `third_party\licenses\` and added to the same folder: LGPL v3 and GPL v3 for PySide6 and Qt, and the PyOpenGL BSD license, whose wheel ships no license file (`pip-packages\`). `NOTICE.txt` lists each component with its license file and, for Qt and PySide6, where to get the corresponding source code.
 
@@ -311,7 +311,7 @@ The cost is a build of one to two hours per OpenUSD or Python version. Each step
 - **TBB**: oneTBB, `tbb12.dll` / `tbbmalloc.dll`, referenced by the manifests and post-build events.
 - **USD libs**: all prefixed `usd_` (e.g. `usd_tf.lib`, `usd_sdf.lib`). `usd_usdUtils.dll` also loads `usd_gf`, `usd_sdr`, `usd_usdGeom` and `usd_usdShade`; they are listed in `UsdShellExtension-shared.manifest`.
 - **Ptex**: `Ptex.dll` is installed in the SDK `lib\`; `build.ps1` copies every non-USD DLL of `lib\` with the runtime.
-- **Python**: Python 3.12 from the NuGet `python` package in the SDK `python\`; PySide6, PyOpenGL, Jinja2 and MarkupSafe in `pip-packages\`.
+- **Python**: Python 3.14 from the NuGet `python` package in the SDK `python\`; PySide6, PyOpenGL, Jinja2 and MarkupSafe in `pip-packages\`.
 - **Validation**: `UsdUtils.ComplianceChecker` was removed in OpenUSD 26.08; `UsdValidate.py` uses the `UsdValidation` framework with the usdchecker validators.
 
 ## Adding a new context menu verb
