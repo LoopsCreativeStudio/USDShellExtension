@@ -87,12 +87,12 @@ Var LogFilePath
 
 ;--------------------------------
 ;Pages
-!include "${__FILEDIR__}\UsdPathPage.nsh"
+; No NVIDIA SDK path page: the installer bundles the whole USD and Python
+; runtime, and the config paths always point to $INSTDIR.
 !include "${__FILEDIR__}\UsdConfigPage.nsh"
 
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_LICENSE "LICENSE.txt"
-Page custom USDPathPage USDPathPageLeave
 Page custom USDConfigPage USDConfigPageLeave
 ShowInstDetails show
 !insertmacro MUI_PAGE_INSTFILES
@@ -528,6 +528,9 @@ ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
 ${If} $R0 == ""
     WriteINIStr "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
 ${EndIf}
+; Older installers asked for the NVIDIA SDK folder and stored it here; nothing
+; reads it any more.
+DeleteINIStr "$ConfigFilePath" "USD" "SDK_ROOT"
 
 SetShellVarContext all
 StrCpy $ConfigFilePath "$COMMONAPPDATA\UsdShellExtension\UsdShellExtension.ini"
@@ -540,6 +543,7 @@ ReadINIStr $R0 "$ConfigFilePath" "PYTHON" "PYTHONPATH"
 ${If} $R0 == ""
     WriteINIStr "$ConfigFilePath" "PYTHON" "PYTHONPATH" "$INSTDIR\pip-packages"
 ${EndIf}
+DeleteINIStr "$ConfigFilePath" "USD" "SDK_ROOT"
 
 ; Force command-line settings into the current user config (highest priority).
 SetShellVarContext current

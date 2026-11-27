@@ -1,27 +1,4 @@
 
-Function ReadConfigFile
-    pop $0 ; file
-    pop $1 ; section
-    pop $2 ; key
-    pop $3 ; value
-
-    System::StrAlloc 1024
-    Pop $R1
-    System::Call 'Kernel32::GetPrivateProfileStringW(w r1, w r2, t "", p R1, i 1024, w r0)'
-    ; we can only store a max of 1024 characters in NSIS registers
-    System::Call "*$R1(&t1024 .s)"
-    System::Free $R1
-FunctionEnd
-
-!macro ReadConfigFile file section key value
-  push `${value}`
-  push `${key}`
-  push `${section}`
-  push `${file}`
-
-  Call ReadConfigFile
-!macroend
-
 Function WriteConfigFile
     pop $0 ; file
     pop $1 ; section

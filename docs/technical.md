@@ -170,7 +170,7 @@ After the normal build completes, this step:
 
 The installer filename follows the pattern `UsdShellExtension-vVERSION-uUSD-pPYTHON-setup.exe` (e.g. `UsdShellExtension-v1.2.0-u2508-p312-setup.exe`). The version is read from `version.props`.
 
-The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file. It also presents a configuration page during installation where the user can set USD SDK paths.
+The NSIS script bundles the entire `bin\v145\3.12\Release\` directory, including USD DLLs, Python, pip-packages, and the INI configuration file, so the target machine needs no NVIDIA SDK. The INI paths always point to the install directory; the configuration page only shows the INI files for the renderer and editor settings.
 
 ### `-Release`: publishing to GitHub
 

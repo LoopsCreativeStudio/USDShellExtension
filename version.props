@@ -19,6 +19,11 @@
     <ResourceCompile>
       <PreprocessorDefinitions>USD_VERSION_PRODUCTNAME=\"$(USD_VERSION_PRODUCTNAME)\";USD_VERSION_COMPANYNAME=\"$(USD_VERSION_COMPANYNAME)\";USD_VERSION_COPYRIGHT=\"$(USD_VERSION_COPYRIGHT)\";USD_VERSION_MAJOR=$(USD_VERSION_MAJOR);USD_VERSION_MINOR=$(USD_VERSION_MINOR);USD_VERSION_REVISION=$(USD_VERSION_REVISION);USD_VERSION_BUILD=$(USD_VERSION_BUILD);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
+    <!-- Store only the PDB file name in the binary, not the build machine path.
+         Debuggers still match the PDB by its GUID. -->
+    <Link>
+      <AdditionalOptions>/PDBALTPATH:%_PDB% %(AdditionalOptions)</AdditionalOptions>
+    </Link>
   </ItemDefinitionGroup>
 
 </Project>

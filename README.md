@@ -20,19 +20,9 @@
 
 ## Quick Install
 
-No build required. Two steps:
+No build required, and no separate USD or Python install: the installer bundles the USD and Python runtime.
 
-**1. Download the NVIDIA OpenUSD pre-built package**
-
-Go to the [NVIDIA OpenUSD page](https://developer.nvidia.com/openusd#section-getting-started) and download:
-
-> `usd.py312.windows-x86_64.usdview.release-v25.08`
-
-Extract it anywhere on your machine (e.g. `D:\usd.py312.windows-x86_64.usdview.release-v25.08`).
-
-**2. Run the installer**
-
-Download `UsdShellExtension-v*-setup.exe` from the [latest release](https://github.com/LoopsCreativeStudio/USDShellExtension/releases/latest) and run it as Administrator. The installer will ask for the path to the NVIDIA SDK and configure everything automatically.
+Download `UsdShellExtension-v*-setup.exe` from the [latest release](https://github.com/LoopsCreativeStudio/USDShellExtension/releases/latest) and run it as Administrator.
 
 That's it. Right-click any `.usd` / `.usda` / `.usdc` / `.usdz` file to get started.
 

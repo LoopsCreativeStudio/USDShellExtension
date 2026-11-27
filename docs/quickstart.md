@@ -56,6 +56,17 @@ Open PowerShell in the repository root and run:
 
 This finds MSBuild automatically, compiles all projects, and assembles the output in `bin\v145\3.12\Release\`.
 
+To also produce the setup `.exe`, run `.\build.ps1 -Installer` (needs [NSIS](https://nsis.sourceforge.io/) installed in `C:\Program Files\NSIS\`).
+
+Expected duration for a first build from a fresh clone (no `bin\` folder yet), measured on an Intel Core i7-11700KF (8 cores, 16 threads), 64 GB RAM, NVMe SSD, Windows 11 Pro:
+
+| Command | Duration | What takes the time |
+|---------|----------|---------------------|
+| `.\build.ps1` | about 25 s | Compiling the projects and copying the USD and Python runtime (about 640 MB) from the SDK |
+| `.\build.ps1 -Installer` (after the build above) | about 3 min | NSIS compressing the runtime into a setup `.exe` of about 120 MB |
+
+The USD SDK is pre-built, so nothing from USD itself is compiled. Later builds are incremental and faster. A slower disk or antivirus scanning of the copied files can lengthen the copy step.
+
 ## Step 5: Install
 
 Open an **Administrator** PowerShell and run:
