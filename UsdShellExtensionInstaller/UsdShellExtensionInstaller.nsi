@@ -32,7 +32,9 @@
 !define /ifndef VER_COMPANYNAME ""
 !define /ifndef VER_COPYRIGHT ""
 
-!define /ifndef VERSION "${VER_MAJOR}.${VER_MINOR}"
+; Full release number (e.g. 1.10.5), shown in the file properties (product
+; and file version) and on the welcome page.
+!define /ifndef VERSION "${VER_MAJOR}.${VER_MINOR}.${VER_REVISION}"
 !define /ifndef USD_VERSION "Unknown Version"
 !define /ifndef PYTHON_VERSION "Unknown Version"
 !define /ifndef GITHUB_URL "https://github.com/LoopsCreativeStudio/USDShellExtension"
