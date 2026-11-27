@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.10.5](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.4...v1.10.5) (2026-11-27)
+
+
+### Bug Fixes
+
+* **install:** always restore explorer auto-restart after the install scripts ([4db12b7](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/4db12b73ec8459c4a0478cd8dd33a171b3fc0af2))
+* **installer:** cancel reboot-time deletions of the files an install writes again ([8679cd5](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/8679cd55d364047fc088eb0fa9c206c829d98d0f))
+* **installer:** leave the user's explorer alone when setup runs as system ([6a61ab3](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/6a61ab3510b4abadc0916cecafef1decbbde4db9))
+* **installer:** stop passing an unset service pointer to restart manager ([d41ca50](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/d41ca504709a8710470c38f105a04057df7f5353))
+* **installer:** support unattended deployment as system ([e3c6bf8](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e3c6bf8e3736f40680e47379ea4f319627e7352d))
+
+
+### Tests
+
+* **installer:** add a silent deployment check running the setup as system ([7dd87e5](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/7dd87e566846c9c95d0cb69a00ec05a3d3e09a0c))
+* **installer:** add a silent deployment check running the setup as system ([a2cbd94](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/a2cbd943ad82b2459c4ea1afadab58ffe27691c1))
+* **installer:** compare only the top-level binaries in the deployment check ([e5b35d8](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/e5b35d8003977f28043ecaeefb5d8f41130b4c08))
+* **installer:** show progress and check explorer and pending deletions in the deployment check ([0c909aa](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/0c909aae14c2dc115f36657c6fe41186cc32785b))
+
 ## [1.10.4](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.3...v1.10.4) (2026-11-27)
 
 
