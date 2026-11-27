@@ -40,9 +40,15 @@ System::Call 'Rstrtmgr::RmRegisterResources(i $RmExplorerSession, i 1, p R1, i 0
 ; Only the taskbar of setup's own session is visible here: as SYSTEM (silent
 ; deployment) there is none, and the user's Explorer is left untouched.
 StrCpy $ExplorerStoppedBySetup 0
+; Session id of setup. $R2 and $R3 are saved and restored, so no register of
+; the callers is changed.
+Push $R2
+Push $R3
 System::Call 'kernel32::GetCurrentProcessId() i.R2'
-System::Call 'kernel32::ProcessIdToSessionId(i R2, *i .R3) i.R0'
+System::Call 'kernel32::ProcessIdToSessionId(i R2, *i .R3)'
 StrCpy $SetupSessionId $R3
+Pop $R3
+Pop $R2
 FindWindow $R0 "Shell_TrayWnd"
 ${If} $R0 != 0
     DetailPrint "Stopping Windows Explorer"
@@ -225,7 +231,9 @@ StrCpy $3 "$INSTDIR\${BOOSTDLL}"
 StrCpy $4 "$INSTDIR\${PYTHONDLL}"
 StrCpy $5 "$INSTDIR\UsdPreviewHandler.pyd"
 System::Call '*(w r0, w r1, w r2, w r3, w r4, w r5)p.R1 ?2'
-System::Call 'Rstrtmgr::RmRegisterResources(i $RmApplicationSession, i 6, p R1, i 0, p n, i 1, p R2) i.R0'
+; Files only: no process, no service (a service count of 1 with an unset
+; pointer made Restart Manager read a random address and crash setup).
+System::Call 'Rstrtmgr::RmRegisterResources(i $RmApplicationSession, i 6, p R1, i 0, p n, i 0, p n) i.R0'
 
 DetailPrint "Shutting down applications using the USD Shell Extension"
 

@@ -127,8 +127,11 @@ SetPluginUnload  alwaysoff
 Function LogWrite
     Exch $0
     Push $1
+    ; "a" opens for read and write at the START of the file: seek to the end
+    ; first, or every line would overwrite the previous ones.
     FileOpen $1 $LogFilePath a
     ${If} $1 != ""
+        FileSeek $1 0 END
         FileWriteUTF16LE $1 "$0$\r$\n"
         FileClose $1
     ${EndIf}
@@ -159,8 +162,11 @@ FunctionEnd
 Function un.LogWrite
     Exch $0
     Push $1
+    ; "a" opens for read and write at the START of the file: seek to the end
+    ; first, or every line would overwrite the previous ones.
     FileOpen $1 $LogFilePath a
     ${If} $1 != ""
+        FileSeek $1 0 END
         FileWriteUTF16LE $1 "$0$\r$\n"
         FileClose $1
     ${EndIf}
