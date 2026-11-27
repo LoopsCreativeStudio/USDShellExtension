@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.11.0](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.5...v1.11.0) (2026-11-27)
+
+
+### Features
+
+* **release:** publish the sha256 of the setup next to the installer ([dd25408](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/dd254080f05ea060ae186335edd33340016d11ab))
+
+
+### Bug Fixes
+
+* **installer:** show the full release number as the setup product version ([7c10052](https://github.com/LoopsCreativeStudio/USDShellExtension/commit/7c1005217121d135e98657eb2b181432b1a7d833))
+
 ## [1.10.5](https://github.com/LoopsCreativeStudio/USDShellExtension/compare/v1.10.4...v1.10.5) (2026-11-27)
 
 
