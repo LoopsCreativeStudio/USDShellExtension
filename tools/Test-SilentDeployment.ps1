@@ -135,6 +135,8 @@ function Test-ExplorerBack {
         Waits up to 30 s.
     #>
     param([int[]]$SessionsBefore)
+    # An empty list arrives as $null (StrictMode: no .Count on $null).
+    $SessionsBefore = @($SessionsBefore | Where-Object { $null -ne $_ })
     if ($SessionsBefore.Count -eq 0) {
         Write-Result "    (no user session with Explorer: nothing to check)" DarkGray
         return
@@ -183,11 +185,40 @@ function Test-InstalledState {
     Assert-Result (Test-Path (Join-Path $InstallDir "licenses\LGPL-3.0.txt")) "licenses folder installed"
     $pendingDeleteCount = Get-PendingDeleteCount
     Assert-Result ($pendingDeleteCount -eq 0) ("no reboot-time deletion left in the install folder ({0})" -f $pendingDeleteCount)
+    # The files of the build output must be the installed ones: a file still
+    # in use that setup could not overwrite would stay at its old version.
+    $buildOutput = Split-Path $SetupPath -Parent
+    $staleFiles = @(Get-ChildItem $buildOutput -File -Include *.dll, *.exe, *.pyd -Recurse -Depth 0 |
+        Where-Object { $_.Name -notlike '*-setup.exe' } |
+        Where-Object {
+            $installedFile = Join-Path $InstallDir $_.Name
+            (Test-Path $installedFile) -and
+                ((Get-FileHash $installedFile).Hash -ne (Get-FileHash $_.FullName).Hash)
+        } | ForEach-Object { $_.Name })
+    Assert-Result ($staleFiles.Count -eq 0) ("installed binaries identical to the build output{0}" -f
+        $(if ($staleFiles.Count) { ": differ " + ($staleFiles -join ', ') } else { "" }))
+
     $setupLog = Join-Path $systemTemp "UsdShellExtension_setup.log"
     Assert-Result (Test-Path $setupLog) "setup log in $systemTemp"
-    if (Test-Path $setupLog) {
-        Get-Content -LiteralPath $setupLog | Select-Object -Last 4 | ForEach-Object { Write-Result "    log | $_" DarkGray }
+    if (Test-Path $setupLog) { Show-LogTail $setupLog }
+}
+
+function Show-LogTail {
+    <#
+        Print the first bytes (to check the encoding) and the last lines of
+        an installer log, decoded as UTF-16 when it starts with its BOM.
+    #>
+    param([string]$LogPath)
+    $logBytes = [IO.File]::ReadAllBytes($LogPath)
+    $firstBytes = ($logBytes | Select-Object -First 8 | ForEach-Object { '{0:X2}' -f $_ }) -join ' '
+    Write-Result "    log first bytes: $firstBytes" DarkGray
+    $logText = if ($logBytes.Length -ge 2 -and $logBytes[0] -eq 0xFF -and $logBytes[1] -eq 0xFE) {
+        [Text.Encoding]::Unicode.GetString($logBytes, 2, $logBytes.Length - 2)
+    } else {
+        [Text.Encoding]::Default.GetString($logBytes)
     }
+    $logText -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 5 |
+        ForEach-Object { Write-Result "    log | $_" DarkGray }
 }
 
 # ---------------------------------------------------------------------------
@@ -252,10 +283,15 @@ if ($quietProperty) {
     # Checked right after the command returned: a non-waiting uninstaller
     # would still be running here.
     Assert-Result (-not (Test-Path $uninstallKey)) "Uninstall key removed when the command returns"
-    Assert-Result (-not (Test-Path (Join-Path $InstallDir "UsdShellExtension.dll"))) "UsdShellExtension.dll removed when the command returns"
-    # Expected after an uninstall with files in use (exit code 3010); the
-    # reinstall below must cancel them.
-    Write-Result ("    reboot-time deletions scheduled in the install folder: {0}" -f (Get-PendingDeleteCount))
+    # A DLL still loaded by the user's Explorer (left running when setup runs
+    # as SYSTEM) cannot be deleted now: it must then be scheduled for
+    # deletion at reboot, with exit code 3010. The reinstall below must
+    # cancel those deletions.
+    $pendingAfterUninstall = Get-PendingDeleteCount
+    Write-Result ("    reboot-time deletions scheduled in the install folder: {0}" -f $pendingAfterUninstall)
+    $dllLeft = Test-Path (Join-Path $InstallDir "UsdShellExtension.dll")
+    Assert-Result ((-not $dllLeft) -or ($pendingAfterUninstall -gt 0 -and $uninstallRun.ExitCode -eq 3010)) `
+        "UsdShellExtension.dll removed, or scheduled for deletion at reboot with exit code 3010"
     Test-ExplorerBack $explorerSessions
 } else {
     Assert-Result $false "QuietUninstallString available for the uninstall step"

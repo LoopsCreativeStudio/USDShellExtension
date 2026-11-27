@@ -7,6 +7,13 @@
 ;--------------------------------
 Var RmExplorerSession
 Var RmApplicationSession
+; 1 when ShutdownExplorer stopped Explorer itself. RestartExplorer acts only
+; then: run as SYSTEM (session 0, no desktop), setup cannot see the user's
+; taskbar, never stops Explorer, and must not kill or restart it either.
+Var ExplorerStoppedBySetup
+; Session of setup: taskkill is limited to it, so the Explorer of another
+; logged-on user is never killed.
+Var SetupSessionId
 Var RmWindowsSearchSession
 
 ;--------------------------------
@@ -30,10 +37,17 @@ System::Call 'Rstrtmgr::RmRegisterResources(i $RmExplorerSession, i 1, p R1, i 0
 ; Use taskkill /F (non-blocking from NSIS point of view via ExecToStack, but
 ; /F terminates immediately so the call returns in < 1 s), then poll so the
 ; UI can show elapsed time instead of appearing frozen.
+; Only the taskbar of setup's own session is visible here: as SYSTEM (silent
+; deployment) there is none, and the user's Explorer is left untouched.
+StrCpy $ExplorerStoppedBySetup 0
+System::Call 'kernel32::GetCurrentProcessId() i.R2'
+System::Call 'kernel32::ProcessIdToSessionId(i R2, *i .R3) i.R0'
+StrCpy $SetupSessionId $R3
 FindWindow $R0 "Shell_TrayWnd"
 ${If} $R0 != 0
     DetailPrint "Stopping Windows Explorer"
-    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /IM explorer.exe'
+    StrCpy $ExplorerStoppedBySetup 1
+    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /FI "SESSION eq $SetupSessionId" /IM explorer.exe'
     Pop $0
 
     ; /F is immediate; check right away first to avoid an unnecessary 1 s sleep.
@@ -74,6 +88,15 @@ FunctionEnd
 !macro RestartExplorer UN
 Function ${UN}RestartExplorer
 
+; Explorer not stopped by setup (none in setup's session, e.g. run as SYSTEM):
+; leave every Explorer as it is. Killing "explorer.exe" here would end the
+; logged-on user's shell, and a restart from session 0 is never visible.
+${If} $ExplorerStoppedBySetup != 1
+    System::Call 'Rstrtmgr::RmEndSession(i $RmExplorerSession) i.R0'
+    DetailPrint "Windows Explorer was not stopped by setup, left as is"
+    Return
+${EndIf}
+
 SetDetailsPrint textonly
 DetailPrint "Restarting Windows Explorer..."
 SetDetailsPrint listonly
@@ -102,7 +125,7 @@ ${Loop}
 FindWindow $R0 "Shell_TrayWnd"
 ${If} $R0 == 0
     DetailPrint "Forcing Explorer restart..."
-    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /IM explorer.exe'
+    nsExec::ExecToStack '"$SYSDIR\taskkill.exe" /F /FI "SESSION eq $SetupSessionId" /IM explorer.exe'
     Pop $0
     Sleep 1000
     Exec '$WINDIR\explorer.exe'
