@@ -426,7 +426,7 @@ ${If} $R0 != 0
     SetErrorLevel 2
     ; /SD IDOK: a silent install (/S, deployment as SYSTEM) must never wait
     ; on a dialog; the exit code 2 reports the failure.
-    MessageBox MB_OK|MB_ICONEXCLAMATION /SD IDOK "UsdShellExtension.dll registration failed (error $R0).$\r$\nThe extension will not appear in Windows Explorer.$\r$\nTry running the installer again as Administrator."
+    MessageBox MB_OK|MB_ICONEXCLAMATION "UsdShellExtension.dll registration failed (error $R0).$\r$\nThe extension will not appear in Windows Explorer.$\r$\nTry running the installer again as Administrator." /SD IDOK
 ${EndIf}
 
 ; Write the installation path into the registry
