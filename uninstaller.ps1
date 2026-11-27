@@ -171,9 +171,8 @@ Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkTo
 Stop-Process -Name "dllhost" -Force -ErrorAction SilentlyContinue
 Write-Item "COM servers stopped"
 
-# Add Defender exclusion now so it releases DLL handles before the wait loop.
-try { Add-MpPreference -ExclusionPath $InstallDir -ErrorAction Stop } catch { $null = $_ }
-Start-Sleep -Seconds 2
+# No Windows Defender exclusion: software must never weaken the antivirus.
+# Files still held (e.g. by a scan) are deleted at reboot further down.
 
 $winlogonKey     = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 $prevAutoRestart = 1
@@ -317,8 +316,6 @@ public static class PendingDelete {
 } else {
     Write-Item "Install directory removed"
 }
-
-try { Remove-MpPreference -ExclusionPath $InstallDir -ErrorAction SilentlyContinue } catch { $null = $_ }
 
 # ---------------------------------------------------------------------------
 # Restart services and Explorer

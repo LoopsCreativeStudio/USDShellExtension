@@ -52,10 +52,8 @@ function Remove-InstallDir {
     Stop-Process -Name "UsdPythonToolsLocalServer","UsdPreviewLocalServer","UsdSdkToolsLocalServer","dllhost" `
         -Force -ErrorAction SilentlyContinue
 
-    # Give Windows Defender time to release DLL handles after the exclusion is added.
-    try { Add-MpPreference -ExclusionPath $Dir -ErrorAction Stop } catch { $null = $_ }
-    Start-Sleep -Seconds 5
-
+    # No Windows Defender exclusion: software must never weaken the antivirus.
+    # Files still held (e.g. by a scan) are deleted at reboot below.
     & takeown /f "$Dir" /r 2>&1 | Out-Null
     & icacls "$Dir" /grant "*S-1-5-32-544:(F)" /t /c /q 2>&1 | Out-Null
     Get-ChildItem $Dir -Recurse -Force -ErrorAction SilentlyContinue | ForEach-Object {
@@ -68,10 +66,7 @@ function Remove-InstallDir {
     & cmd /c rd /s /q "$Dir" 2>&1 | Out-Null
     $ErrorActionPreference = $savedEap
 
-    if (-not (Test-Path $Dir)) {
-        try { Remove-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue } catch { $null = $_ }
-        return
-    }
+    if (-not (Test-Path $Dir)) { return }
 
     # Some files are still locked; schedule them for deletion on next reboot
     # (same mechanism as NSIS Delete /REBOOTOK).
@@ -92,8 +87,6 @@ public static class PendingDelete {
         Sort-Object FullName -Descending |
         ForEach-Object { [PendingDelete]::MoveFileExW($_.FullName, $null, [PendingDelete]::MOVEFILE_DELAY_UNTIL_REBOOT) | Out-Null }
     [PendingDelete]::MoveFileExW($Dir, $null, [PendingDelete]::MOVEFILE_DELAY_UNTIL_REBOOT) | Out-Null
-
-    try { Remove-MpPreference -ExclusionPath $Dir -ErrorAction SilentlyContinue } catch { $null = $_ }
 }
 
 function Invoke-Unregister {
@@ -406,10 +399,9 @@ Get-Process -Name "python","python3","python3.12" -ErrorAction SilentlyContinue 
     Stop-Process -Force -ErrorAction SilentlyContinue
 Write-Item "COM servers stopped"
 
-# Release Windows Defender handles on the install dir before the lock-wait loop.
-# Without this, Defender re-acquires DLL handles after scanning and the loop times out.
-try { Add-MpPreference -ExclusionPath $InstallDir -ErrorAction Stop } catch { $null = $_ }
-Start-Sleep -Seconds 2
+# No Windows Defender exclusion here: software must never weaken the
+# antivirus. A DLL still held by a scan is handled by the lock-wait loop and
+# by Copy-WithRetry (rename of the locked file).
 
 # Disable Explorer auto-restart so Win11 does not respawn it during the
 # lock-wait loop.  A restarted Explorer reloads UsdShellExtension.dll via
@@ -617,9 +609,6 @@ if (Test-Path $pipSrc) {
     elseif ($LASTEXITCODE -ge 8) { Write-Warning "pip-packages\: some locked files skipped (exit $LASTEXITCODE) - harmless if version unchanged." }
     Write-Item "pip-packages\ (PySide6, PyOpenGL, trimmed)"
 }
-
-# Remove the temporary Defender exclusion now that all file copies are complete.
-try { Remove-MpPreference -ExclusionPath $InstallDir -ErrorAction SilentlyContinue } catch { $null = $_ }
 
 # ---------------------------------------------------------------------------
 # Write system INI with correct absolute paths.

@@ -146,14 +146,61 @@ Set `.usd`, `.usda`, `.usdc`, `.usdz` to **USD Shell Extension**.
 
 ## Deploying to multiple machines
 
-The install is self-contained. To deploy without running `build.ps1` on each machine:
+Use the setup `.exe` from the [releases](https://github.com/LoopsCreativeStudio/USDShellExtension/releases): it is self-contained (USD and Python runtime included), installs silently, registers an entry in *Installed apps*, and replaces files that Explorer keeps loaded during an update.
 
-1. Build once on a build machine.
-2. Copy `bin\v145\3.12\Release\` to each target machine.
-3. Place a pre-written `UsdShellExtension.ini` in that folder.
-4. Run `register.bat` as Administrator on each target.
+### Silent install
 
-Or use the NSIS installer (`UsdShellExtensionInstaller` project) for an `.exe` setup package.
+Run as Administrator or SYSTEM (Intune, SCCM / ConfigMgr, a GPO startup script, Chocolatey):
+
+```bat
+UsdShellExtension-vX.Y.Z-u25.08-p3.12-setup.exe /S
+```
+
+| Option | Effect |
+|--------|--------|
+| `/S` | Silent: no window, no dialog. |
+| `/D=C:\Path\To\Folder` | Install folder. Must be the **last** argument, without quotes, even with spaces. Default: `C:\Program Files\UsdShellExtension`. |
+| `/RENDERER_PREVIEW=GL` (and `/RENDERER_THUMBNAIL=`, `/RENDERER_VIEW=`) | Hydra renderer written to the INI files. |
+
+An existing installation is uninstalled first (in its own folder, waiting for the end), then replaced. A deployment made by copying files, without an *Installed apps* entry, is simply overwritten.
+
+The installer stops Windows Explorer and restarts it at the end. With nobody logged in (startup or shutdown script) nothing is visible; with a user logged in, the taskbar and Explorer windows close and come back. No antivirus setting is changed.
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Installed. |
+| `1` | Cancelled by the user (interactive install only). |
+| `2` | Aborted, or `UsdShellExtension.dll` registration failed: the extension does not appear in Explorer. See the log. |
+| `3010` | Installed, but a file still in use is replaced at the next reboot. Treat it as a success with a pending reboot. |
+
+The log is written to `%TEMP%\UsdShellExtension_setup.log` of the installing account, i.e. `C:\Windows\Temp\UsdShellExtension_setup.log` when run as SYSTEM.
+
+### Detection rule
+
+Either of:
+
+- Registry: `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension`, value `DisplayVersion` (e.g. `1.10.5.0`); `InstallLocation` holds the install folder.
+- File: `C:\Program Files\UsdShellExtension\UsdPreviewLocalServer.exe` (file version = product version).
+
+### Silent uninstall
+
+```bat
+"C:\Program Files\UsdShellExtension\uninstall.exe" /S _?=C:\Program Files\UsdShellExtension
+```
+
+The same command is stored in the `QuietUninstallString` value of the Uninstall key. Keep `_?=<install folder>` (last, without quotes): without it the uninstaller copies itself to `%TEMP%` and returns immediately, before the uninstall is done. Exit codes: `0`, or `3010` when some files are deleted at the next reboot. The log is `%TEMP%\UsdShellExtension_uninstall.log`.
+
+### Examples
+
+- **Intune (Win32 app)**: package the `.exe` with the Win32 Content Prep Tool. Install command `UsdShellExtension-vX.Y.Z-u25.08-p3.12-setup.exe /S`, uninstall command as above, install behavior *System*, return code `3010` = *Soft reboot*, detection rule on the registry `DisplayVersion` or on the file.
+- **SCCM / ConfigMgr (application, script installer)**: same commands and detection rule; `3010` is a soft reboot by default.
+- **Chocolatey**: `Install-ChocolateyInstallPackage` with `silentArgs = '/S'` and `validExitCodes = @(0, 3010)`; in `chocolateyUninstall.ps1`, run `uninstall.exe /S _?=<install folder>` (folder from `InstallLocation`).
+
+### Manual deployment (no installer)
+
+Copying `bin\v145\3.12\Release\` and running `register.bat` as Administrator also works, but gives no *Installed apps* entry, no version detection and no clean uninstall, and an update fails while Explorer keeps the DLLs loaded. Prefer the setup `.exe`.
 
 ---
 

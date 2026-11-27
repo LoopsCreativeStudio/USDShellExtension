@@ -137,6 +137,25 @@ Function LogWrite
 FunctionEnd
 
 ;--------------------------------
+; Exit with 3010 (ERROR_SUCCESS_REBOOT_REQUIRED) when a file still in use
+; was scheduled for replacement or deletion at the next reboot, so that
+; deployment tools (Intune, SCCM, Chocolatey) report a pending reboot.
+; An error code already set (e.g. 2, registration failed) is kept.
+!macro ReportRebootRequired UN
+Function ${UN}ReportRebootRequired
+    ${If} ${RebootFlag}
+        GetErrorLevel $0
+        ${If} $0 <= 0
+            SetErrorLevel 3010
+        ${EndIf}
+        Push "Reboot required to finish replacing files in use (exit code 3010)"
+        Call ${UN}LogWrite
+        DetailPrint "A reboot is required to finish (exit code 3010)"
+    ${EndIf}
+FunctionEnd
+!macroend
+
+;--------------------------------
 Function un.LogWrite
     Exch $0
     Push $1
@@ -148,6 +167,10 @@ Function un.LogWrite
     Pop $1
     Pop $0
 FunctionEnd
+
+; Both variants after LogWrite and un.LogWrite, which they call.
+!insertmacro ReportRebootRequired ""
+!insertmacro ReportRebootRequired "un."
 
 ;--------------------------------
 Function .onInit
@@ -201,12 +224,9 @@ Call ShutdownWindowsSearch
 Call ShutdownApplications
 Call ShutdownCOMServers
 
-SetDetailsPrint textonly
-DetailPrint "Adding Windows Defender exclusion..."
-SetDetailsPrint listonly
-nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
-    Pop $0
-Sleep 2000
+; No Windows Defender exclusion: software must never weaken the antivirus,
+; and tamper protection blocks it anyway. Files still held by a scan are
+; handled by WaitForDllRelease and by the replace-on-reboot of InstallLib.
 
 !ifdef PYTHONDLL
 Push "$INSTDIR\${PYTHONDLL}"
@@ -221,24 +241,41 @@ Section "-UninstallPrevious"
 ${DisableX64FSRedirection}
 SetRegView 64
 
+; Run the uninstaller of the version already installed, if any. An install
+; without an Uninstall key (e.g. the 1.9.1.1 zip deployment) is skipped
+; without failing: the files are simply overwritten below.
 ReadRegStr $R0 HKLM \
 "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" \
 "UninstallString"
 StrCmp $R0 "" done
 
+; Folder of the installed version, which may differ from the new $INSTDIR
+; (/D=). Older installers did not write InstallLocation: fall back to the
+; folder of UninstallString ("<dir>\uninstall.exe", quoted).
+ReadRegStr $R1 HKLM \
+"Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" \
+"InstallLocation"
+${If} $R1 == ""
+    StrCpy $R2 $R0 "" 1      ; drop the opening quote
+    StrCpy $R2 $R2 -1        ; drop the closing quote
+    ${GetParent} $R2 $R1
+${EndIf}
+
+; Skip a stale key whose uninstaller no longer exists.
+${IfNot} ${FileExists} "$R1\uninstall.exe"
+    DetailPrint "Previous uninstaller not found in $R1, skipped"
+    Goto done
+${EndIf}
+
 SetDetailsPrint textonly
 DetailPrint "Uninstalling previous installation..."
 SetDetailsPrint listonly
-DetailPrint "Uninstalling previous installation"
+DetailPrint "Uninstalling previous installation from $R1"
 
-ClearErrors
-ExecWait '$R0 /S _?=$INSTDIR' ;Do not copy the uninstaller to a temp file
-IfErrors no_remove_uninstaller done
-;You can either use Delete /REBOOTOK in the uninstaller or add some code
-;here to remove the uninstaller. Use a registry key to check
-;whether the user has chosen to uninstall. If you are using an uninstaller
-;components page, make sure all sections are uninstalled.
-no_remove_uninstaller:
+; _?= runs the uninstaller in place and makes ExecWait wait for it; without
+; it the uninstaller copies itself to %TEMP% and returns immediately.
+ExecWait '"$R1\uninstall.exe" /S _?=$R1' $R3
+DetailPrint "Previous uninstaller exit code: $R3"
 
 done:
 
@@ -387,7 +424,9 @@ ExecWait '"$SYSDIR\regsvr32.exe" /s /n /i:"/force" "$INSTDIR\UsdShellExtension.d
 ${If} $R0 != 0
     DetailPrint "UsdShellExtension.dll registration failed (error $R0)"
     SetErrorLevel 2
-    MessageBox MB_OK|MB_ICONEXCLAMATION "UsdShellExtension.dll registration failed (error $R0).$\r$\nThe extension will not appear in Windows Explorer.$\r$\nTry running the installer again as Administrator."
+    ; /SD IDOK: a silent install (/S, deployment as SYSTEM) must never wait
+    ; on a dialog; the exit code 2 reports the failure.
+    MessageBox MB_OK|MB_ICONEXCLAMATION /SD IDOK "UsdShellExtension.dll registration failed (error $R0).$\r$\nThe extension will not appear in Windows Explorer.$\r$\nTry running the installer again as Administrator."
 ${EndIf}
 
 ; Write the installation path into the registry
@@ -399,6 +438,10 @@ WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShell
 WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "Publisher"      "${VER_COMPANYNAME}"
 WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "DisplayIcon"    "$INSTDIR\UsdShellExtension.dll,0"
 WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "UninstallString" '"$INSTDIR\uninstall.exe"'
+; Silent uninstall for deployment tools. _?= keeps the uninstaller in place
+; so the caller waits for the end of the uninstall; it must come last and
+; takes the rest of the line as the folder, spaces included.
+WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "QuietUninstallString" '"$INSTDIR\uninstall.exe" /S _?=$INSTDIR'
 WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "InstallLocation" "$INSTDIR"
 WriteRegStr   HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "URLInfoAbout"   "${GITHUB_URL}"
 WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\UsdShellExtension" "VersionMajor"  ${VER_MAJOR}
@@ -434,12 +477,6 @@ SetRegView 64
 Push "Restarting processes"
 Call LogWrite
 
-SetDetailsPrint textonly
-DetailPrint "Removing Windows Defender exclusion..."
-SetDetailsPrint listonly
-nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
-    Pop $0
-
 Call RestartExplorer
 Call RestartWindowsSearch
 Call RestartApplications
@@ -447,6 +484,8 @@ Call RestartApplications
 Push "Installation complete"
 Call LogWrite
 DetailPrint "Install log: $LogFilePath"
+
+Call ReportRebootRequired
 
 SectionEnd
 
@@ -571,13 +610,8 @@ SetRegView 64
 Push "Shutting down processes"
 Call un.LogWrite
 
-; Add Defender exclusion early so it releases DLL handles before deletion.
-SetDetailsPrint textonly
-DetailPrint "Adding Windows Defender exclusion..."
-SetDetailsPrint listonly
-nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Add-MpPreference -ExclusionPath '$INSTDIR' -ErrorAction Stop } catch {}$\""
-    Pop $0
-Sleep 2000
+; No Windows Defender exclusion (see the install section): files still held
+; are deleted at reboot (Delete /REBOOTOK, UnInstallLib).
 
 Call un.ShutdownExplorer
 Call un.ShutdownWindowsSearch
@@ -708,11 +742,6 @@ Call un.RestartExplorer
 Call un.RestartWindowsSearch
 Call un.RestartApplications
 
-; Remove the Defender exclusion added during shutdown.
-SetDetailsPrint textonly
-DetailPrint "Removing Windows Defender exclusion..."
-SetDetailsPrint listonly
-nsExec::ExecToStack "powershell.exe -NonInteractive -ExecutionPolicy Bypass -Command $\"try { Remove-MpPreference -ExclusionPath '$INSTDIR' } catch {}$\""
-    Pop $0
+Call un.ReportRebootRequired
 
 SectionEnd
