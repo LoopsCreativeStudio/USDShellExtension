@@ -34,7 +34,7 @@ Describe "Module exports" {
             'Assert-Path', 'Copy-ThirdPartyLicense', 'Copy-WithRetry', 'Find-NonRedistributableFile', 'Invoke-Robocopy', 'Read-DotEnv',
             'Write-Detail', 'Write-Item', 'Write-Removed', 'Write-Sha256File', 'Write-Step',
             'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
-            'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion'
+            'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion', 'Get-VersionedPythonDll'
         ) | Sort-Object
         $exported | Should -Be $expected
     }
@@ -534,5 +534,22 @@ Describe "Get-ProjectPythonVersion" {
         $propsPath = Join-Path $TestDrive "empty.props"
         Set-Content $propsPath '<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003"/>'
         { Get-ProjectPythonVersion -PropsPath $propsPath } | Should -Throw
+    }
+}
+
+Describe "Get-VersionedPythonDll" {
+    It "returns the versioned Python DLLs and never python3.dll" {
+        # The Win32 pattern python3??.dll also matches python3.dll, which the
+        # embedded Python needs (stable ABI of shiboken6 and PySide6).
+        $folder = Join-Path $TestDrive "install"
+        New-Item -ItemType Directory -Force $folder | Out-Null
+        foreach ($name in 'python3.dll', 'python312.dll', 'python314.dll', 'python314.zip', 'pythonw.exe') {
+            Set-Content -Path (Join-Path $folder $name) -Value ''
+        }
+        @(Get-VersionedPythonDll -Directory $folder | ForEach-Object Name) | Should -Be @('python312.dll', 'python314.dll')
+    }
+
+    It "returns nothing for a folder that does not exist" {
+        @(Get-VersionedPythonDll -Directory (Join-Path $TestDrive "missing")).Count | Should -Be 0
     }
 }

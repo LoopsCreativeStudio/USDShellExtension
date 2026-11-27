@@ -208,7 +208,9 @@ Write-Item "Shell processes stopped"
 
 # The bundled Python DLL (python312.dll, python314.dll, ...) is the file the
 # COM servers and Explorer keep loaded the longest.
-$installedPythonDll = Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
+# Regex, not the Win32 wildcard python3??.dll, which also matches python3.dll.
+$installedPythonDll = Get-ChildItem -LiteralPath $InstallDir -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^python3\d+\.dll$' } |
     Select-Object -First 1 -ExpandProperty Name
 if (-not $installedPythonDll) { $installedPythonDll = "python3.dll" }
 $lockedFile = Join-Path $InstallDir $installedPythonDll

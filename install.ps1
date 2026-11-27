@@ -202,8 +202,7 @@ $OUT_DIR = Join-Path $REPO "bin\v145\$($projectPython.Version)\$Config"
 # The Python DLL that running processes keep locked is the one already
 # installed (python312.dll when upgrading from a Python 3.12 build), not
 # necessarily the one about to be copied.
-$installedPythonDll = Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
-    Select-Object -First 1 -ExpandProperty Name
+$installedPythonDll = Get-VersionedPythonDll -Directory $InstallDir | Select-Object -First 1 -ExpandProperty Name
 if (-not $installedPythonDll) { $installedPythonDll = $projectPython.DllName }
 
 $version = if (Test-Path (Join-Path $REPO "version.txt")) {
@@ -532,7 +531,7 @@ Get-ChildItem $OUT_DIR -File | Where-Object {
 
 # A Python version change leaves the previous Python DLL (e.g. python312.dll)
 # in the install folder: remove it, so the next install waits on the right one.
-Get-ChildItem -LiteralPath $InstallDir -Filter "python3??.dll" -ErrorAction SilentlyContinue |
+Get-VersionedPythonDll -Directory $InstallDir |
     Where-Object { $_.Name -ne $projectPython.DllName } | ForEach-Object {
         Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
         if (Test-Path $_.FullName) { Write-Warning "$($_.Name) is still locked; it is removed at the next install." }

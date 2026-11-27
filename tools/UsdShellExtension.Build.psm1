@@ -515,11 +515,25 @@ function Get-ProjectPythonVersion {
     }
 }
 
+function Get-VersionedPythonDll {
+    <#
+        Return the versioned Python runtime DLLs of a folder (python312.dll,
+        python314.dll, ...), sorted by name. python3.dll, the stable ABI
+        forwarder that shiboken6 and PySide6 load, is never returned: the
+        Win32 wildcard python3??.dll would match it too, hence the regex.
+    #>
+    param([Parameter(Mandatory)][string]$Directory)
+
+    Get-ChildItem -LiteralPath $Directory -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^python3\d+\.dll$' } |
+        Sort-Object Name
+}
+
 Export-ModuleMember -Function @(
     'Read-DotEnv', 'Assert-Path',
     'Write-Step', 'Write-Detail', 'Write-Item', 'Write-Removed',
     'Copy-WithRetry', 'Invoke-Robocopy', 'Find-NonRedistributableFile',
     'Copy-ThirdPartyLicense', 'Write-Sha256File',
     'Get-OpenUsdLayout', 'Get-OpenUsdBuildArgument', 'Get-PathWithoutEntry',
-    'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion'
+    'Get-LicenseComponentName', 'Copy-OpenUsdLicense', 'Get-ProjectPythonVersion', 'Get-VersionedPythonDll'
 )
