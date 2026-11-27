@@ -174,7 +174,11 @@ Breaking changes must be indicated by a ``!`` before the ``:`` in the subject li
 
 
 ### Commit
-The commit message must start with the **type**, followed by a colon, then the type of changes made, followed by a short description of the change. A longer description can be added on the second line.
+The commit message must start with the **type**, followed by a colon, then the type of changes made, followed by a short description of the change. A longer description can be added after a blank line.
+
+The release notes are generated from the commit subjects. In the body, write plain sentences without a type prefix: release-please reads a `fix: ...` or `feat: ...` line in the body as an extra change and lists it again in the release notes. A change that must appear on its own in the release notes (another type or scope) gets its own commit.
+
+The release notes show `feat`, `fix`, `perf`, `revert`, `docs`, `build`, `test` and `refactor` commits; `ci`, `style` and `chore` commits are left out (see `release-please-config.json`).
 
 ### Examples
 **fix:** Short description for the fix
