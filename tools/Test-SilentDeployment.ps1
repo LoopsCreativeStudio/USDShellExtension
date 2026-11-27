@@ -81,9 +81,11 @@ function Get-UninstallEntry {
 
 function Invoke-AsSystem {
     <#
-        Run a command line as SYSTEM and return its exit code and duration.
-        The command line goes through a .cmd file so that its exact text
-        (quotes, spaces after _?=) reaches the program unchanged.
+        Run a command line as SYSTEM and return its exit code and duration,
+        showing the elapsed seconds while it runs (a silent install shows
+        nothing for up to two minutes). The command line goes through a .cmd
+        file so that its exact text (quotes, spaces after _?=) reaches the
+        program unchanged.
     #>
     param([string]$CommandLine)
     $commandFile = Join-Path $systemTemp "UsdShellExtension-deploy-test.cmd"
@@ -92,17 +94,72 @@ function Invoke-AsSystem {
         $CommandLine
         "exit /b %ERRORLEVEL%"
     )
+
+    # PsExec started directly (no PowerShell stderr handling to trip on), its
+    # console output discarded; the exit code is the one of the command.
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = (Get-Command psexec).Source
+    $startInfo.Arguments = "-accepteula -nobanner -s cmd /c `"$commandFile`""
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
     $stopwatch = [Diagnostics.Stopwatch]::StartNew()
-    # PsExec writes its progress to stderr. Windows PowerShell 5.1 turns each
-    # stderr line into an error record, which "Stop" would make terminating
-    # (and kill PsExec): use Continue for this call only (function scope).
-    $ErrorActionPreference = "Continue"
-    & psexec -accepteula -nobanner -s cmd /c $commandFile 2>&1 | Out-Null
-    $exitCode = $LASTEXITCODE
-    $ErrorActionPreference = "Stop"
+    $process = [System.Diagnostics.Process]::Start($startInfo)
+    $process.BeginOutputReadLine()
+    $process.BeginErrorReadLine()
+
+    # Elapsed time on one line, refreshed every second.
+    while (-not $process.WaitForExit(1000)) {
+        Write-Host ("`r    running as SYSTEM... {0,4} s" -f [int]$stopwatch.Elapsed.TotalSeconds) -NoNewline -ForegroundColor DarkGray
+    }
+    $process.WaitForExit()
     $stopwatch.Stop()
+    Write-Host ("`r" + (' ' * 40) + "`r") -NoNewline
     Remove-Item -LiteralPath $commandFile -Force -ErrorAction SilentlyContinue
-    [pscustomobject]@{ ExitCode = $exitCode; Seconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1) }
+    [pscustomobject]@{ ExitCode = $process.ExitCode; Seconds = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1) }
+}
+
+function Get-UserSessionWithExplorer {
+    <#
+        Return the session ids (> 0, i.e. user sessions) where Explorer runs.
+    #>
+    @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" |
+        Where-Object { $_.SessionId -gt 0 } | ForEach-Object { $_.SessionId } | Sort-Object -Unique)
+}
+
+function Test-ExplorerBack {
+    <#
+        After a step, check that Explorer runs again in every user session
+        where it ran before (Windows restarts it when AutoRestartShell is 1).
+        Waits up to 30 s.
+    #>
+    param([int[]]$SessionsBefore)
+    if ($SessionsBefore.Count -eq 0) {
+        Write-Result "    (no user session with Explorer: nothing to check)" DarkGray
+        return
+    }
+    $deadline = (Get-Date).AddSeconds(30)
+    do {
+        $missingSessions = @($SessionsBefore | Where-Object { $_ -notin (Get-UserSessionWithExplorer) })
+        if ($missingSessions.Count -eq 0) { break }
+        Start-Sleep -Seconds 1
+    } while ((Get-Date) -lt $deadline)
+    Assert-Result ($missingSessions.Count -eq 0) ("Explorer running again in session(s) {0}" -f ($SessionsBefore -join ', '))
+}
+
+function Get-PendingDeleteCount {
+    <#
+        Number of reboot-time deletions scheduled in the install folder
+        (PendingFileRenameOperations), counted with the installer's own
+        filter (Clear-PendingDelete.ps1).
+    #>
+    $sessionManager = Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' `
+        -Name PendingFileRenameOperations -ErrorAction SilentlyContinue
+    if (-not $sessionManager) { return 0 }
+    $operations = @($sessionManager.PendingFileRenameOperations)
+    $remainingOperations = @(Get-PendingOperationWithoutDelete $operations $InstallDir)
+    ($operations.Count - $remainingOperations.Count) / 2
 }
 
 function Test-InstalledState {
@@ -124,6 +181,8 @@ function Test-InstalledState {
     }
     Assert-Result (Test-Path (Join-Path $InstallDir "UsdPreviewLocalServer.exe")) "UsdPreviewLocalServer.exe at the install folder root"
     Assert-Result (Test-Path (Join-Path $InstallDir "licenses\LGPL-3.0.txt")) "licenses folder installed"
+    $pendingDeleteCount = Get-PendingDeleteCount
+    Assert-Result ($pendingDeleteCount -eq 0) ("no reboot-time deletion left in the install folder ({0})" -f $pendingDeleteCount)
     $setupLog = Join-Path $systemTemp "UsdShellExtension_setup.log"
     Assert-Result (Test-Path $setupLog) "setup log in $systemTemp"
     if (Test-Path $setupLog) {
@@ -145,6 +204,20 @@ $isAdministrator = ([Security.Principal.WindowsPrincipal][Security.Principal.Win
 if (-not $isAdministrator) { throw "Run this script in an elevated PowerShell." }
 Write-Result "Setup: $SetupPath"
 
+# Filter of the reboot-time deletions, shared with the installer. Only its
+# functions are loaded (from the AST): dot-sourcing the whole script would
+# bind its -InstallDir parameter over this script's $InstallDir.
+$pendingDeleteScript = [System.Management.Automation.Language.Parser]::ParseFile(
+    (Join-Path $repositoryRoot "UsdShellExtensionInstaller\Clear-PendingDelete.ps1"), [ref]$null, [ref]$null)
+foreach ($scriptFunction in $pendingDeleteScript.FindAll({
+        param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+    . ([scriptblock]::Create($scriptFunction.Extent.Text))
+}
+
+# Windows restarts a stopped Explorer only when AutoRestartShell is 1.
+$autoRestartShell = Get-ItemPropertyValue "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" "AutoRestartShell" -ErrorAction SilentlyContinue
+Assert-Result ($autoRestartShell -eq 1) "Winlogon AutoRestartShell is 1 ($autoRestartShell)"
+
 # Start without old SYSTEM logs, so a log found later comes from this run.
 Remove-Item -LiteralPath (Join-Path $systemTemp "UsdShellExtension_setup.log"),
     (Join-Path $systemTemp "UsdShellExtension_uninstall.log") -Force -ErrorAction SilentlyContinue
@@ -156,8 +229,10 @@ Write-Result ("Before: Uninstall key {0}" -f $(if ($previousEntry) { "present, v
 # 1. Silent install over the current installation
 # ---------------------------------------------------------------------------
 Write-Result "`n[1] Silent install as SYSTEM over the current installation" Cyan
+$explorerSessions = Get-UserSessionWithExplorer
 $installRun = Invoke-AsSystem "`"$SetupPath`" /S"
 Test-InstalledState $installRun
+Test-ExplorerBack $explorerSessions
 $previousUninstallLog = Join-Path $systemTemp "UsdShellExtension_uninstall.log"
 if ($previousEntry) {
     Assert-Result (Test-Path $previousUninstallLog) "previous version uninstalled by its own uninstaller (uninstall log present)"
@@ -170,6 +245,7 @@ Write-Result "`n[2] Silent uninstall as SYSTEM with QuietUninstallString" Cyan
 $entry = Get-UninstallEntry
 $quietProperty = if ($entry) { $entry.PSObject.Properties['QuietUninstallString'] }
 if ($quietProperty) {
+    $explorerSessions = Get-UserSessionWithExplorer
     $uninstallRun = Invoke-AsSystem $quietProperty.Value
     Write-Result ("    exit code {0}, {1} s" -f $uninstallRun.ExitCode, $uninstallRun.Seconds)
     Assert-Result ($uninstallRun.ExitCode -in 0, 3010) "exit code 0 or 3010"
@@ -177,6 +253,10 @@ if ($quietProperty) {
     # would still be running here.
     Assert-Result (-not (Test-Path $uninstallKey)) "Uninstall key removed when the command returns"
     Assert-Result (-not (Test-Path (Join-Path $InstallDir "UsdShellExtension.dll"))) "UsdShellExtension.dll removed when the command returns"
+    # Expected after an uninstall with files in use (exit code 3010); the
+    # reinstall below must cancel them.
+    Write-Result ("    reboot-time deletions scheduled in the install folder: {0}" -f (Get-PendingDeleteCount))
+    Test-ExplorerBack $explorerSessions
 } else {
     Assert-Result $false "QuietUninstallString available for the uninstall step"
 }
@@ -185,8 +265,10 @@ if ($quietProperty) {
 # 3. Silent install with no previous Uninstall key
 # ---------------------------------------------------------------------------
 Write-Result "`n[3] Silent install as SYSTEM with no previous Uninstall key" Cyan
+$explorerSessions = Get-UserSessionWithExplorer
 $reinstallRun = Invoke-AsSystem "`"$SetupPath`" /S"
 Test-InstalledState $reinstallRun
+Test-ExplorerBack $explorerSessions
 
 # ---------------------------------------------------------------------------
 # Summary
