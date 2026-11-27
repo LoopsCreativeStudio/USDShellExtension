@@ -12,7 +12,7 @@ import UsdPreviewHandler
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QWindow
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMenu, QLabel, QSlider, QPushButton, QStyle
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QMenu, QLabel, QSlider, QPushButton, QStyle, QSizePolicy
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 # USD 25.08 stageView.py calls QGLWidget.glDraw() which is a Qt 5 API not
@@ -20,6 +20,37 @@ from PySide6.QtOpenGLWidgets import QOpenGLWidget
 # scheduled correctly and _isFirstImage gets set to False.
 if not hasattr(QOpenGLWidget, 'glDraw'):
     QOpenGLWidget.glDraw = QOpenGLWidget.update
+
+class ElidedLabel(QLabel):
+    """Label showing its text elided on the left ("...") when too long.
+
+    It never asks for more width than it is given: a long prim path used to
+    widen the preview window beyond the Explorer pane, shifting the view and
+    cropping its right side. The full text stays available as a tooltip, and
+    the end of the path (the prim name) stays visible.
+    """
+
+    def __init__(self, text=""):
+        super().__init__()
+        self._fullText = ""
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+        self.setText(text)
+
+    def setText(self, text):
+        """Store the full text, show the part that fits."""
+        self._fullText = text
+        self.setToolTip(text)
+        self._showElidedText()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._showElidedText()
+
+    def _showElidedText(self):
+        available = max(0, self.contentsRect().width())
+        elided = self.fontMetrics().elidedText(self._fullText, Qt.TextElideMode.ElideLeft, available)
+        QLabel.setText(self, elided)
+
 
 class Widget(QWidget):
     def __init__(self, stage=None, app=None, previewApp=None):
@@ -40,7 +71,7 @@ class Widget(QWidget):
 
         self._selectedPath = ""
 
-        self._primLabel = QLabel("Select object to view prim path...")
+        self._primLabel = ElidedLabel("Select object to view prim path...")
         self._primLabel.setFixedHeight(20)
         self._primLabel.setStyleSheet(
             "QLabel { background-color: #1e1e1e; color: #555555; padding: 0px 6px; }")

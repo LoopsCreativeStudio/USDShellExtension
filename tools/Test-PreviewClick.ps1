@@ -301,11 +301,14 @@ try {
     Write-Detail "Changed px" (Compare-Capture (Join-Path $outDir "before.png") (Join-Path $outDir "after.png"))
     Write-Detail "Screenshots" $outDir
 
-    # The preview must stay where it was: Qt used to move it on activation.
+    # The preview must keep its place and size: Qt used to move it on
+    # activation, and a long prim path label used to widen it.
     $moved = [math]::Abs($stateAfter.RawRect.Left - $stateBefore.RawRect.Left) -gt 4 -or
              [math]::Abs($stateAfter.RawRect.Top - $stateBefore.RawRect.Top) -gt 4
-    if (-not $stateAfter.Visible -or $moved -or ($whiteBefore -lt 0.5 -and $whiteAfter -ge 0.5)) {
-        Write-Host ("    ! preview hidden, moved ({0}) or white after click + back to Explorer" -f $moved) -ForegroundColor Red
+    $resized = [math]::Abs(($stateAfter.RawRect.Right - $stateAfter.RawRect.Left) - ($stateBefore.RawRect.Right - $stateBefore.RawRect.Left)) -gt 4 -or
+               [math]::Abs(($stateAfter.RawRect.Bottom - $stateAfter.RawRect.Top) - ($stateBefore.RawRect.Bottom - $stateBefore.RawRect.Top)) -gt 4
+    if (-not $stateAfter.Visible -or $moved -or $resized -or ($whiteBefore -lt 0.5 -and $whiteAfter -ge 0.5)) {
+        Write-Host ("    ! preview hidden, moved ({0}), resized ({1}) or white after click + back to Explorer" -f $moved, $resized) -ForegroundColor Red
         $script:failed = $true
     } else {
         Write-Item "preview still drawn after the click"
