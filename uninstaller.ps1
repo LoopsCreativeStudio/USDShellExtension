@@ -182,9 +182,12 @@ try {
     Set-ItemProperty $winlogonKey "AutoRestartShell" 0 -Type DWord -ErrorAction SilentlyContinue
 } catch { $null = $_ }
 
-@("explorer","SearchHost","ShellExperienceHost","StartMenuExperienceHost",
+# prevhost.exe hosts the Explorer preview pane handlers: it survives Explorer
+# and would start a new UsdPreviewLocalServer, whose Python locks lib\python.
+@("explorer","prevhost","SearchHost","ShellExperienceHost","StartMenuExperienceHost",
   "SearchIndexer","SearchProtocolHost","SearchFilterHost") |
     ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
+Stop-Process -Name "UsdPreviewLocalServer" -Force -ErrorAction SilentlyContinue
 Write-Item "Shell processes stopped"
 
 $lockedFile = Join-Path $InstallDir "python312.dll"
@@ -203,7 +206,8 @@ if (Test-Path $lockedFile) {
             if ($waited -eq 0) {
                 Write-Host "    python312.dll still locked, waiting..." -ForegroundColor DarkYellow
             }
-            @("dllhost","explorer","SearchIndexer","SearchProtocolHost","SearchFilterHost") |
+            @("dllhost","explorer","prevhost","UsdPreviewLocalServer",
+              "SearchIndexer","SearchProtocolHost","SearchFilterHost") |
                 ForEach-Object { Stop-Process -Name $_ -Force -ErrorAction SilentlyContinue }
             Start-Sleep -Seconds 1
             $waited++
